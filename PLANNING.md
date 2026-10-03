@@ -64,12 +64,13 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 ## Fase 1 · Catálogo (solo lectura)
 
-### ☐ Día 3 — Leer los datos de los `.mp4`
+### ☑ Día 3 — Leer los datos de los `.mp4`
 - Leer desde la app los campos de "Propiedades → Detalles": título, subtítulo, comentarios, reparto, año, género, estrellas, director, productores, compositores y clasificación parental.
 - Leer la **carátula incrustada**, la duración, la resolución y el tamaño.
 - Prueba con 10 películas reales comparando con lo que muestra Windows.
 
 **Al terminar:** la app muestra los datos reales de una película elegida.
+**Hecho:** Ajustes → *Leer un archivo .mp4*. Para probar desde la terminal: `dart run tool/probar_lectura.dart` (lee 10 películas de `D:\`, ~0,12 s cada una).
 
 ### ☐ Día 4 — Escaneo del disco y base de datos
 - Base de datos local (SQLite) con el modelo `Película`.

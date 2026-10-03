@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../pantallas/ficha.dart' show InsigniaEdad;
 import '../tema/colores.dart';
@@ -63,6 +64,14 @@ class PantallaAjustes extends ConsumerWidget {
                       fontSize: 14,
                       height: 1.6,
                       color: context.colores.textoSuave,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.go('/lectura'),
+                      icon: const Icon(Icons.manage_search_rounded, size: 18),
+                      label: const Text('Leer un archivo .mp4'),
                     ),
                   ),
                 ],

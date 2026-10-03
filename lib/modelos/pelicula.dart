@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 import 'dart:ui' show Color;
 
+import '../disco/lector_archivo.dart';
+
 /// Una película de la colección.
 ///
-/// De momento es una clase sencilla para los datos de ejemplo. El día 4 se
-/// convertirá en una tabla de la base de datos (Drift) con estos mismos campos.
+/// De momento es una clase sencilla (datos de ejemplo o leídos de un `.mp4`).
+/// El día 4 se convertirá en una tabla de la base de datos (Drift) con estos mismos campos.
 class Pelicula {
   const Pelicula({
     required this.id,
@@ -36,6 +38,34 @@ class Pelicula {
     this.tono = const Color(0xFF2E4034),
     this.caratula,
   });
+
+  /// Película a partir de lo leído en su `.mp4`.
+  factory Pelicula.desdeArchivo(DatosArchivo d, {int id = 0}) => Pelicula(
+    id: id,
+    titulo: d.titulo,
+    tituloOriginal: d.texto('System.Media.SubTitle'),
+    anio: d.anio,
+    ruta: d.ruta,
+    generos: d.generos,
+    temas: d.lista('System.Keywords'),
+    sinopsis: d.texto('System.Comment'),
+    direccion: d.texto('System.Video.Director'),
+    guion: d.texto('System.Media.Writer'),
+    reparto: d.texto('System.Music.Artist'),
+    musica: d.texto('System.Music.Composer'),
+    fotografia: d.texto('System.Music.Conductor'),
+    productora: d.texto('System.Media.Producer'),
+    pais: d.texto('System.Media.Publisher'),
+    premios: d.texto('System.Music.Period'),
+    clasificacion: d.texto('System.ParentalRating'),
+    estrellas: d.estrellas,
+    duracionMin: d.duracionMin,
+    resolucion: d.resolucion,
+    tamanoBytes: d.tamanoBytes,
+    saga: d.texto('System.Music.AlbumTitle'),
+    numeroSaga: d.numero('System.Music.TrackNumber'),
+    caratula: d.caratula,
+  );
 
   final int id;
 
@@ -79,7 +109,7 @@ class Pelicula {
   /// Color de la carátula provisional mientras no hay imagen.
   final Color tono;
 
-  /// Carátula incrustada en el `.mp4` (llegará el día 3).
+  /// Carátula incrustada en el `.mp4`.
   final Uint8List? caratula;
 
   /// Carpeta donde está el archivo (sin el nombre).

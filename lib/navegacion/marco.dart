@@ -103,7 +103,9 @@ class Marco extends StatelessWidget {
   /// Qué entrada del menú lateral se ilumina según la pantalla actual.
   static String _activoEscritorio(String ruta) {
     if (ruta.startsWith('/pelicula') || ruta == '/generos') return '/catalogo';
-    if (ruta == '/mas') return '/ajustes';
+    if (ruta == '/mas' || ruta == '/lectura' || ruta == '/archivo') {
+      return '/ajustes';
+    }
     return ruta;
   }
 

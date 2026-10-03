@@ -12,13 +12,17 @@ import '../widgets/comunes.dart';
 
 /// Ficha completa de una película.
 class PantallaFicha extends StatelessWidget {
-  const PantallaFicha({super.key, required this.id});
+  const PantallaFicha({super.key, this.id = 0, this.pelicula});
 
   final int id;
 
+  /// Película ya cargada (p. ej. leída directamente de un `.mp4`). Si no se
+  /// da, se busca por [id].
+  final Pelicula? pelicula;
+
   @override
   Widget build(BuildContext context) {
-    final p = peliculaPorId(id);
+    final p = pelicula ?? peliculaPorId(id);
     if (p == null) {
       return PaginaBase(
         children: [
@@ -36,8 +40,8 @@ class PantallaFicha extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               p.caratula == null
-                  ? 'Carátula provisional (la real llega el día 3)'
-                  : 'Carátula personalizada · 350 × 500',
+                  ? 'Sin carátula incrustada'
+                  : 'Carátula incrustada en el archivo',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: context.colores.textoTenue),
             ),

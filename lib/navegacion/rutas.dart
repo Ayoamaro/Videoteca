@@ -8,7 +8,9 @@ import '../pantallas/completar_coleccion.dart';
 import '../pantallas/estadisticas.dart';
 import '../pantallas/ficha.dart';
 import '../pantallas/generos.dart';
+import '../modelos/pelicula.dart';
 import '../pantallas/inicio.dart';
+import '../pantallas/lectura.dart';
 import '../pantallas/mas.dart';
 import '../pantallas/nuevas.dart';
 import '../pantallas/pendientes.dart';
@@ -53,6 +55,15 @@ final rutasProvider = Provider<GoRouter>((ref) {
                 id: int.tryParse(e.pathParameters['id'] ?? '') ?? 0,
               ),
             ),
+          ),
+          GoRoute(
+            path: '/archivo',
+            pageBuilder: (c, e) =>
+                sinAnimacion(e, PantallaFicha(pelicula: e.extra as Pelicula?)),
+          ),
+          GoRoute(
+            path: '/lectura',
+            pageBuilder: (c, e) => sinAnimacion(e, const PantallaLectura()),
           ),
           GoRoute(
             path: '/estadisticas',

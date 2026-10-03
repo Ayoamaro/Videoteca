@@ -40,7 +40,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 ## Fase 0 · Preparación
 
-### ☐ Día 1 — Entorno y repositorio
+### ☑ Día 1 — Entorno y repositorio
 **Objetivo:** dejar el PC listo para programar y el proyecto en GitHub.
 - Instalar **Flutter**, **Visual Studio Community** (con "Desarrollo para el escritorio con C++"), **Android Studio** (con el SDK de Android) y las extensiones de Flutter y Dart en VS Code.
 - Comprobar con `flutter doctor` que todo está bien.

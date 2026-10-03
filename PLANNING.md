@@ -51,7 +51,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Al terminar:** la app vacía se abre en Windows.
 **Necesito de ti:** aceptar las instalaciones y entrar en tu cuenta de GitHub.
 
-### ☐ Día 2 — Esqueleto visual
+### ☑ Día 2 — Esqueleto visual
 **Objetivo:** la app con el aspecto del diseño, aún sin datos reales.
 - Tema oscuro "sala de cine": colores, tipografías (Bricolage Grotesque + Manrope) y modo claro.
 - Navegación: menú lateral en Windows y barra inferior en Android.

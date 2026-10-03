@@ -1,0 +1,35 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../datos/ejemplo.dart';
+import '../widgets/comunes.dart';
+import 'inicio.dart' show BotonGenero;
+
+/// Lista de géneros (pestaña "Géneros" del móvil).
+class PantallaGeneros extends StatelessWidget {
+  const PantallaGeneros({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return PaginaBase(
+      separacion: 20,
+      children: [
+        const CabeceraPagina(titulo: 'Géneros'),
+        CuadriculaAdaptable(
+          anchoMinimo: 200,
+          separacion: 10,
+          children: [
+            for (final (nombre, total) in generosEjemplo)
+              BotonGenero(
+                nombre: nombre,
+                total: total,
+                alPulsar: () => context.go(
+                  '/catalogo?genero=${Uri.encodeQueryComponent(nombre)}',
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}

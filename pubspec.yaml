@@ -46,6 +46,8 @@ dependencies:
   image: ^4.10.1
   http: ^1.6.0
   html: ^0.15.7
+  cryptography: ^2.9.0
+  crypto: ^3.0.7
 dev_dependencies:
   flutter_test:
     sdk: flutter

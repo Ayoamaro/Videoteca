@@ -50,6 +50,13 @@ class CarpetasApp {
   /// Perfil propio de la ventana de Edge con la que se lee FilmAffinity.
   String get navegador => '$raiz${_sep}navegador';
 
+  /// Lo que se prepara para publicar en el tablón: miniaturas WebP y qué
+  /// se publicó la última vez.
+  String get tablon => '$raiz${_sep}tablon';
+  String get miniaturasTablon => '$tablon${_sep}caratulas';
+  String miniaturaTablon(int id) => '$miniaturasTablon$_sep$id.webp';
+  String get estadoTablon => '$tablon${_sep}estado.json';
+
   /// Miniatura de la carátula de la película con número [id].
   String miniatura(int id) => '$miniaturas$_sep$id.jpg';
 

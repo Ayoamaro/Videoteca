@@ -4,8 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../datos/catalogo.dart';
 import '../datos/fuentes.dart';
+import '../datos/publicacion.dart';
+import '../disco/acciones_windows.dart';
 import '../fuentes/conexion.dart';
 import '../fuentes/conversiones.dart';
+import '../pantallas/nuevas.dart' show cuandoTexto;
+import '../tablon/github.dart';
 import '../pantallas/ficha.dart' show InsigniaEdad;
 import '../tema/colores.dart';
 import '../tema/tema.dart';
@@ -58,28 +62,7 @@ class PantallaAjustes extends ConsumerWidget {
             ),
             if (esAdministrador) ...[
               const _SeccionColeccion(),
-              _Seccion(
-                titulo: 'Publicación (tablón en GitHub)',
-                dia: 14,
-                children: [
-                  _campo(
-                    context,
-                    'Repositorio del tablón',
-                    '[TU-USUARIO]/videoteca-tablon',
-                    monoespacio: true,
-                  ),
-                  _campo(
-                    context,
-                    'Llave de acceso de GitHub',
-                    'Se guarda solo en este PC',
-                  ),
-                  _campo(
-                    context,
-                    'Contraseña común para los usuarios',
-                    'Se elige el día 14',
-                  ),
-                ],
-              ),
+              const _SeccionTablon(),
               const _SeccionServicios(),
               _Seccion(
                 titulo: 'Rotten Tomatoes → estrellas',
@@ -176,74 +159,21 @@ class PantallaAjustes extends ConsumerWidget {
       ],
     );
   }
-
-  Widget _campo(
-    BuildContext context,
-    String etiqueta,
-    String valor, {
-    bool monoespacio = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          etiqueta,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: context.colores.textoSuave,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          initialValue: valor,
-          readOnly: true,
-          style: TextStyle(
-            fontSize: 14,
-            fontFamily: monoespacio ? fuenteRutas : null,
-            color: context.colores.textoSecundario,
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _Seccion extends StatelessWidget {
-  const _Seccion({required this.titulo, required this.children, this.dia});
+  const _Seccion({required this.titulo, required this.children});
 
   final String titulo;
   final List<Widget> children;
 
-  /// Día del planning en que esta sección empieza a funcionar.
-  final int? dia;
-
   @override
   Widget build(BuildContext context) {
-    final c = context.colores;
     return Tarjeta(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  titulo,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              if (dia != null)
-                Text(
-                  'Día $dia',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: c.textoTenue,
-                  ),
-                ),
-            ],
-          ),
+          Text(titulo, style: Theme.of(context).textTheme.titleMedium),
           for (final hijo in children) ...[const SizedBox(height: 14), hijo],
         ],
       ),
@@ -551,4 +481,385 @@ class _EstadoCampoClave extends ConsumerState<_CampoClave> {
       ],
     );
   }
+}
+
+/// Publicación en el tablón de GitHub: configurarla y ver cómo va.
+class _SeccionTablon extends ConsumerStatefulWidget {
+  const _SeccionTablon();
+
+  @override
+  ConsumerState<_SeccionTablon> createState() => _EstadoSeccionTablon();
+}
+
+/// Qué se está cambiando en la sección del tablón.
+enum _Edicion { nada, todo, contrasena, llave }
+
+class _EstadoSeccionTablon extends ConsumerState<_SeccionTablon> {
+  final _repositorio = TextEditingController();
+  final _llave = TextEditingController();
+  final _contrasena = TextEditingController();
+  final _repetida = TextEditingController();
+  var _edicion = _Edicion.nada;
+  var _probando = false;
+  String? _error;
+
+  /// Aviso tras configurar (p. ej. repositorio privado).
+  String? _aviso;
+
+  @override
+  void dispose() {
+    for (final c in [_repositorio, _llave, _contrasena, _repetida]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _editar(_Edicion que) {
+    final estado = ref.read(tablonProvider);
+    setState(() {
+      _edicion = que;
+      _error = null;
+      _aviso = null;
+      _repositorio.text = estado.repositorio;
+      _llave.clear();
+      _contrasena.clear();
+      _repetida.clear();
+    });
+  }
+
+  Future<void> _guardar() async {
+    final estado = ref.read(tablonProvider);
+    final pideContrasena =
+        _edicion == _Edicion.contrasena ||
+        (_edicion == _Edicion.todo && estado.llave == null);
+    final pideLlave = _edicion != _Edicion.contrasena;
+    String? error;
+    if (pideLlave && _llave.text.trim().isEmpty) {
+      error = 'Pega la llave de acceso de GitHub.';
+    } else if (pideContrasena && _contrasena.text.length < 8) {
+      error = 'La contraseña común tiene que tener al menos 8 letras.';
+    } else if (pideContrasena && _contrasena.text != _repetida.text) {
+      error = 'Las dos contraseñas no coinciden.';
+    }
+    if (error != null) {
+      setState(() => _error = error);
+      return;
+    }
+    setState(() {
+      _probando = true;
+      _error = null;
+    });
+    try {
+      final info = await ref
+          .read(tablonProvider.notifier)
+          .configurar(
+            repositorio: _edicion == _Edicion.todo
+                ? _repositorio.text
+                : estado.repositorio,
+            llaveGithub: pideLlave ? _llave.text : estado.llaveGithub,
+            contrasena: pideContrasena ? _contrasena.text : null,
+          );
+      if (!mounted) return;
+      setState(() {
+        _edicion = _Edicion.nada;
+        _aviso = info.privado
+            ? 'El repositorio «${info.nombre}» es privado: los móviles no '
+                  'podrán descargar el catálogo. Hazlo público en GitHub '
+                  '(Settings → Danger Zone → Change visibility); todo lo que '
+                  'hay dentro va cifrado.'
+            : null;
+      });
+    } on TablonException catch (e) {
+      if (mounted) setState(() => _error = e.mensaje);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'No se ha podido comprobar: $e');
+    } finally {
+      if (mounted) setState(() => _probando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final estado = ref.watch(tablonProvider);
+    final notificador = ref.read(tablonProvider.notifier);
+    final explicacion = Text(
+      'El catálogo y las carátulas se suben cifrados a un repositorio de '
+      'GitHub. Los móviles los descargan y entran con la contraseña común.',
+      style: TextStyle(fontSize: 13, color: c.textoSecundario),
+    );
+
+    if (!estado.configurado && _edicion == _Edicion.nada) {
+      return _Seccion(
+        titulo: 'Publicación (tablón en GitHub)',
+        children: [
+          explicacion,
+          Row(
+            children: [
+              Pastilla(
+                'Sin configurar',
+                color: c.naranja,
+                fondo: c.naranjaFondo,
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed: () => _editar(_Edicion.todo),
+                child: const Text('Configurar'),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+    if (_edicion != _Edicion.nada) {
+      return _Seccion(
+        titulo: 'Publicación (tablón en GitHub)',
+        children: _formulario(context, estado),
+      );
+    }
+
+    final (pastilla, color, fondo) = switch (estado.fase) {
+      FasePublicacion.publicando => ('Publicando…', c.azul, c.azulFondo),
+      FasePublicacion.esperando => (
+        'Cambios por publicar',
+        c.naranja,
+        c.naranjaFondo,
+      ),
+      FasePublicacion.error => ('No publicado', c.rojo, c.rojoFondo),
+      _ when estado.version == 0 => ('Sin publicar', c.naranja, c.naranjaFondo),
+      _ => ('Al día', c.verde, c.verdeFondo),
+    };
+    final progreso = estado.progreso;
+    final ultimo = estado.ultimo;
+    return _Seccion(
+      titulo: 'Publicación (tablón en GitHub)',
+      children: [
+        Row(
+          children: [
+            Icon(Icons.cloud_upload_rounded, color: c.doradoTexto),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                estado.repositorio,
+                style: TextStyle(
+                  fontFamily: fuenteRutas,
+                  fontSize: 15,
+                  color: c.texto,
+                ),
+              ),
+            ),
+            Pastilla(pastilla, color: color, fondo: fondo),
+          ],
+        ),
+        Text(
+          estado.version == 0
+              ? 'Todavía no se ha publicado ninguna versión.'
+              : 'Versión ${estado.version} · publicada: '
+                    '${cuandoTexto(estado.fecha).toLowerCase()}'
+                    '${ultimo == null ? '' : ' · ${formatoNumero(ultimo.peliculas)} películas'}',
+          style: TextStyle(fontSize: 14, height: 1.5, color: c.textoSuave),
+        ),
+        if (estado.fase == FasePublicacion.publicando) ...[
+          LinearProgressIndicator(
+            value: progreso == null || progreso.total == 0
+                ? null
+                : progreso.hechos / progreso.total,
+          ),
+          Text(
+            progreso == null
+                ? 'Empezando…'
+                : progreso.total == 0
+                ? '${progreso.fase}…'
+                : '${progreso.fase}: ${formatoNumero(progreso.hechos)} de '
+                      '${formatoNumero(progreso.total)}',
+            style: TextStyle(fontSize: 13, color: c.textoSecundario),
+          ),
+        ] else if (estado.fase == FasePublicacion.error)
+          Text(
+            estado.error ?? 'Error desconocido.',
+            style: TextStyle(fontSize: 13, color: c.rojo),
+          )
+        else if (ultimo != null)
+          Text(
+            ultimo.sinCambios
+                ? 'Comprobado: no había nada nuevo que publicar.'
+                : 'Última publicación: ${ultimo.subidos} '
+                      '${ultimo.subidos == 1 ? 'archivo subido' : 'archivos subidos'} '
+                      '(${_tamano(ultimo.bytes)}).',
+            style: TextStyle(fontSize: 13, color: c.textoSecundario),
+          ),
+        if (_aviso != null)
+          Text(_aviso!, style: TextStyle(fontSize: 13, color: c.naranja)),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: estado.automatico,
+          onChanged: notificador.cambiarAutomatico,
+          title: const Text('Publicar solo al cambiar el catálogo'),
+          subtitle: Text(
+            'Medio minuto después de guardar una ficha o de llegar una película.',
+            style: TextStyle(fontSize: 12, color: c.textoSecundario),
+          ),
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.icon(
+              onPressed: estado.fase == FasePublicacion.publicando
+                  ? null
+                  : notificador.publicarAhora,
+              icon: const Icon(Icons.publish_rounded, size: 18),
+              label: const Text('Publicar ahora'),
+            ),
+            OutlinedButton(
+              onPressed: estado.fase == FasePublicacion.publicando
+                  ? null
+                  : () => _editar(_Edicion.contrasena),
+              child: const Text('Cambiar contraseña común'),
+            ),
+            OutlinedButton(
+              onPressed: estado.fase == FasePublicacion.publicando
+                  ? null
+                  : () => _editar(_Edicion.llave),
+              child: const Text('Cambiar llave de GitHub'),
+            ),
+            TextButton.icon(
+              onPressed: () =>
+                  abrirConWindows('https://github.com/${estado.repositorio}'),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Ver en GitHub'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _formulario(BuildContext context, EstadoTablon estado) {
+    final c = context.colores;
+    final todo = _edicion == _Edicion.todo;
+    final pideContrasena =
+        _edicion == _Edicion.contrasena || (todo && estado.llave == null);
+    final pideLlave = _edicion != _Edicion.contrasena;
+    Widget etiqueta(String texto) => Text(
+      texto,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: c.textoSuave,
+      ),
+    );
+    Widget ayuda(String texto) =>
+        Text(texto, style: TextStyle(fontSize: 12, color: c.textoSecundario));
+
+    return [
+      if (_edicion == _Edicion.contrasena)
+        Text(
+          'Con una contraseña nueva se vuelve a cifrar y subir todo, y en los '
+          'móviles habrá que entrar con la nueva.',
+          style: TextStyle(fontSize: 13, color: c.naranja),
+        )
+      else
+        Text(
+          'El catálogo y las carátulas se suben cifrados a un repositorio de '
+          'GitHub. Los móviles los descargan y entran con la contraseña común.',
+          style: TextStyle(fontSize: 13, color: c.textoSecundario),
+        ),
+      if (todo) ...[
+        etiqueta('Repositorio del tablón'),
+        TextField(
+          controller: _repositorio,
+          enabled: !_probando,
+          style: const TextStyle(fontFamily: fuenteRutas, fontSize: 14),
+          decoration: const InputDecoration(
+            hintText: 'usuario/Videoteca_Tablon',
+          ),
+        ),
+        ayuda(
+          'Un repositorio aparte del código, público (lo de dentro va '
+          'cifrado). Se escribe «usuario/nombre».',
+        ),
+      ],
+      if (pideLlave) ...[
+        Row(
+          children: [
+            Expanded(child: etiqueta('Llave de acceso de GitHub')),
+            TextButton.icon(
+              onPressed: () => abrirConWindows(_direccionNuevaLlave),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Crear una llave'),
+            ),
+          ],
+        ),
+        TextField(
+          controller: _llave,
+          enabled: !_probando,
+          obscureText: true,
+          style: const TextStyle(fontFamily: fuenteRutas, fontSize: 14),
+          decoration: const InputDecoration(hintText: 'github_pat_…'),
+        ),
+        ayuda(
+          'Una llave «fine-grained» solo para el repositorio del tablón, con '
+          'permiso «Contents: Read and write». Se guarda solo en este PC.',
+        ),
+      ],
+      if (pideContrasena) ...[
+        etiqueta(
+          _edicion == _Edicion.contrasena
+              ? 'Contraseña común nueva'
+              : 'Contraseña común para los usuarios',
+        ),
+        TextField(
+          controller: _contrasena,
+          enabled: !_probando,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: 'Al menos 8 letras'),
+        ),
+        TextField(
+          controller: _repetida,
+          enabled: !_probando,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: 'Repítela'),
+          onSubmitted: (_) => _guardar(),
+        ),
+        ayuda(
+          'Es la que pondrán en los móviles. No se guarda en ningún sitio: '
+          'apúntala.',
+        ),
+      ],
+      if (_error != null)
+        Text(_error!, style: TextStyle(fontSize: 13, color: c.rojo)),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: _probando
+                ? null
+                : () => setState(() => _edicion = _Edicion.nada),
+            child: const Text('Cancelar'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: _probando ? null : _guardar,
+            child: Text(_probando ? 'Comprobando…' : 'Comprobar y publicar'),
+          ),
+        ],
+      ),
+    ];
+  }
+}
+
+/// Página de GitHub para crear una llave «fine-grained», ya rellena con el
+/// nombre y el permiso que hace falta (el repositorio se elige allí).
+const _direccionNuevaLlave =
+    'https://github.com/settings/personal-access-tokens/new'
+    '?name=Videoteca%20-%20tabl%C3%B3n'
+    '&description=Publicar%20el%20cat%C3%A1logo%20desde%20la%20app%20Videoteca'
+    '&expires_in=none'
+    '&contents=write';
+
+/// 215.000 bytes → «210 KB».
+String _tamano(int bytes) {
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).ceil()} KB';
+  return '${(bytes / 1024 / 1024).toStringAsFixed(1).replaceAll('.', ',')} MB';
 }

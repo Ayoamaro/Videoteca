@@ -23,7 +23,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 | Base de datos local y buscador | SQLite con Drift + FTS5 |
 | Datos del `.mp4` | API nativa de Windows (Property System) vía FFI propio |
 | Datos automáticos | TMDB, OMDb, Wikidata (APIs) · FilmAffinity (WebView2) |
-| Tablón compartido | Repositorio de GitHub (REST API), cifrado AES-256-GCM + Argon2id |
+| Tablón compartido | Repositorio público de GitHub (REST API), cifrado AES-256-GCM + Argon2id |
 | Compilación e instaladores | GitHub Actions · instalador Windows · APK Android |
 
 ## Resumen
@@ -170,12 +170,14 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 ## Fase 3 · Publicación y móvil
 
-### ☐ Día 14 — Tablón en GitHub
+### ☑ Día 14 — Tablón en GitHub
 - Crear el repositorio del tablón (separado del código).
 - Exportar el catálogo y miniaturas WebP de las carátulas, **cifrados** con la contraseña común.
 - Publicación automática al guardar, con número de versión.
 
 **Necesito de ti:** crear la llave de acceso de GitHub (te guío) y elegir la contraseña común.
+**Hecho:** repositorio **público** [Ayoamaro/Videoteca_Tablon](https://github.com/Ayoamaro/Videoteca_Tablon) (el del código pasa a llamarse `Ayoamaro/Videoteca`). Público para que los móviles lo descarguen sin ninguna llave; todo lo de dentro va **cifrado**: de la contraseña común sale una llave con **Argon2id** (64 MB, 3 pasadas: ~0,7 s en el PC; probar contraseñas a ciegas sale carísimo) y cada archivo se cifra con **AES-256-GCM**, que además detecta cualquier byte tocado. Sin cifrar solo van `tablon.json` (la «sal» y los parámetros, que el móvil necesita) y un README. Las películas van en **paquetes de 100** (56 de fichas, ~2,2 MB en total, y 56 de carátulas WebP de 180 px, ~13 KB cada una, 57,5 MB): al guardar una ficha solo cambia su paquete, y el móvil (día 15) solo tendrá que bajar ese. Un `indice.bin` cifrado lleva el **número de versión** y la huella de cada paquete. El mismo contenido cifrado da siempre los mismos bytes, así que lo que no cambia no se vuelve a subir; cada versión entra de golpe en **un solo commit sin historia detrás** (el repositorio no engorda con cada versión). **Ajustes → Publicación**: repositorio, llave de GitHub (*fine-grained*, solo para ese repositorio, «Contents: Read and write»; botón «Crear una llave» con la página de GitHub ya rellena) y contraseña común (no se guarda en ningún sitio: solo la llave sacada de ella). Se publica **sola 30 s después de cada cambio del catálogo** (como mucho cada 5 min durante un lote), al abrir la app si quedó algo pendiente, y con «Publicar ahora»; sin internet lo reintenta a los 5 min. Estado en el menú («Publicada v1») y en Ajustes, con barra de progreso. «Cambiar contraseña común» vuelve a cifrar y subir todo. **Primera publicación (4/10/2026):** versión 1 con las 5.526 películas y sus 5.526 carátulas, ~3 min (las carátulas WebP se preparan una vez, ~55 s, y se guardan en `%LOCALAPPDATA%\Videoteca	ablon`); republicar sin cambios tarda ~3 s. Comprobado descargándolo como el móvil: las 5.526 fichas y carátulas se descifran bien. Prueba: `dart run tool/leer_tablon.dart Ayoamaro/Videoteca_Tablon [contraseña]`.
+**Arreglado:** la app instalada v0.1, abierta con los datos nuevos, dejó la base de datos marcada como «versión 2» y las versiones nuevas no arrancaban (se quedaban sin ventana). Ahora la actualización de la base comprueba qué columnas hay de verdad. Hasta instalar la v0.3, la app instalada (v0.2) no tiene la sección de publicar.
 
 ### ☐ Día 15 — Modo consulta
 - Inicio de sesión: administrador (contraseña local en el PC) o consulta (contraseña común).
@@ -220,7 +222,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 | ~~Rangos de Rotten Tomatoes → estrellas~~ | ☑ Día 10: tramos de 20 % |
 | ~~Frases exactas de clasificación por edades~~ | ☑ Día 10: EE. UU. primero, si no España |
 | ~~Temas y premios de FilmAffinity en lote o solo en nuevas~~ | ☑ Día 13: repaso aparte, contigo delante |
-| Contraseña común para los usuarios | Día 14 |
+| ~~Contraseña común para los usuarios~~ | ☑ Día 14: la eliges tú en Ajustes (no se guarda) |
 | Publicar la APK en Google Play (25 €, opcional) | Día 19 |
 
 ## Ideas para después de la v1.0

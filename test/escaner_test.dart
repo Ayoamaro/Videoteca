@@ -286,4 +286,22 @@ void main() {
       expect(await bd.todosLosAjustes(), {'carpetaRaiz': r'E:\Pelis'});
     });
   });
+
+  test('abre una base que una versión antigua de la app dejó anotada como '
+      'más vieja', () async {
+    final temporal = Directory.systemTemp.createTempSync('bd');
+    final ruta = '${temporal.path}${Platform.pathSeparator}v.sqlite';
+    var bd = BaseDatos(NativeDatabase(File(ruta)));
+    await bd.guardarAjuste('a', 'b');
+    // Lo que hizo la v0.1 al abrirla: dejar la versión en 2.
+    await bd.customStatement('PRAGMA user_version = 2');
+    await bd.close();
+
+    bd = BaseDatos(NativeDatabase(File(ruta)));
+    expect(await bd.todosLosAjustes(), {'a': 'b'});
+    final version = await bd.customSelect('PRAGMA user_version').getSingle();
+    expect(version.read<int>('user_version'), 5);
+    await bd.close();
+    temporal.deleteSync(recursive: true);
+  });
 }

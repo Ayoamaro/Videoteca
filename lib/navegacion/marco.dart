@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../datos/catalogo.dart';
 import '../datos/lote.dart';
 import '../datos/nuevas.dart';
+import '../datos/publicacion.dart';
 import '../datos/vigilancia.dart';
 import '../disco/escaner.dart';
 import '../tema/colores.dart';
@@ -179,6 +180,8 @@ class _Vigilancia extends ConsumerWidget {
     ref.watch(vigilanciaProvider);
     // Busca solas, en segundo plano, los datos de las películas nuevas.
     if (esAdministrador) ref.listen(busquedasNuevasProvider, (_, _) {});
+    // Publica sola en el tablón los cambios del catálogo.
+    if (esAdministrador) ref.listen(tablonProvider, (_, _) {});
     ref.listen(avisoCambiosProvider, (_, resultado) {
       if (resultado == null) return;
       final unaNueva = resultado.idsNuevos.length == 1
@@ -561,14 +564,10 @@ class _Estado extends ConsumerWidget {
               ],
             ),
           ],
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.cloud_outlined, size: 16, color: c.textoSuave),
-              const SizedBox(width: 8),
-              Flexible(child: Text('Sin publicar todavía', style: estilo)),
-            ],
-          ),
+          if (esAdministrador) ...[
+            const SizedBox(height: 10),
+            _EstadoTablon(estilo: estilo),
+          ],
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Divider(height: 1, color: c.borde),
@@ -576,6 +575,52 @@ class _Estado extends ConsumerWidget {
           Text(
             esAdministrador ? 'Administrador · este PC' : 'Consulta',
             style: estilo.copyWith(color: c.textoSecundario),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cómo va la publicación en el tablón (pulsando, a Ajustes).
+class _EstadoTablon extends ConsumerWidget {
+  const _EstadoTablon({required this.estilo});
+
+  final TextStyle estilo;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final t = ref.watch(tablonProvider);
+    final (icono, texto, color) = switch (t.fase) {
+      _ when !t.configurado => (Icons.cloud_off_outlined, 'Sin publicar', null),
+      FasePublicacion.publicando => (
+        Icons.cloud_upload_outlined,
+        'Publicando…',
+        null,
+      ),
+      FasePublicacion.esperando => (
+        Icons.cloud_queue_outlined,
+        'Cambios por publicar',
+        null,
+      ),
+      FasePublicacion.error => (
+        Icons.cloud_off_outlined,
+        'Sin publicar',
+        c.rojo,
+      ),
+      _ when t.version == 0 => (Icons.cloud_outlined, 'Sin publicar', null),
+      _ => (Icons.cloud_done_outlined, 'Publicada v${t.version}', null),
+    };
+    return InkWell(
+      onTap: () => context.go('/ajustes'),
+      borderRadius: BorderRadius.circular(6),
+      child: Row(
+        children: [
+          Icon(icono, size: 16, color: color ?? c.textoSuave),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(texto, style: estilo.copyWith(color: color)),
           ),
         ],
       ),

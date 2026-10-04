@@ -39,7 +39,7 @@ class FuenteException implements Exception {
 /// puede llevar letras sin tildes: con una tilde, la petición ni sale.
 const agenteVideoteca =
     'Videoteca/0.2 (catalogo personal de peliculas; '
-    'https://github.com/Ayoamaro/videoteca)';
+    'https://github.com/Ayoamaro/Videoteca)';
 
 /// Pide [direccion] y devuelve su JSON. Si la respuesta es 429 («demasiadas
 /// peticiones») espera un poco y vuelve a intentarlo. [interpretar] decide

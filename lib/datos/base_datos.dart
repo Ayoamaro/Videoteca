@@ -176,20 +176,40 @@ class BaseDatos extends _$BaseDatos {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    // Cada paso comprueba antes si ya está hecho: si se abre la base con
+    // una versión antigua de la app, esta deja anotado su número de versión
+    // (más bajo) aunque las tablas y columnas nuevas sigan ahí. Visto el día
+    // 14: la v0.1 instalada la dejó en la 2 y la app nueva no arrancaba.
     onUpgrade: (m, desde, hasta) async {
       // Versión 2 (día 8): películas nuevas y desaparecidas.
       if (desde < 2) {
-        await m.addColumn(peliculas, peliculas.nueva);
-        await m.addColumn(peliculas, peliculas.desaparecida);
+        await _anadirColumna(m, peliculas, peliculas.nueva);
+        await _anadirColumna(m, peliculas, peliculas.desaparecida);
       }
-      // Versión 3 (día 9): registro de cambios.
+      // Versión 3 (día 9): registro de cambios. (`createTable` no hace nada
+      // si la tabla ya existe.)
       if (desde < 3) await m.createTable(cambios);
       // Versión 4 (día 12): fichas guardadas desde «Completar ficha».
-      if (desde < 4) await m.addColumn(peliculas, peliculas.completada);
+      if (desde < 4) {
+        await _anadirColumna(m, peliculas, peliculas.completada);
+      }
       // Versión 5 (día 13): «Completar mi colección».
       if (desde < 5) await m.createTable(lote);
     },
   );
+
+  /// Añade la columna [columna] a [tabla] si todavía no la tiene.
+  Future<void> _anadirColumna(
+    Migrator m,
+    TableInfo tabla,
+    GeneratedColumn columna,
+  ) async {
+    final existentes = await customSelect(
+      'PRAGMA table_info("${tabla.actualTableName}")',
+    ).get();
+    if (existentes.any((f) => f.read<String>('name') == columna.name)) return;
+    await m.addColumn(tabla, columna);
+  }
 
   // ── Películas ──────────────────────────────────────────────────────────
 

@@ -1,15 +1,20 @@
 import 'dart:convert';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'package:videoteca/datos/fuentes.dart';
+import 'package:videoteca/datos/nuevas.dart';
+import 'package:videoteca/datos/vigilancia.dart';
 import 'package:videoteca/disco/escritor.dart' show Campo;
 import 'package:videoteca/fuentes/conexion.dart';
 import 'package:videoteca/fuentes/conversiones.dart';
 import 'package:videoteca/fuentes/datos_automaticos.dart';
 import 'package:videoteca/fuentes/identificacion.dart';
 import 'package:videoteca/fuentes/tmdb.dart';
+import 'package:videoteca/modelos/pelicula.dart';
 
 // Pruebas de las fuentes de datos sin internet: las respuestas de TMDB, OMDb
 // y Wikidata se fabrican aquí. Con datos reales se prueba con
@@ -345,5 +350,137 @@ void main() {
     );
     expect(r.datos[Campo.enlaceFilmaffinity]!.origen, 'Wikidata');
     expect(v(Campo.clasificacion), 'No recomendado para menores de 13 años');
+  });
+
+  group('Películas nuevas (el archivo aún no tiene director)', () {
+    final remake = _pelicula(
+      7,
+      'El caballero oscuro',
+      'The Dark Knight',
+      '1990-03-01',
+      directores: ['Otro Director'],
+    );
+    const nueva = (
+      titulo: 'El caballero oscuro',
+      tituloOriginal: '',
+      anio: 2008,
+      direccion: '',
+    );
+
+    test('la única que coincide en título y año es la probable', () async {
+      final tmdb = Tmdb('buena', cliente: _servicios([_caballero, remake]));
+      final id = await identificar(tmdb, nueva);
+      expect(id.seguridad, Seguridad.dudosa);
+      expect(candidataProbable(id, nueva)?.ficha.id, 2);
+      // Con director en el archivo no hay «probable»: o segura o dudosa.
+      expect(
+        candidataProbable(id, (
+          titulo: nueva.titulo,
+          tituloOriginal: '',
+          anio: 2008,
+          direccion: 'Fulano',
+        )),
+        isNull,
+      );
+    });
+
+    test('si hay dos del mismo título y año, hay que elegir', () async {
+      final otra = _pelicula(
+        8,
+        'El caballero oscuro',
+        'Dark Knight',
+        '2008-01-01',
+      );
+      final tmdb = Tmdb('buena', cliente: _servicios([_caballero, otra]));
+      final id = await identificar(tmdb, nueva);
+      expect(candidataProbable(id, nueva), isNull);
+    });
+
+    test('la bandeja busca sola, de una en una', () async {
+      final contenedor = ProviderContainer(
+        overrides: [
+          fuentesDatosProvider.overrideWithValue(
+            FuentesDatos(
+              claveTmdb: 'buena',
+              claveOmdb: '',
+              cliente: _servicios([_caballero, remake]),
+            ),
+          ),
+          nuevasProvider.overrideWithValue(const [
+            Pelicula(
+              id: 1,
+              titulo: 'El caballero oscuro',
+              anio: 2008,
+              ruta: r'D:\Accion\Accion\El caballero oscuro (2008).mp4',
+              nueva: true,
+            ),
+            Pelicula(
+              id: 2,
+              titulo: 'Película que no existe',
+              anio: 2020,
+              ruta: r'D:\Drama\Drama\Película que no existe (2020).mp4',
+              nueva: true,
+            ),
+          ]),
+        ],
+      );
+      addTearDown(contenedor.dispose);
+      final suscripcion = contenedor.listen(busquedasNuevasProvider, (_, _) {});
+      for (var i = 0; i < 200; i++) {
+        final estados = suscripcion.read();
+        if (estados.length == 2 &&
+            estados.values.every((b) => b.estado != EstadoBusqueda.buscando)) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      final estados = suscripcion.read();
+      expect(estados[1]!.estado, EstadoBusqueda.lista);
+      expect(estados[1]!.probable, isTrue);
+      expect(
+        estados[1]!.resultado!.datos[Campo.direccion]!.valor,
+        'Christopher Nolan',
+      );
+      expect(estados[2]!.estado, EstadoBusqueda.noEncontrada);
+
+      final p = contenedor.read(nuevasProvider);
+      expect(estadoNueva(p[0], estados[1], clave: true), EstadoNueva.lista);
+      expect(
+        estadoNueva(p[1], estados[2], clave: true),
+        EstadoNueva.noEncontrada,
+      );
+      expect(estadoNueva(p[1], null, clave: false), EstadoNueva.sinClave);
+      final guardada = Pelicula(
+        id: 3,
+        titulo: 'X',
+        anio: 2000,
+        ruta: 'x',
+        completada: DateTime(2026),
+      );
+      expect(
+        estadoNueva(guardada, null, clave: true),
+        EstadoNueva.guardadaSinCaratula,
+      );
+
+      // Elegir otra a mano.
+      const remakeCandidata = Candidato(
+        FichaTmdb(
+          id: 7,
+          titulo: 'El caballero oscuro',
+          tituloOriginal: 'The Dark Knight',
+          anio: 1990,
+          directores: ['Otro Director'],
+        ),
+        titulo: true,
+        anio: false,
+        director: false,
+      );
+      await contenedor
+          .read(busquedasNuevasProvider.notifier)
+          .elegir(1, remakeCandidata);
+      final elegida = suscripcion.read()[1]!;
+      expect(elegida.elegida, isTrue);
+      expect(elegida.resultado!.datos[Campo.direccion]!.valor, 'Otro Director');
+    });
   });
 }

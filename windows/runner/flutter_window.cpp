@@ -27,6 +27,14 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
+  // Arrastrar archivos desde el Explorador (ver receptor_arrastre.h).
+  receptor_arrastre_ = std::make_unique<ReceptorArrastre>(
+      flutter_controller_->engine()->messenger());
+  // Se registra en la vista de Flutter, que es la ventana que queda debajo
+  // del ratón.
+  receptor_arrastre_->Registrar(
+      flutter_controller_->view()->GetNativeWindow());
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -40,6 +48,10 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  if (receptor_arrastre_) {
+    receptor_arrastre_->Quitar();
+    receptor_arrastre_ = nullptr;
+  }
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

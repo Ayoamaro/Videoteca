@@ -10,6 +10,8 @@ import 'package:image/image.dart' as img;
 import '../datos/catalogo.dart';
 import '../datos/edicion.dart';
 import '../datos/fuentes.dart';
+import '../datos/nuevas.dart';
+import '../disco/arrastre.dart';
 import '../disco/dialogo_abrir.dart';
 import '../disco/escritor.dart';
 import '../disco/lector_archivo.dart';
@@ -20,6 +22,7 @@ import '../tema/colores.dart';
 import '../utilidades.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
+import '../widgets/completar.dart';
 import '../widgets/dialogo_datos.dart';
 import '../widgets/dialogo_filmaffinity.dart';
 import 'registro.dart';
@@ -29,10 +32,20 @@ import 'registro.dart';
 ///
 /// Los valores de partida se leen del propio archivo (no de la base de
 /// datos), para editar exactamente lo que hay en él.
+///
+/// Con [completar] es la pantalla «Completar ficha» de las películas nuevas:
+/// el título y el año salen del nombre del archivo, los datos encontrados
+/// en internet (ver `datos/nuevas.dart`) se ponen solos en los campos
+/// vacíos, y si hay dudas se elige la película en «¿Cuál es?».
 class PantallaEditarFicha extends ConsumerStatefulWidget {
-  const PantallaEditarFicha({super.key, required this.id});
+  const PantallaEditarFicha({
+    super.key,
+    required this.id,
+    this.completar = false,
+  });
 
   final int id;
+  final bool completar;
 
   @override
   ConsumerState<PantallaEditarFicha> createState() => _EstadoEditarFicha();
@@ -65,21 +78,43 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     return dato != null && dato.valor == _actual(c) ? dato.origen : null;
   }
 
+  /// Completar ficha: el resultado de la búsqueda ya pasado a los campos
+  /// (para no volver a pasarlo) y si se enseña el selector «¿Cuál es?».
+  ResultadoDatos? _aplicado;
+  var _verCandidatas = false;
+
   @override
   void initState() {
     super.initState();
     for (final t in _textos.values) {
       t.addListener(() => setState(() {}));
     }
+    ArrastreArchivos.instancia.escuchar(_alSoltar);
     _cargar();
   }
 
   @override
   void dispose() {
+    ArrastreArchivos.instancia.dejar(_alSoltar);
     for (final t in _textos.values) {
       t.dispose();
     }
     super.dispose();
+  }
+
+  /// Se ha soltado un archivo en la ventana: si es una imagen, es la
+  /// carátula nueva.
+  void _alSoltar(List<String> rutas) {
+    if (_original == null) return;
+    final imagen = rutas.firstWhere(
+      (r) => RegExp(r'\.(jpe?g|png)$', caseSensitive: false).hasMatch(r),
+      orElse: () => '',
+    );
+    if (imagen.isEmpty) {
+      _aviso('Eso no es una imagen: la carátula tiene que ser JPEG o PNG.');
+      return;
+    }
+    _usarImagen(imagen);
   }
 
   Pelicula? get _pelicula => ref.read(peliculaPorIdProvider(widget.id));
@@ -111,7 +146,22 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
           t.text = valores[c]!;
         }
         _estrellas = int.tryParse(valores[Campo.estrellas]!) ?? 0;
+        if (widget.completar) {
+          // Título y año del nombre del archivo, si el archivo no los tiene.
+          for (final (campo, valor) in [
+            (Campo.titulo, datos.titulo),
+            (Campo.anio, datos.anio == 0 ? '' : '${datos.anio}'),
+          ]) {
+            if (_actual(campo).isEmpty && valor.isNotEmpty) {
+              _textos[campo]!.text = valor;
+              _deInternet[campo] = DatoEncontrado(valor, origenArchivo);
+            }
+          }
+        }
       });
+      if (widget.completar) {
+        _aplicarBusqueda(ref.read(busquedasNuevasProvider)[widget.id]);
+      }
     } catch (e) {
       if (mounted) setState(() => _errorLectura = '$e');
     }
@@ -147,10 +197,72 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     }
   }
 
+  /// Pasa a los campos los datos de la búsqueda automática (Completar
+  /// ficha): los vacíos y los que aún tienen el valor de una búsqueda
+  /// anterior (si has elegido otra película). Los que has escrito tú no se
+  /// tocan.
+  void _aplicarBusqueda(BusquedaNueva? b) {
+    final r = b?.resultado;
+    if (_original == null ||
+        r == null ||
+        b!.estado != EstadoBusqueda.lista ||
+        identical(r, _aplicado)) {
+      return;
+    }
+    final anterior = _aplicado;
+    var pasados = 0;
+    setState(() {
+      _aplicado = r;
+      _verCandidatas = false;
+      // Lo que puso la búsqueda anterior y no está en la nueva se quita.
+      if (anterior != null) {
+        for (final c in anterior.datos.keys) {
+          if (!r.datos.containsKey(c) && _origen(c) != null) {
+            _ponerValor(c, _original![c]!);
+            _deInternet.remove(c);
+          }
+        }
+      }
+      for (final MapEntry(key: c, value: dato) in r.datos.entries) {
+        final automatico =
+            _origen(c) != null && _deInternet[c]!.origen != origenArchivo;
+        if (_actual(c).isEmpty || automatico) {
+          _ponerValor(c, dato.valor);
+          _deInternet[c] = dato;
+          pasados++;
+        }
+      }
+    });
+    if (pasados > 0) {
+      _aviso(
+        '$pasados ${pasados == 1 ? 'dato rellenado' : 'datos rellenados'} '
+        'con lo encontrado en internet. Revísalos antes de guardar.',
+      );
+    }
+  }
+
+  void _ponerValor(Campo c, String valor) {
+    if (c == Campo.estrellas) {
+      _estrellas = int.tryParse(valor) ?? 0;
+    } else {
+      _textos[c]!.text = valor;
+    }
+  }
+
   Future<void> _elegirCaratula() async {
     final ruta = elegirImagen();
     if (ruta == null) return;
-    final bytes = await File(ruta).readAsBytes();
+    await _usarImagen(ruta);
+  }
+
+  Future<void> _usarImagen(String ruta) async {
+    final Uint8List bytes;
+    try {
+      bytes = await File(ruta).readAsBytes();
+    } on FileSystemException {
+      _aviso('No se ha podido abrir esa imagen.');
+      return;
+    }
     final esJpeg = bytes.length > 3 && bytes[0] == 0xFF && bytes[1] == 0xD8;
     final esPng = bytes.length > 8 && bytes[0] == 0x89 && bytes[1] == 0x50;
     if ((!esJpeg && !esPng) || img.decodeImage(bytes) == null) {
@@ -247,13 +359,23 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     if (p == null) return;
     final cambios = _cambios;
     final caratula = _caratula;
+    final completar = widget.completar;
+    if (completar && !await _confirmarSinCaratula()) return;
+    if (!mounted) return;
     final mensajero = ScaffoldMessenger.of(context);
     final navegador = Navigator.of(context, rootNavigator: true);
     final enrutador = GoRouter.of(context);
     final edicion = ref.read(edicionProvider);
+    final catalogo = ref.read(catalogoProvider.notifier);
     mostrarGuardando(context, 'Guardando en el archivo…');
     try {
-      final id = await edicion.guardar(p, cambios, caratula: caratula);
+      final id = await edicion.guardar(
+        p,
+        cambios,
+        caratula: caratula,
+        origen: completar ? 'Completar ficha' : 'Editar ficha',
+      );
+      if (completar) await catalogo.marcarCompletada(p.id);
       navegador.pop();
       if (!mounted) return;
       // Ya no hay cambios pendientes: se puede salir sin preguntar.
@@ -261,18 +383,38 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         _original = {..._original!, ...cambios};
         _caratula = null;
       });
-      enrutador.pop();
+      // Completar ficha: se pasa a la siguiente nueva sin guardar (o a la
+      // bandeja si no quedan).
+      final siguiente = completar
+          ? ref
+                .read(nuevasSinGuardarProvider)
+                .where((o) => o.id != p.id)
+                .firstOrNull
+          : null;
+      if (!completar) {
+        enrutador.pop();
+      } else if (siguiente != null) {
+        enrutador.go('/nuevas/${siguiente.id}');
+      } else {
+        enrutador.go('/nuevas');
+      }
       final n = cambios.length + (caratula == null ? 0 : 1);
+      final hecho = id == null
+          ? (completar
+                ? '«${p.titulo}» marcada como guardada (el archivo ya estaba '
+                      'así).'
+                : 'No había nada distinto que guardar.')
+          : 'Guardado en el archivo y comprobado '
+                '($n ${n == 1 ? 'cambio' : 'cambios'}).';
       mensajero
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
             duration: const Duration(seconds: 8),
             content: Text(
-              id == null
-                  ? 'No había nada distinto que guardar.'
-                  : 'Guardado en el archivo y comprobado '
-                        '($n ${n == 1 ? 'cambio' : 'cambios'}).',
+              siguiente == null
+                  ? hecho
+                  : '$hecho Siguiente: «${siguiente.titulo}».',
             ),
             action: id == null
                 ? null
@@ -299,6 +441,37 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     }
   }
 
+  /// Completar ficha sin carátula: se pregunta antes (la carátula siempre
+  /// la pones tú).
+  Future<bool> _confirmarSinCaratula() async {
+    final sinCaratula = _caratula != null
+        ? _caratula!.imagen == null
+        : _caratulaOriginal == null;
+    if (!sinCaratula) return true;
+    final si = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Guardar sin carátula?'),
+        content: const Text(
+          'La película todavía no tiene carátula. Puedes arrastrarla ahora '
+          'a la pantalla, o guardar los datos y ponerla más adelante desde '
+          'Editar ficha.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Poner la carátula'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Guardar sin carátula'),
+          ),
+        ],
+      ),
+    );
+    return si ?? false;
+  }
+
   Future<bool> _descartar() async {
     if (!_hayCambios) return true;
     final si = await showDialog<bool>(
@@ -323,7 +496,11 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
 
   Future<void> _salir() async {
     if (await _descartar() && mounted) {
-      context.canPop() ? context.pop() : context.go('/pelicula/${widget.id}');
+      if (widget.completar) {
+        context.go('/nuevas');
+      } else {
+        context.canPop() ? context.pop() : context.go('/pelicula/${widget.id}');
+      }
     }
   }
 
@@ -349,8 +526,23 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         ? 'No se encuentra el archivo en su ruta: puede que se haya movido o '
               'borrado.'
         : _errorLectura;
+    final completar = widget.completar;
+    // En Completar ficha se puede «guardar» sin cambios: si el archivo ya
+    // estaba completo, solo se marca como guardada.
     final puedeGuardar =
-        cargado && problema == null && errores.isEmpty && _hayCambios;
+        cargado &&
+        problema == null &&
+        errores.isEmpty &&
+        (_hayCambios || completar);
+    final busqueda = completar
+        ? ref.watch(busquedasNuevasProvider)[widget.id]
+        : null;
+    if (completar) {
+      ref.listen(
+        busquedasNuevasProvider.select((b) => b[widget.id]),
+        (_, b) => _aplicarBusqueda(b),
+      );
+    }
 
     return PopScope(
       canPop: !_hayCambios,
@@ -368,40 +560,113 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                   child: TextButton.icon(
                     onPressed: _salir,
                     icon: const Icon(Icons.chevron_left_rounded),
-                    label: const Text('Volver a la ficha'),
+                    label: Text(
+                      completar ? 'Películas nuevas' : 'Volver a la ficha',
+                    ),
                     style: TextButton.styleFrom(
                       foregroundColor: c.textoSecundario,
                       minimumSize: const Size(0, 44),
                     ),
                   ),
                 ),
-                CabeceraPagina(
-                  titulo: 'Editar ficha',
-                  descripcion:
-                      'Los cambios se guardan dentro de «${p.archivo}», en el '
-                      'mismo formato que usa Windows en Propiedades → '
-                      'Detalles. Después se comprueba que el vídeo y la '
-                      'carátula quedan intactos, y todo queda en el Registro '
-                      'de cambios para poder deshacerlo.',
-                ),
+                if (completar)
+                  CabeceraCompletar(
+                    pelicula: p,
+                    titulo: _actual(Campo.titulo),
+                    busqueda: busqueda,
+                    hayClave: ref.watch(fuentesDatosProvider) != null,
+                    alVerCandidatas: () =>
+                        setState(() => _verCandidatas = !_verCandidatas),
+                  )
+                else
+                  CabeceraPagina(
+                    titulo: 'Editar ficha',
+                    descripcion:
+                        'Los cambios se guardan dentro de «${p.archivo}», en '
+                        'el mismo formato que usa Windows en Propiedades → '
+                        'Detalles. Después se comprueba que el vídeo y la '
+                        'carátula quedan intactos, y todo queda en el '
+                        'Registro de cambios para poder deshacerlo.',
+                  ),
+                if (completar &&
+                    busqueda?.identificacion != null &&
+                    (busqueda!.estado == EstadoBusqueda.elegir ||
+                        busqueda.estado == EstadoBusqueda.noEncontrada ||
+                        _verCandidatas))
+                  SelectorCandidatas(
+                    titulo: _actual(Campo.titulo),
+                    anio: int.tryParse(_actual(Campo.anio)) ?? 0,
+                    busqueda: busqueda,
+                    alElegir: (candidata) => ref
+                        .read(busquedasNuevasProvider.notifier)
+                        .elegir(widget.id, candidata),
+                    alBuscar: (titulo, anio) {
+                      setState(() => _verCandidatas = true);
+                      ref.read(busquedasNuevasProvider.notifier).buscarDeNuevo(
+                        widget.id,
+                        (
+                          titulo: titulo,
+                          tituloOriginal: '',
+                          anio: anio,
+                          direccion: '',
+                        ),
+                      );
+                    },
+                    alCerrar: busqueda.estado == EstadoBusqueda.lista
+                        ? () => setState(() => _verCandidatas = false)
+                        : null,
+                  ),
                 if (cargado && esAdministrador)
                   Wrap(
                     spacing: 10,
                     runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      FilledButton.tonalIcon(
-                        onPressed: _buscarDatos,
-                        icon: const Icon(
-                          Icons.travel_explore_rounded,
-                          size: 18,
+                      if (completar) ...[
+                        // Lo siguiente en Completar ficha: sinopsis, reparto,
+                        // géneros… salen de FilmAffinity.
+                        FilledButton.icon(
+                          onPressed: _leerFilmaffinity,
+                          icon: const Icon(
+                            Icons.movie_filter_rounded,
+                            size: 18,
+                          ),
+                          label: const Text('Leer de FilmAffinity'),
                         ),
-                        label: const Text('Buscar datos en internet'),
-                      ),
-                      FilledButton.tonalIcon(
-                        onPressed: _leerFilmaffinity,
-                        icon: const Icon(Icons.movie_filter_rounded, size: 18),
-                        label: const Text('Leer de FilmAffinity'),
-                      ),
+                        OutlinedButton.icon(
+                          onPressed: _buscarDatos,
+                          icon: const Icon(
+                            Icons.travel_explore_rounded,
+                            size: 18,
+                          ),
+                          label: const Text('Buscar datos en internet'),
+                        ),
+                        Text(
+                          'Sinopsis, reparto, géneros, música y productora '
+                          'salen de FilmAffinity.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: c.textoSecundario,
+                          ),
+                        ),
+                      ] else ...[
+                        FilledButton.tonalIcon(
+                          onPressed: _buscarDatos,
+                          icon: const Icon(
+                            Icons.travel_explore_rounded,
+                            size: 18,
+                          ),
+                          label: const Text('Buscar datos en internet'),
+                        ),
+                        FilledButton.tonalIcon(
+                          onPressed: _leerFilmaffinity,
+                          icon: const Icon(
+                            Icons.movie_filter_rounded,
+                            size: 18,
+                          ),
+                          label: const Text('Leer de FilmAffinity'),
+                        ),
+                      ],
                     ],
                   ),
                 if (problema != null) _Aviso(problema),
@@ -468,7 +733,10 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                       errores.isNotEmpty
                           ? 'Revisa los campos marcados en rojo.'
                           : numCambios == 0
-                          ? 'Sin cambios'
+                          ? (completar
+                                ? 'Sin cambios: al guardar solo se marca como '
+                                      'guardada'
+                                : 'Sin cambios')
                           : '$numCambios ${numCambios == 1 ? 'cambio' : 'cambios'} sin guardar',
                       style: TextStyle(
                         fontSize: 14,
@@ -481,7 +749,10 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                       ),
                     ),
                   ),
-                  TextButton(onPressed: _salir, child: const Text('Cancelar')),
+                  TextButton(
+                    onPressed: _salir,
+                    child: Text(completar ? 'Descartar' : 'Cancelar'),
+                  ),
                   const SizedBox(width: 10),
                   FilledButton.icon(
                     onPressed: puedeGuardar ? _guardar : null,
@@ -826,11 +1097,17 @@ class _ColumnaCaratula extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Caratula(
-          titulo: pelicula.titulo,
-          anio: pelicula.anio,
-          tono: pelicula.tono,
-          imagen: imagen,
+        // Se puede arrastrar una imagen desde el Explorador encima.
+        ZonaSoltarCaratula(
+          activa: alCambiar != null,
+          child: imagen == null
+              ? null
+              : Caratula(
+                  titulo: pelicula.titulo,
+                  anio: pelicula.anio,
+                  tono: pelicula.tono,
+                  imagen: imagen,
+                ),
         ),
         const SizedBox(height: 12),
         _NombreCampo(
@@ -846,11 +1123,17 @@ class _ColumnaCaratula extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: alCambiar,
           icon: const Icon(Icons.image_outlined, size: 16),
-          label: const Text('Cambiar carátula…'),
+          label: Text(imagen == null ? 'Elegir imagen…' : 'Cambiar carátula…'),
         ),
         const SizedBox(height: 8),
         if (imagen != null)
           TextButton(onPressed: alQuitar, child: const Text('Quitar carátula')),
+        Text(
+          'La carátula la pones tú: la app nunca descarga carátulas por su '
+          'cuenta. También puedes arrastrarla desde el Explorador.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, height: 1.5, color: c.textoTenue),
+        ),
       ],
     );
   }

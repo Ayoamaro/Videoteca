@@ -32,6 +32,8 @@ class ColoresVideoteca extends ThemeExtension<ColoresVideoteca> {
     required this.naranjaFondo,
     required this.rojo,
     required this.rojoFondo,
+    required this.morado,
+    required this.moradoFondo,
   });
 
   /// Fondo general de la ventana.
@@ -80,6 +82,10 @@ class ColoresVideoteca extends ThemeExtension<ColoresVideoteca> {
   final Color rojo;
   final Color rojoFondo;
 
+  /// Etiqueta de los datos de Wikidata.
+  final Color morado;
+  final Color moradoFondo;
+
   static const oscuro = ColoresVideoteca(
     fondo: Color(0xFF0F0E13),
     menu: Color(0xFF121117),
@@ -105,6 +111,8 @@ class ColoresVideoteca extends ThemeExtension<ColoresVideoteca> {
     naranjaFondo: Color(0xFF3A2614),
     rojo: Color(0xFFF08A7E),
     rojoFondo: Color(0xFF3A1C1A),
+    morado: Color(0xFFB49CE6),
+    moradoFondo: Color(0xFF261E38),
   );
 
   static const claro = ColoresVideoteca(
@@ -132,6 +140,8 @@ class ColoresVideoteca extends ThemeExtension<ColoresVideoteca> {
     naranjaFondo: Color(0xFFF8E9DA),
     rojo: Color(0xFFB5443A),
     rojoFondo: Color(0xFFF7E1DE),
+    morado: Color(0xFF6A4BB0),
+    moradoFondo: Color(0xFFEDE6F8),
   );
 
   @override

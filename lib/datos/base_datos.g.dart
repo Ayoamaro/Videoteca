@@ -402,6 +402,17 @@ class $PeliculasTable extends Peliculas
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _completadaMeta = const VerificationMeta(
+    'completada',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completada = GeneratedColumn<DateTime>(
+    'completada',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _desaparecidaMeta = const VerificationMeta(
     'desaparecida',
   );
@@ -449,6 +460,7 @@ class $PeliculasTable extends Peliculas
     escaneada,
     errorLectura,
     nueva,
+    completada,
     desaparecida,
   ];
   @override
@@ -701,6 +713,12 @@ class $PeliculasTable extends Peliculas
         nueva.isAcceptableOrUnknown(data['nueva']!, _nuevaMeta),
       );
     }
+    if (data.containsKey('completada')) {
+      context.handle(
+        _completadaMeta,
+        completada.isAcceptableOrUnknown(data['completada']!, _completadaMeta),
+      );
+    }
     if (data.containsKey('desaparecida')) {
       context.handle(
         _desaparecidaMeta,
@@ -855,6 +873,10 @@ class $PeliculasTable extends Peliculas
         DriftSqlType.bool,
         data['${effectivePrefix}nueva'],
       )!,
+      completada: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completada'],
+      ),
       desaparecida: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}desaparecida'],
@@ -924,6 +946,10 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
   /// Películas nuevas hasta que se completa su ficha o se quita de allí.
   final bool nueva;
 
+  /// Cuándo se guardó su ficha desde «Completar ficha» (`null` = aún no).
+  /// Sigue en la bandeja como «Guardada» hasta que se quite de allí.
+  final DateTime? completada;
+
   /// Cuándo se vio que el archivo ya no estaba en el disco (`null` = está).
   /// No se borra sola: sale en Pendientes hasta que se quite a mano o el
   /// archivo vuelva.
@@ -963,6 +989,7 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     required this.escaneada,
     this.errorLectura,
     required this.nueva,
+    this.completada,
     this.desaparecida,
   });
   @override
@@ -1004,6 +1031,9 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
       map['error_lectura'] = Variable<String>(errorLectura);
     }
     map['nueva'] = Variable<bool>(nueva);
+    if (!nullToAbsent || completada != null) {
+      map['completada'] = Variable<DateTime>(completada);
+    }
     if (!nullToAbsent || desaparecida != null) {
       map['desaparecida'] = Variable<DateTime>(desaparecida);
     }
@@ -1048,6 +1078,9 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
           ? const Value.absent()
           : Value(errorLectura),
       nueva: Value(nueva),
+      completada: completada == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completada),
       desaparecida: desaparecida == null && nullToAbsent
           ? const Value.absent()
           : Value(desaparecida),
@@ -1096,6 +1129,7 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
       escaneada: serializer.fromJson<DateTime>(json['escaneada']),
       errorLectura: serializer.fromJson<String?>(json['errorLectura']),
       nueva: serializer.fromJson<bool>(json['nueva']),
+      completada: serializer.fromJson<DateTime?>(json['completada']),
       desaparecida: serializer.fromJson<DateTime?>(json['desaparecida']),
     );
   }
@@ -1137,6 +1171,7 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
       'escaneada': serializer.toJson<DateTime>(escaneada),
       'errorLectura': serializer.toJson<String?>(errorLectura),
       'nueva': serializer.toJson<bool>(nueva),
+      'completada': serializer.toJson<DateTime?>(completada),
       'desaparecida': serializer.toJson<DateTime?>(desaparecida),
     };
   }
@@ -1176,6 +1211,7 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     DateTime? escaneada,
     Value<String?> errorLectura = const Value.absent(),
     bool? nueva,
+    Value<DateTime?> completada = const Value.absent(),
     Value<DateTime?> desaparecida = const Value.absent(),
   }) => FilaPelicula(
     id: id ?? this.id,
@@ -1212,6 +1248,7 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     escaneada: escaneada ?? this.escaneada,
     errorLectura: errorLectura.present ? errorLectura.value : this.errorLectura,
     nueva: nueva ?? this.nueva,
+    completada: completada.present ? completada.value : this.completada,
     desaparecida: desaparecida.present ? desaparecida.value : this.desaparecida,
   );
   FilaPelicula copyWithCompanion(PeliculasCompanion data) {
@@ -1280,6 +1317,9 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
           ? data.errorLectura.value
           : this.errorLectura,
       nueva: data.nueva.present ? data.nueva.value : this.nueva,
+      completada: data.completada.present
+          ? data.completada.value
+          : this.completada,
       desaparecida: data.desaparecida.present
           ? data.desaparecida.value
           : this.desaparecida,
@@ -1323,6 +1363,7 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
           ..write('escaneada: $escaneada, ')
           ..write('errorLectura: $errorLectura, ')
           ..write('nueva: $nueva, ')
+          ..write('completada: $completada, ')
           ..write('desaparecida: $desaparecida')
           ..write(')'))
         .toString();
@@ -1364,6 +1405,7 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     escaneada,
     errorLectura,
     nueva,
+    completada,
     desaparecida,
   ]);
   @override
@@ -1404,6 +1446,7 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
           other.escaneada == this.escaneada &&
           other.errorLectura == this.errorLectura &&
           other.nueva == this.nueva &&
+          other.completada == this.completada &&
           other.desaparecida == this.desaparecida);
 }
 
@@ -1442,6 +1485,7 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
   final Value<DateTime> escaneada;
   final Value<String?> errorLectura;
   final Value<bool> nueva;
+  final Value<DateTime?> completada;
   final Value<DateTime?> desaparecida;
   const PeliculasCompanion({
     this.id = const Value.absent(),
@@ -1478,6 +1522,7 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     this.escaneada = const Value.absent(),
     this.errorLectura = const Value.absent(),
     this.nueva = const Value.absent(),
+    this.completada = const Value.absent(),
     this.desaparecida = const Value.absent(),
   });
   PeliculasCompanion.insert({
@@ -1515,6 +1560,7 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     required DateTime escaneada,
     this.errorLectura = const Value.absent(),
     this.nueva = const Value.absent(),
+    this.completada = const Value.absent(),
     this.desaparecida = const Value.absent(),
   }) : ruta = Value(ruta),
        titulo = Value(titulo),
@@ -1556,6 +1602,7 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     Expression<DateTime>? escaneada,
     Expression<String>? errorLectura,
     Expression<bool>? nueva,
+    Expression<DateTime>? completada,
     Expression<DateTime>? desaparecida,
   }) {
     return RawValuesInsertable({
@@ -1593,6 +1640,7 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
       if (escaneada != null) 'escaneada': escaneada,
       if (errorLectura != null) 'error_lectura': errorLectura,
       if (nueva != null) 'nueva': nueva,
+      if (completada != null) 'completada': completada,
       if (desaparecida != null) 'desaparecida': desaparecida,
     });
   }
@@ -1632,6 +1680,7 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     Value<DateTime>? escaneada,
     Value<String?>? errorLectura,
     Value<bool>? nueva,
+    Value<DateTime?>? completada,
     Value<DateTime?>? desaparecida,
   }) {
     return PeliculasCompanion(
@@ -1669,6 +1718,7 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
       escaneada: escaneada ?? this.escaneada,
       errorLectura: errorLectura ?? this.errorLectura,
       nueva: nueva ?? this.nueva,
+      completada: completada ?? this.completada,
       desaparecida: desaparecida ?? this.desaparecida,
     );
   }
@@ -1778,6 +1828,9 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     if (nueva.present) {
       map['nueva'] = Variable<bool>(nueva.value);
     }
+    if (completada.present) {
+      map['completada'] = Variable<DateTime>(completada.value);
+    }
     if (desaparecida.present) {
       map['desaparecida'] = Variable<DateTime>(desaparecida.value);
     }
@@ -1821,6 +1874,7 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
           ..write('escaneada: $escaneada, ')
           ..write('errorLectura: $errorLectura, ')
           ..write('nueva: $nueva, ')
+          ..write('completada: $completada, ')
           ..write('desaparecida: $desaparecida')
           ..write(')'))
         .toString();
@@ -2686,6 +2740,7 @@ typedef $$PeliculasTableCreateCompanionBuilder = PeliculasCompanion Function({
   required DateTime escaneada,
   Value<String?> errorLectura,
   Value<bool> nueva,
+  Value<DateTime?> completada,
   Value<DateTime?> desaparecida,
 });
 typedef $$PeliculasTableUpdateCompanionBuilder = PeliculasCompanion Function({
@@ -2723,6 +2778,7 @@ typedef $$PeliculasTableUpdateCompanionBuilder = PeliculasCompanion Function({
   Value<DateTime> escaneada,
   Value<String?> errorLectura,
   Value<bool> nueva,
+  Value<DateTime?> completada,
   Value<DateTime?> desaparecida,
 });
 
@@ -2902,6 +2958,11 @@ class $$PeliculasTableFilterComposer
 
   ColumnFilters<bool> get nueva => $composableBuilder(
     column: $table.nueva,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completada => $composableBuilder(
+    column: $table.completada,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3090,6 +3151,11 @@ class $$PeliculasTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get completada => $composableBuilder(
+    column: $table.completada,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get desaparecida => $composableBuilder(
     column: $table.desaparecida,
     builder: (column) => ColumnOrderings(column),
@@ -3237,6 +3303,11 @@ class $$PeliculasTableAnnotationComposer
   GeneratedColumn<bool> get nueva =>
       $composableBuilder(column: $table.nueva, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get completada => $composableBuilder(
+    column: $table.completada,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get desaparecida => $composableBuilder(
     column: $table.desaparecida,
     builder: (column) => column,
@@ -3308,6 +3379,7 @@ class $$PeliculasTableTableManager
                 Value<DateTime> escaneada = const Value.absent(),
                 Value<String?> errorLectura = const Value.absent(),
                 Value<bool> nueva = const Value.absent(),
+                Value<DateTime?> completada = const Value.absent(),
                 Value<DateTime?> desaparecida = const Value.absent(),
               }) => PeliculasCompanion(
                 id: id,
@@ -3344,6 +3416,7 @@ class $$PeliculasTableTableManager
                 escaneada: escaneada,
                 errorLectura: errorLectura,
                 nueva: nueva,
+                completada: completada,
                 desaparecida: desaparecida,
               ),
           createCompanionCallback:
@@ -3382,6 +3455,7 @@ class $$PeliculasTableTableManager
                 required DateTime escaneada,
                 Value<String?> errorLectura = const Value.absent(),
                 Value<bool> nueva = const Value.absent(),
+                Value<DateTime?> completada = const Value.absent(),
                 Value<DateTime?> desaparecida = const Value.absent(),
               }) => PeliculasCompanion.insert(
                 id: id,
@@ -3418,6 +3492,7 @@ class $$PeliculasTableTableManager
                 escaneada: escaneada,
                 errorLectura: errorLectura,
                 nueva: nueva,
+                completada: completada,
                 desaparecida: desaparecida,
               ),
           withReferenceMapper: (p0) => p0

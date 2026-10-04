@@ -126,6 +126,22 @@ final rutasProvider = Provider<GoRouter>((ref) {
             pageBuilder: (c, e) => sinAnimacion(e, const PantallaNuevas()),
           ),
           GoRoute(
+            path: '/nuevas/:id',
+            pageBuilder: (c, e) {
+              final id = int.tryParse(e.pathParameters['id'] ?? '') ?? 0;
+              return sinAnimacion(
+                e,
+                // La clave hace que, al pasar a la siguiente, la pantalla
+                // empiece de cero.
+                PantallaEditarFicha(
+                  key: ValueKey('completar-$id'),
+                  id: id,
+                  completar: true,
+                ),
+              );
+            },
+          ),
+          GoRoute(
             path: '/pendientes',
             pageBuilder: (c, e) => sinAnimacion(e, const PantallaPendientes()),
           ),

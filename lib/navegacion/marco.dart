@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../datos/catalogo.dart';
+import '../datos/nuevas.dart';
 import '../datos/vigilancia.dart';
 import '../disco/escaner.dart';
 import '../tema/colores.dart';
@@ -105,6 +106,7 @@ class Marco extends StatelessWidget {
   /// Qué entrada del menú lateral se ilumina según la pantalla actual.
   static String _activoEscritorio(String ruta) {
     if (ruta.startsWith('/pelicula') || ruta == '/generos') return '/catalogo';
+    if (ruta.startsWith('/nuevas')) return '/nuevas';
     if (ruta == '/mas' || ruta == '/lectura' || ruta == '/archivo') {
       return '/ajustes';
     }
@@ -173,6 +175,8 @@ class _Vigilancia extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(vigilanciaProvider);
+    // Busca solas, en segundo plano, los datos de las películas nuevas.
+    if (esAdministrador) ref.listen(busquedasNuevasProvider, (_, _) {});
     ref.listen(avisoCambiosProvider, (_, resultado) {
       if (resultado == null) return;
       final unaNueva = resultado.idsNuevos.length == 1
@@ -189,9 +193,9 @@ class _Vigilancia extends ConsumerWidget {
                 ? null
                 : SnackBarAction(
                     label: 'Ver',
-                    onPressed: () => GoRouter.of(context).go(
-                      unaNueva != null ? '/pelicula/${unaNueva.id}' : destino,
-                    ),
+                    onPressed: () => GoRouter.of(
+                      context,
+                    ).go(unaNueva != null ? '/nuevas/${unaNueva.id}' : destino),
                   ),
           ),
         );
@@ -245,7 +249,7 @@ class MenuLateral extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colores;
     final insignias = {
-      '/nuevas': ref.watch(nuevasProvider).length,
+      '/nuevas': ref.watch(nuevasSinGuardarProvider).length,
       '/pendientes': ref.watch(totalPendientesProvider),
     };
     return Container(

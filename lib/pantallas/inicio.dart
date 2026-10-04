@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../datos/catalogo.dart';
-import '../datos/vigilancia.dart';
+import '../datos/nuevas.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../tema/tema.dart';
@@ -26,7 +26,7 @@ class PantallaInicio extends ConsumerWidget {
     final antiguo = DateTime(1900);
     final recientes = [...todas]
       ..sort((a, b) => (b.anadida ?? antiguo).compareTo(a.anadida ?? antiguo));
-    final nuevas = ref.watch(nuevasProvider);
+    final nuevas = ref.watch(nuevasSinGuardarProvider);
 
     return LayoutBuilder(
       builder: (context, medidas) {
@@ -265,7 +265,7 @@ class _AvisoNuevas extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Sin datos todavía · '
+                      'Por completar · '
                       '${nuevas.map((p) => '${p.titulo} (${p.anio})').join(', ')}'
                       '${todas.length > 3 ? '…' : ''}',
                       style: TextStyle(fontSize: 14, color: c.textoSecundario),

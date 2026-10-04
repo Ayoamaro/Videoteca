@@ -35,6 +35,7 @@ class Pelicula {
     this.numeroSaga = 0,
     this.anadida,
     this.nueva = false,
+    this.completada,
     this.tono = const Color(0xFF2E4034),
     this.caratula,
     this.miniatura,
@@ -115,6 +116,10 @@ class Pelicula {
 
   /// Recién detectada en el disco (muestra la insignia "NUEVA").
   final bool nueva;
+
+  /// Cuándo se guardó su ficha desde «Completar ficha» (en la bandeja de
+  /// nuevas sale como «Guardada»).
+  final DateTime? completada;
 
   /// Color de la carátula provisional mientras no hay imagen.
   final Color tono;

@@ -78,6 +78,10 @@ class Peliculas extends Table {
   /// Películas nuevas hasta que se completa su ficha o se quita de allí.
   BoolColumn get nueva => boolean().withDefault(const Constant(false))();
 
+  /// Cuándo se guardó su ficha desde «Completar ficha» (`null` = aún no).
+  /// Sigue en la bandeja como «Guardada» hasta que se quite de allí.
+  DateTimeColumn get completada => dateTime().nullable()();
+
   /// Cuándo se vio que el archivo ya no estaba en el disco (`null` = está).
   /// No se borra sola: sale en Pendientes hasta que se quite a mano o el
   /// archivo vuelva.
@@ -144,7 +148,7 @@ class BaseDatos extends _$BaseDatos {
   );
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -156,6 +160,8 @@ class BaseDatos extends _$BaseDatos {
       }
       // Versión 3 (día 9): registro de cambios.
       if (desde < 3) await m.createTable(cambios);
+      // Versión 4 (día 12): fichas guardadas desde «Completar ficha».
+      if (desde < 4) await m.addColumn(peliculas, peliculas.completada);
     },
   );
 
@@ -241,6 +247,10 @@ class BaseDatos extends _$BaseDatos {
   /// Quita (o pone) la marca de «nueva».
   Future<void> marcarNuevas(Iterable<int> ids, {required bool nueva}) =>
       _cambiar(ids, PeliculasCompanion(nueva: Value(nueva)));
+
+  /// Anota que la ficha de [id] se ha guardado desde «Completar ficha».
+  Future<void> marcarCompletada(int id, DateTime cuando) =>
+      _cambiar([id], PeliculasCompanion(completada: Value(cuando)));
 
   Future<void> _cambiar(Iterable<int> ids, PeliculasCompanion cambio) async {
     if (ids.isEmpty) return;

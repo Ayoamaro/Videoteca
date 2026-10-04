@@ -211,6 +211,28 @@ Future<Identificacion> identificar(Tmdb tmdb, DatosIdentificacion p) async {
   );
 }
 
+/// Para películas nuevas, cuyo archivo aún no tiene director (y por eso
+/// nunca se identifican sin dudas): la única candidata que coincide en
+/// título y año (primero el año exacto; si no, ±1), o `null` si hay varias
+/// o ninguna.
+///
+/// No es una identificación segura: la app la enseña como «probable» y no
+/// se escribe nada hasta que tú lo revisas y guardas.
+Candidato? candidataProbable(Identificacion id, DatosIdentificacion p) {
+  if (id.seguridad != Seguridad.dudosa || p.direccion.trim().isNotEmpty) {
+    return null;
+  }
+  for (final exacto in [true, false]) {
+    final buenas = [
+      for (final c in id.candidatos)
+        if (c.titulo && (exacto ? c.ficha.anio == p.anio : c.anio)) c,
+    ];
+    if (buenas.length == 1) return buenas.single;
+    if (buenas.length > 1) return null;
+  }
+  return null;
+}
+
 Candidato _comparar(FichaTmdb f, DatosIdentificacion p) {
   final c = coincidencias(
     p,

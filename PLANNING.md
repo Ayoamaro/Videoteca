@@ -144,13 +144,14 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Importante — Cloudflare:** FilmAffinity está protegido por Cloudflare y a veces enseña «Un momento… Verifique que es un ser humano». La app lo detecta y te pide que marques la casilla en la ventana de Edge; después sigue sola. **No se intenta saltar esa comprobación**. En las pruebas saltó a la segunda película abierta seguida y, una vez que salta, se repite hasta que una persona la resuelve.
 **Para el día 13:** 679 de tus sinopsis están cortadas justo a las 255 letras (editadas en el Explorador) y 3.624 tienen más de 255 (de otro programa). Las cortadas se pueden completar con FilmAffinity película a película (el botón las marca solas).
 
-### ☐ Día 12 — Películas nuevas y Completar ficha
+### ☑ Día 12 — Películas nuevas y Completar ficha
 - Bandeja de **Películas nuevas** con estados.
 - Pantalla **Completar ficha**: campos rellenos solos, etiqueta de origen de cada dato y carátula arrastrable.
 - Selector "¿Cuál es?" cuando hay varias coincidencias.
 - Guardar en el archivo.
 
 **Al terminar:** pegas una película en el disco, la app la detecta, pones la carátula, guardas y ya está.
+**Hecho:** en cuanto aparece una película nueva, la app **busca sola sus datos en TMDB** (de una en una, en segundo plano) y la bandeja enseña su estado: *Buscando datos…*, **Lista para revisar**, **Varias coincidencias**, *No encontrada*, *Sin conexión* (con «Volver a buscar») y **Guardada** (con «Quitar las guardadas»); arriba, los contadores del diseño. El aviso «Película nueva: …» lleva directo a **Completar ficha**, que abre la película con todo ya puesto: título y año del **nombre del archivo** y los datos de TMDB/OMDb/Wikidata en los campos vacíos, cada uno con su **etiqueta de color** (FilmAffinity dorado, TMDB azul, OMDb rojo, Wikidata morado, nombre del archivo gris). Como un archivo recién copiado aún no tiene director, la identificación segura no es posible: si solo hay **una** película con ese título y año, sale como **«Probable»** (para que la compruebes); si hay varias, el selector **«¿Cuál es?»** enseña las parecidas con su cartel de TMDB (solo para reconocerlas, nunca se usa como carátula), y se puede buscar con otro título. «¿No es esta?» lo abre siempre. El botón principal es **Leer de FilmAffinity** (sinopsis, reparto, géneros, música, productora…). La **carátula se arrastra desde el Explorador** a la pantalla (la zona se ilumina al pasar por encima), o con «Elegir imagen…»; esto lo hace el propio programa de Windows de la app (sin plugins) y también funciona en Editar ficha. Al guardar (comprobación, registro como «Completar ficha» y deshacer, como siempre) pregunta si falta la carátula, marca la película como **Guardada** y pasa a la **siguiente nueva**. Probado con copias: *Hipnótico* vaciada como recién descargada → detectada al pegarla, «Lista para revisar» en ~20 s, carátula arrastrada y 10 datos guardados y comprobados con Windows. La base de datos pasa sola a la **versión 4**.
 
 ### ☐ Día 13 — Completar mi colección · 🏷 v0.2
 - Proceso por lotes: rellenar solo los campos vacíos de las 5.541 películas.

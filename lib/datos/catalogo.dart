@@ -92,6 +92,12 @@ class Catalogo extends AsyncNotifier<List<Pelicula>> {
     await ref.read(baseDatosProvider).marcarNuevas(ids, nueva: false);
     await recargar();
   }
+
+  /// Anota que la ficha de [id] se ha guardado desde «Completar ficha».
+  Future<void> marcarCompletada(int id) async {
+    await ref.read(baseDatosProvider).marcarCompletada(id, DateTime.now());
+    await recargar();
+  }
 }
 
 /// Películas que estaban en el catálogo y ya no están en el disco.
@@ -136,6 +142,7 @@ Pelicula peliculaDesdeFila(FilaPelicula f, CarpetasApp carpetas) {
     enlaceImdb: f.enlaceImdb,
     anadida: f.anadida,
     nueva: f.nueva,
+    completada: f.completada,
     errorLectura: f.errorLectura,
     desaparecida: f.desaparecida,
     tieneCaratula: f.tieneCaratula,

@@ -19,6 +19,7 @@ class CandidatoTmdb {
     required this.titulo,
     required this.tituloOriginal,
     required this.anio,
+    this.cartel = '',
   });
 
   final int id;
@@ -30,7 +31,16 @@ class CandidatoTmdb {
   /// Año del estreno (0 si no se sabe).
   final int anio;
 
+  /// Cartel de TMDB (ruta, p. ej. «/abc.jpg»; vacío si no tiene). Solo se
+  /// enseña para reconocer la película al elegirla: nunca se pone como
+  /// carátula.
+  final String cartel;
+
   String get enlace => 'https://www.themoviedb.org/movie/$id';
+
+  /// Dirección del cartel en pequeño (154 px de ancho), o `null`.
+  String? get enlaceCartel =>
+      cartel.isEmpty ? null : 'https://image.tmdb.org/t/p/w154$cartel';
 
   @override
   String toString() => '$titulo ($anio) [$id]';
@@ -43,6 +53,7 @@ class FichaTmdb extends CandidatoTmdb {
     required super.titulo,
     required super.tituloOriginal,
     required super.anio,
+    super.cartel,
     this.otrosTitulos = const [],
     this.directores = const [],
     this.nombresDirectores = const [],
@@ -152,6 +163,7 @@ class Tmdb {
           titulo: (r['title'] as String?) ?? '',
           tituloOriginal: (r['original_title'] as String?) ?? '',
           anio: _anio(r['release_date']),
+          cartel: (r['poster_path'] as String?) ?? '',
         ),
     ];
   }
@@ -230,6 +242,7 @@ class Tmdb {
       titulo: (json['title'] as String?) ?? '',
       tituloOriginal: (json['original_title'] as String?) ?? '',
       anio: _anio(json['release_date']),
+      cartel: (json['poster_path'] as String?) ?? '',
       otrosTitulos: [
         for (final t
             in (json['alternative_titles']?['titles'] as List?) ?? const [])

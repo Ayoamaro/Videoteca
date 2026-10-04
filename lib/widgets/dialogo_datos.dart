@@ -428,19 +428,35 @@ class FilaDato extends StatelessWidget {
   }
 }
 
-/// Pastilla pequeña con el origen de un dato («TMDB», «OMDb»…).
+/// Origen de los datos que salen del nombre del archivo.
+const origenArchivo = 'Nombre del archivo';
+
+/// Pastilla pequeña con el origen de un dato («TMDB», «OMDb»…), con el
+/// color de cada fuente (como en la leyenda del diseño).
 class EtiquetaOrigen extends StatelessWidget {
   const EtiquetaOrigen(this.origen, {super.key});
 
   final String origen;
 
+  /// Color del texto y del fondo de cada origen.
+  static (Color, Color) colores(BuildContext context, String origen) {
+    final c = context.colores;
+    return switch (origen) {
+      'FilmAffinity' => (c.doradoTexto, c.doradoFondo),
+      'OMDb' => (c.rojo, c.rojoFondo),
+      'Wikidata' => (c.morado, c.moradoFondo),
+      origenArchivo => (c.textoSecundario, c.seleccion),
+      _ => (c.azul, c.azulFondo),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final c = context.colores;
+    final (texto, fondo) = colores(context, origen);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
       decoration: BoxDecoration(
-        color: c.azulFondo,
+        color: fondo,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -448,7 +464,7 @@ class EtiquetaOrigen extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: c.azul,
+          color: texto,
         ),
       ),
     );

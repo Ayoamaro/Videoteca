@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../datos/catalogo.dart';
+import '../datos/fuentes.dart';
+import '../datos/nuevas.dart';
 import '../datos/vigilancia.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
@@ -11,9 +13,11 @@ import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
+import '../widgets/completar.dart';
 
 /// Bandeja de películas detectadas en el disco después del primer escaneo.
-/// (Completar su ficha con datos automáticos llega el día 12.)
+/// La app busca sola sus datos en internet; tú abres «Completar ficha»,
+/// pones la carátula y guardas.
 class PantallaNuevas extends ConsumerWidget {
   const PantallaNuevas({super.key});
 
@@ -21,22 +25,48 @@ class PantallaNuevas extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colores;
     final nuevas = ref.watch(nuevasProvider);
+    final busquedas = ref.watch(busquedasNuevasProvider);
+    final hayClave = ref.watch(fuentesDatosProvider) != null;
     final revisando = ref.watch(escaneoProvider)?.enMarcha ?? false;
+    final estados = {
+      for (final p in nuevas)
+        p.id: estadoNueva(p, busquedas[p.id], clave: hayClave),
+    };
+    int cuantas(Set<EstadoNueva> e) => estados.values.where(e.contains).length;
     final hoy = DateUtils.dateOnly(DateTime.now());
     final deHoy = nuevas
         .where((p) => p.anadida != null && !p.anadida!.isBefore(hoy))
         .length;
-    final sinCaratula = nuevas.where((p) => !p.tieneCaratula).length;
+    final guardadas = [
+      for (final p in nuevas)
+        if (p.completada != null) p.id,
+    ];
+    final conError = cuantas({EstadoNueva.error});
 
     return PaginaBase(
       children: [
         CabeceraPagina(
           titulo: 'Películas nuevas',
           descripcion:
-              'Películas que han aparecido en el disco. La app las detecta '
-              'sola en cuanto las copias; pronto (día 12) buscará sus datos '
-              'y tú solo añadirás la carátula y guardarás.',
+              'Películas que han aparecido en el disco. Los datos se buscan '
+              'solos; tú solo revisas, añades la carátula y guardas.',
           acciones: [
+            if (conError > 0)
+              OutlinedButton.icon(
+                onPressed: () => ref
+                    .read(busquedasNuevasProvider.notifier)
+                    .reintentarErrores(),
+                icon: const Icon(Icons.wifi_rounded, size: 18),
+                label: const Text('Volver a buscar'),
+              ),
+            if (guardadas.isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: () => ref
+                    .read(catalogoProvider.notifier)
+                    .quitarDeNuevas(guardadas),
+                icon: const Icon(Icons.done_all_rounded, size: 18),
+                label: Text('Quitar las guardadas (${guardadas.length})'),
+              ),
             OutlinedButton.icon(
               onPressed: revisando
                   ? null
@@ -51,21 +81,50 @@ class PantallaNuevas extends ConsumerWidget {
           separacion: 12,
           children: [
             Contador(
-              valor: formatoNumero(nuevas.length),
-              texto: 'en la bandeja',
-            ),
-            Contador(
               valor: formatoNumero(deHoy),
               texto: deHoy == 1 ? 'detectada hoy' : 'detectadas hoy',
+            ),
+            Contador(
+              valor: formatoNumero(cuantas({EstadoNueva.lista})),
+              texto: 'listas para revisar',
               color: c.azul,
             ),
             Contador(
-              valor: formatoNumero(sinCaratula),
-              texto: 'sin carátula todavía',
+              valor: formatoNumero(
+                cuantas({EstadoNueva.elegir, EstadoNueva.noEncontrada}),
+              ),
+              texto: 'necesitan que elijas',
               color: c.naranja,
+            ),
+            Contador(
+              valor: formatoNumero(guardadas.length),
+              texto: guardadas.length == 1 ? 'guardada' : 'guardadas',
+              color: c.verde,
             ),
           ],
         ),
+        if (!hayClave && nuevas.isNotEmpty)
+          Tarjeta(
+            fondo: c.doradoFondo,
+            borde: c.doradoBorde,
+            child: Row(
+              children: [
+                Icon(Icons.key_rounded, color: c.doradoTexto),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Para que los datos se busquen solos hace falta la clave '
+                    'gratuita de TMDB. Mientras tanto puedes completar las '
+                    'fichas a mano.',
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.go('/ajustes'),
+                  child: const Text('Ir a Ajustes'),
+                ),
+              ],
+            ),
+          ),
         if (nuevas.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
@@ -83,12 +142,17 @@ class PantallaNuevas extends ConsumerWidget {
             ),
           )
         else
-          _tabla(context, ref, nuevas),
+          _tabla(context, ref, nuevas, estados),
       ],
     );
   }
 
-  Widget _tabla(BuildContext context, WidgetRef ref, List<Pelicula> nuevas) {
+  Widget _tabla(
+    BuildContext context,
+    WidgetRef ref,
+    List<Pelicula> nuevas,
+    Map<int, EstadoNueva> estados,
+  ) {
     final c = context.colores;
     Widget cabecera(String t) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -105,14 +169,14 @@ class PantallaNuevas extends ConsumerWidget {
           builder: (context, medidas) => SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: SizedBox(
-              width: medidas.maxWidth < 820 ? 820 : medidas.maxWidth,
+              width: medidas.maxWidth < 900 ? 900 : medidas.maxWidth,
               child: Table(
                 columnWidths: const {
-                  0: FlexColumnWidth(2.8),
-                  1: FlexColumnWidth(1.1),
-                  2: FlexColumnWidth(1.1),
-                  3: FlexColumnWidth(1.3),
-                  4: FlexColumnWidth(1.6),
+                  0: FlexColumnWidth(2.6),
+                  1: FlexColumnWidth(1),
+                  2: FlexColumnWidth(1),
+                  3: FlexColumnWidth(1.5),
+                  4: FlexColumnWidth(2),
                 },
                 defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 children: [
@@ -129,7 +193,8 @@ class PantallaNuevas extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  for (final p in nuevas) _fila(context, ref, p),
+                  for (final p in nuevas)
+                    _fila(context, ref, p, estados[p.id]!),
                 ],
               ),
             ),
@@ -139,12 +204,17 @@ class PantallaNuevas extends ConsumerWidget {
     );
   }
 
-  TableRow _fila(BuildContext context, WidgetRef ref, Pelicula p) {
+  TableRow _fila(
+    BuildContext context,
+    WidgetRef ref,
+    Pelicula p,
+    EstadoNueva estado,
+  ) {
     final c = context.colores;
     const relleno = EdgeInsets.symmetric(horizontal: 18, vertical: 16);
-    final (estado, color, fondo) = p.tieneCaratula
-        ? ('Por completar', c.azul, c.azulFondo)
-        : ('Falta la carátula', c.naranja, c.naranjaFondo);
+    final guardada =
+        estado == EstadoNueva.guardada ||
+        estado == EstadoNueva.guardadaSinCaratula;
     return TableRow(
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: c.borde)),
@@ -197,20 +267,37 @@ class PantallaNuevas extends ConsumerWidget {
           padding: relleno,
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Pastilla(estado, color: color, fondo: fondo),
+            child: PastillaEstado(estado),
           ),
         ),
         Padding(
           padding: relleno,
           child: Wrap(
             alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 4,
             runSpacing: 4,
             children: [
-              FilledButton(
-                onPressed: () => context.push('/pelicula/${p.id}'),
-                child: const Text('Ver ficha'),
-              ),
+              if (guardada)
+                OutlinedButton(
+                  onPressed: () => context.push('/pelicula/${p.id}'),
+                  child: const Text('Ver ficha'),
+                )
+              else if (estado == EstadoNueva.elegir)
+                OutlinedButton(
+                  onPressed: () => context.go('/nuevas/${p.id}'),
+                  child: const Text('Elegir'),
+                )
+              else if (estado == EstadoNueva.lista)
+                FilledButton(
+                  onPressed: () => context.go('/nuevas/${p.id}'),
+                  child: const Text('Completar ficha'),
+                )
+              else
+                OutlinedButton(
+                  onPressed: () => context.go('/nuevas/${p.id}'),
+                  child: const Text('Completar ficha'),
+                ),
               IconButton(
                 tooltip: 'Quitar de nuevas (sigue en el catálogo)',
                 onPressed: () =>

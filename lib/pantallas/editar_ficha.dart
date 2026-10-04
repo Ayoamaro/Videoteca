@@ -364,9 +364,13 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     );
   }
 
+  /// Los avisos salen por encima de la barra de abajo, para que no tapen
+  /// «Guardar en el archivo».
+  static const _margenAviso = EdgeInsets.fromLTRB(24, 0, 24, 80);
+
   void _aviso(String texto) => ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(texto)));
+    ..showSnackBar(SnackBar(content: Text(texto), margin: _margenAviso));
 
   Future<void> _guardar() async {
     final p = _pelicula;
@@ -447,6 +451,8 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
             duration: const Duration(seconds: 8),
             // Con botón, Flutter lo dejaría fijo hasta cerrarlo a mano.
             persist: false,
+            // Si se pasa a la siguiente película, también hay barra abajo.
+            margin: completar || repaso != null ? _margenAviso : null,
             content: Text(
               siguiente == null
                   ? (repaso != null

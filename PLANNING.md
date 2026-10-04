@@ -96,11 +96,14 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Hecho:** panel lateral (en el móvil, hoja inferior con «Ver N películas»). **Género** = los de la ficha (Comedia 2.417…) y **Carpeta** = dónde está, en árbol (*Comedias › Romance*). Cada opción muestra cuántas películas saldrían con el resto de filtros; dentro de un grupo vale cualquiera de las marcadas y entre grupos se tienen que cumplir todos. Año con barra y atajos por décadas, estrellas «3 o más», edad, y país/saga/dirección/reparto escribiendo el nombre (país y saga se llenarán el día 10). Ordenar por fecha añadida, título, año o estrellas, con la flecha para darle la vuelta; la vista lista/cuadrícula se recuerda. Filtrar las 5.541 tarda 1–5 ms. También se puede abrir ya filtrado: `/catalogo?director=…&actor=…&carpeta=…`. Arreglada la insignia de edad para +10 y +13.
 **Datos raros vistos en el disco (para Pendientes, día 8):** *DC Liga de Supermascotas (2022)* tiene el año `20222`; *Jurassic World 2: El Reino Caído* tiene «Michael Giacchino» como clasificación de edad; 18 frases de edad con erratas («…de 16 año», punto final).
 
-### ☐ Día 7 — Ficha de película
+### ☑ Día 7 — Ficha de película
 - Ficha completa con el bloque **"Dónde está"** (ruta exacta, calidad y tamaño).
 - Botones Reproducir, Abrir carpeta y Copiar ruta.
 - Pulsar un actor o director muestra sus otras películas de la colección.
 - Aviso de "disco desconectado" (la búsqueda sigue funcionando).
+
+**Hecho:** **Reproducir** abre la película con tu reproductor de Windows (VLC) y **Abrir carpeta** abre el Explorador con el archivo ya seleccionado (también con nombres que llevan `꞉`). Cada nombre de Dirección y Reparto se puede pulsar: lleva al lado el número de películas suyas que tienes y abre una ventana con todas ellas (y «Ver en el Catálogo» para filtrarlas). Debajo, **«Más de *director*»** con hasta 6 carátulas; si una es otra copia de la misma película, lo indica. Botones *Buscar en FilmAffinity / IMDb* (abren la ficha directa cuando el enlace esté guardado, día 10). El disco se comprueba cada 5 s: si no está, sale una franja de aviso, el punto del menú se pone rojo y Reproducir/Abrir carpeta se desactivan; si el disco está pero el archivo ya no, la ficha lo dice.
+**Más datos raros (para Pendientes):** el archivo *El Caballero Oscuro 3꞉ La Leyenda Renace (2008).mp4* tiene el año 2008 en el nombre y 2012 en los datos, y su sinopsis está cortada a media palabra.
 
 ### ☐ Día 8 — Cambios en el disco y Pendientes · 🏷 v0.1
 - Vigilancia de carpetas: detectar al momento las películas **nuevas**, **movidas** y **desaparecidas**.

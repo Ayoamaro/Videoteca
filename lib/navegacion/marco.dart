@@ -80,14 +80,14 @@ class Marco extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 MenuLateral(activo: _activoEscritorio(ubicacion)),
-                Expanded(child: child),
+                Expanded(child: _ConAviso(child: child)),
               ],
             ),
           );
         }
         final indice = _indiceMovil(ubicacion);
         return Scaffold(
-          body: child,
+          body: _ConAviso(child: child),
           bottomNavigationBar: DecoratedBox(
             decoration: BoxDecoration(
               border: Border(top: BorderSide(color: context.colores.borde)),
@@ -323,13 +323,64 @@ class _ElementoMenu extends StatelessWidget {
   }
 }
 
+/// Pone encima de la pantalla una franja de aviso cuando el disco de la
+/// colección no está conectado.
+class _ConAviso extends ConsumerWidget {
+  const _ConAviso({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final conectado = ref.watch(discoConectadoProvider).value ?? true;
+    if (conectado) return child;
+    final c = context.colores;
+    final disco = nombreDisco(ref.watch(carpetaRaizProvider));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: c.rojoFondo,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.usb_off_rounded, size: 18, color: c.rojo),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '${disco[0].toUpperCase()}${disco.substring(1)} no está '
+                      'conectado. Puedes seguir buscando en el catálogo; para '
+                      'reproducir, conéctalo.',
+                      style: TextStyle(fontSize: 13, color: c.texto),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
 /// Recuadro inferior del menú: estado del disco y de la publicación.
-class _Estado extends StatelessWidget {
+class _Estado extends ConsumerWidget {
   const _Estado();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colores;
+    final conectado = ref.watch(discoConectadoProvider).value ?? true;
+    final disco = nombreDisco(ref.watch(carpetaRaizProvider));
+    // «Disco D: conectado»; si la raíz no es una unidad, «Carpeta …».
+    final textoDisco = disco.startsWith('el ')
+        ? '${disco.replaceFirst('el disco', 'Disco')} ${conectado ? 'conectado' : 'desconectado'}'
+        : 'Carpeta ${conectado ? 'disponible' : 'no disponible'}';
     final estilo = TextStyle(fontSize: 13, color: c.textoSuave);
     return Tarjeta(
       relleno: const EdgeInsets.all(14),
@@ -343,16 +394,13 @@ class _Estado extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: c.verde,
+                  color: conectado ? c.verde : c.rojo,
                   shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 8),
               Flexible(
-                child: Text(
-                  'Disco D: conectado',
-                  style: estilo.copyWith(color: c.texto),
-                ),
+                child: Text(textoDisco, style: estilo.copyWith(color: c.texto)),
               ),
             ],
           ),

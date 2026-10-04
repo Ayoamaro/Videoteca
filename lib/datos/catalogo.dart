@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../disco/caratula_mp4.dart';
 import '../disco/escaner.dart';
 import '../modelos/pelicula.dart';
+import '../utilidades.dart';
 import 'base_datos.dart';
 import 'buscador.dart';
 import 'carpetas_app.dart';
@@ -313,3 +314,59 @@ class Escaneo extends Notifier<ProgresoEscaneo?> {
 /// ¿Existe la carpeta raíz? (Si el disco está desconectado, no.)
 bool carpetaDisponible(String? ruta) =>
     ruta != null && Directory(ruta).existsSync();
+
+// ── Disco ────────────────────────────────────────────────────────────────
+
+/// ¿Está conectado el disco de la colección? Se comprueba al arrancar y cada
+/// 5 segundos. Sin disco la app sigue funcionando (el catálogo está en la base
+/// de datos), pero no se puede reproducir ni abrir la carpeta. En el modo
+/// consulta (sin disco propio) siempre es `true`.
+final discoConectadoProvider = StreamProvider<bool>((ref) {
+  final raiz = ref.watch(carpetaRaizProvider);
+  if (!esAdministrador || raiz == null) return Stream.value(true);
+  Future<bool> comprobar() => Directory(raiz).exists();
+  return (() async* {
+    yield await comprobar();
+    yield* Stream.periodic(const Duration(seconds: 5))
+        .asyncMap((_) => comprobar());
+  })().distinct();
+});
+
+/// ¿Sigue el archivo en su sitio? (Puede haberse movido o borrado desde el
+/// último escaneo.) Se vuelve a mirar cuando el disco se conecta.
+final archivoExisteProvider = FutureProvider.autoDispose.family<bool, String>((
+  ref,
+  ruta,
+) async {
+  if (!(ref.watch(discoConectadoProvider).value ?? true)) return false;
+  return File(ruta).exists();
+});
+
+/// Nombre corto de la carpeta raíz para los avisos: `D:\` → «el disco D:».
+String nombreDisco(String? raiz) {
+  if (raiz == null) return 'el disco';
+  final unidad = RegExp(r'^([A-Za-z]):').firstMatch(raiz);
+  if (unidad != null) return 'el disco ${unidad.group(1)!.toUpperCase()}:';
+  return raiz.startsWith(r'\') ? 'la carpeta de red' : 'la carpeta';
+}
+
+// ── Personas ─────────────────────────────────────────────────────────────
+
+/// Si una persona aparece como director o como actor.
+enum Papel { direccion, reparto }
+
+/// Películas de la colección de una persona, de la más reciente a la más
+/// antigua. Los nombres se comparan sin tildes ni mayúsculas.
+final peliculasDePersonaProvider =
+    Provider.family<List<Pelicula>, (String, Papel)>((ref, persona) {
+      final (nombre, papel) = persona;
+      final filtro = papel == Papel.direccion
+          ? Filtros(director: nombre)
+          : Filtros(actor: nombre);
+      return filtro.aplicar(
+        ref.watch(catalogoProvider).value ?? const <Pelicula>[],
+      )..sort((a, b) {
+        final c = b.anio.compareTo(a.anio);
+        return c != 0 ? c : a.titulo.compareTo(b.titulo);
+      });
+    });

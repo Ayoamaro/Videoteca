@@ -25,7 +25,7 @@ class PantallaGeneros extends ConsumerWidget {
                 nombre: nombre,
                 total: total,
                 alPulsar: () => context.go(
-                  '/catalogo?genero=${Uri.encodeQueryComponent(nombre)}',
+                  '/catalogo?carpeta=${Uri.encodeQueryComponent(nombre)}',
                 ),
               ),
           ],

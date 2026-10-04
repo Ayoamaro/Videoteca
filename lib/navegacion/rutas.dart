@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../datos/buscador.dart';
 import '../datos/catalogo.dart';
+import '../datos/filtros.dart';
 import '../pantallas/ajustes.dart';
 import '../pantallas/bienvenida.dart';
 import '../pantallas/catalogo.dart';
@@ -51,18 +52,32 @@ final rutasProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/catalogo',
-            pageBuilder: (c, e) => sinAnimacion(
-              e,
-              PantallaCatalogo(
-                key: ValueKey(e.uri.toString()),
-                busqueda: e.uri.queryParameters['q'] ?? '',
-                genero: e.uri.queryParameters['genero'],
-                ambito: AmbitoBusqueda.values.firstWhere(
-                  (a) => a.name == e.uri.queryParameters['en'],
-                  orElse: () => AmbitoBusqueda.todo,
+            pageBuilder: (c, e) {
+              // P. ej. `/catalogo?carpeta=Western&director=John%20Ford`:
+              // `carpeta` es la de segundo nivel y `grupo` la de primero.
+              final datos = e.uri.queryParameters;
+              Set<String> uno(String clave) => {?datos[clave]};
+              return sinAnimacion(
+                e,
+                PantallaCatalogo(
+                  key: ValueKey(e.uri.toString()),
+                  busqueda: datos['q'] ?? '',
+                  ambito: AmbitoBusqueda.values.firstWhere(
+                    (a) => a.name == datos['en'],
+                    orElse: () => AmbitoBusqueda.todo,
+                  ),
+                  filtros: Filtros(
+                    generos: uno('genero'),
+                    grupos: uno('grupo'),
+                    subcarpetas: uno('carpeta'),
+                    paises: uno('pais'),
+                    sagas: uno('saga'),
+                    director: datos['director'],
+                    actor: datos['actor'],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           GoRoute(
             path: '/generos',

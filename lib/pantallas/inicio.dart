@@ -154,7 +154,7 @@ class PantallaInicio extends ConsumerWidget {
 }
 
 void _abrirGenero(BuildContext context, String genero) =>
-    context.go('/catalogo?genero=${Uri.encodeQueryComponent(genero)}');
+    context.go('/catalogo?carpeta=${Uri.encodeQueryComponent(genero)}');
 
 /// Botón de género con su número de películas.
 class BotonGenero extends StatelessWidget {

@@ -358,7 +358,18 @@ class InsigniaEdad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (fondo, texto) = colores[edad] ?? colores['TP']!;
+    // Edades sin color propio (10, 13…) toman el de la siguiente más alta.
+    final n = int.tryParse(edad);
+    final clave = n == null
+        ? 'TP'
+        : n <= 7
+        ? '7'
+        : n <= 13
+        ? '12'
+        : n <= 16
+        ? '16'
+        : '18';
+    final (fondo, texto) = colores[clave]!;
     return Container(
       constraints: const BoxConstraints(minWidth: 40),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

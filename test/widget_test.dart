@@ -85,6 +85,37 @@ void main() {
     expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
   }, variant: windows);
 
+  testWidgets('Filtros combinables del catálogo', (tester) async {
+    await abrirApp(tester, const Size(1440, 1000));
+    await tester.tap(find.text('Catálogo'));
+    await tester.pumpAndSettle();
+
+    Finder total(String texto) => find.text(texto, findRichText: true);
+
+    // Director: se escribe y se elige de la lista.
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Escribe un director…'),
+      'joss',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Joss Whedon'));
+    await tester.pumpAndSettle();
+    expect(total('2 películas'), findsOneWidget);
+    expect(find.text('Dirección: Joss Whedon'), findsOneWidget);
+
+    // Se combina con las estrellas: de Joss Whedon con 5, solo una.
+    await tester.tap(find.text('5  1', findRichText: true));
+    await tester.pumpAndSettle();
+    expect(total('1 película'), findsOneWidget);
+    expect(find.text('Los Vengadores'), findsOneWidget);
+
+    // «Quitar todos» deja el catálogo entero.
+    await tester.tap(find.text('Quitar todos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dirección: Joss Whedon'), findsNothing);
+    expect(total('${peliculasEjemplo.length} películas'), findsOneWidget);
+  }, variant: windows);
+
   testWidgets(
     'Autocompletado en Inicio: escribir, elegir con flechas e Intro',
     (tester) async {

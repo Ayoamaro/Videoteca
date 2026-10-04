@@ -12,6 +12,7 @@ import '../modelos/pelicula.dart';
 import 'base_datos.dart';
 import 'buscador.dart';
 import 'carpetas_app.dart';
+import 'filtros.dart';
 
 // "Proveedores" (Riverpod): piezas que guardan datos y avisan a las pantallas
 // cuando cambian. Aquí se conecta la base de datos con la app.
@@ -169,6 +170,91 @@ final generosProvider = Provider<List<(String, int)>>((ref) {
   return [for (final e in cuenta.entries) (e.key, e.value)]
     ..sort((a, b) => b.$2.compareTo(a.$2));
 });
+
+/// Carpetas de la colección en árbol: cada carpeta de primer nivel con su
+/// número de películas y sus subcarpetas.
+final arbolCarpetasProvider = Provider<List<CarpetaArbol>>((ref) {
+  final grupos = <String, int>{};
+  final subs = <String, Map<String, int>>{};
+  for (final p in ref.watch(catalogoProvider).value ?? const <Pelicula>[]) {
+    if (p.grupo.isEmpty) continue;
+    grupos[p.grupo] = (grupos[p.grupo] ?? 0) + 1;
+    final suyas = subs.putIfAbsent(p.grupo, () => {});
+    suyas[p.generoCarpeta] = (suyas[p.generoCarpeta] ?? 0) + 1;
+  }
+  return [
+    for (final (grupo, total) in Facetas.ordenadas(grupos))
+      (
+        nombre: grupo,
+        total: total,
+        // Una sola subcarpeta con el mismo nombre (o la propia carpeta) no
+        // aporta nada: no se enseña.
+        subcarpetas: [
+          for (final sub in Facetas.ordenadas(subs[grupo]!))
+            if (sub.$1 != grupo) sub,
+        ],
+      ),
+  ];
+});
+
+/// Una carpeta de primer nivel con sus subcarpetas.
+typedef CarpetaArbol = ({
+  String nombre,
+  int total,
+  List<(String, int)> subcarpetas,
+});
+
+/// Géneros de las fichas ("Comedia", "Drama"…) con su número de películas.
+final generosFichaProvider = Provider<List<(String, int)>>(
+  (ref) => contarNombres(
+    ref.watch(catalogoProvider).value ?? const <Pelicula>[],
+    (p) => p.generos,
+  ),
+);
+
+/// Directores y actores de la colección con su número de películas (para
+/// los filtros del Catálogo).
+final directoresProvider = Provider<List<(String, int)>>(
+  (ref) => contarNombres(
+    ref.watch(catalogoProvider).value ?? const <Pelicula>[],
+    (p) => separarNombres(p.direccion),
+  ),
+);
+final actoresProvider = Provider<List<(String, int)>>(
+  (ref) => contarNombres(
+    ref.watch(catalogoProvider).value ?? const <Pelicula>[],
+    (p) => separarNombres(p.reparto),
+  ),
+);
+
+/// Años más antiguo y más reciente de la colección (sin contar años mal
+/// escritos), para la barra de años de los filtros.
+final aniosProvider = Provider<(int, int)?>((ref) {
+  int? minimo, maximo;
+  for (final p in ref.watch(catalogoProvider).value ?? const <Pelicula>[]) {
+    if (!anioValido(p.anio)) continue;
+    if (minimo == null || p.anio < minimo) minimo = p.anio;
+    if (maximo == null || p.anio > maximo) maximo = p.anio;
+  }
+  return minimo == null ? null : (minimo, maximo!);
+});
+
+/// El Catálogo se ve en lista (`true`) o en cuadrícula. Se recuerda.
+final vistaListaProvider = NotifierProvider<VistaLista, bool>(VistaLista.new);
+
+class VistaLista extends Notifier<bool> {
+  static const clave = 'vistaCatalogo';
+
+  @override
+  bool build() => ref.read(ajustesInicialesProvider)[clave] == 'lista';
+
+  Future<void> cambiar(bool lista) async {
+    state = lista;
+    await ref
+        .read(baseDatosProvider)
+        .guardarAjuste(clave, lista ? 'lista' : 'cuadricula');
+  }
+}
 
 /// Carátula completa leída del `.mp4` (para la ficha). `null` si el archivo
 /// no tiene carátula o el disco no está conectado.

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../datos/ejemplo.dart';
+import '../datos/catalogo.dart';
+import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../tema/tema.dart';
 import '../utilidades.dart';
@@ -10,15 +12,19 @@ import '../widgets/comunes.dart';
 
 /// Pantalla de Inicio: buscador, aviso de películas nuevas, añadidas
 /// recientemente y géneros.
-class PantallaInicio extends StatelessWidget {
+class PantallaInicio extends ConsumerWidget {
   const PantallaInicio({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colores;
     final tema = Theme.of(context).textTheme;
-    final recientes = [...peliculasEjemplo]
-      ..sort((a, b) => b.anadida!.compareTo(a.anadida!));
+    final todas = ref.watch(catalogoProvider).value ?? const <Pelicula>[];
+    final generos = ref.watch(generosProvider);
+    final antiguo = DateTime(1900);
+    final recientes = [...todas]
+      ..sort((a, b) => (b.anadida ?? antiguo).compareTo(a.anadida ?? antiguo));
+    final nuevas = todas.where((p) => p.nueva).take(3).toList();
 
     return LayoutBuilder(
       builder: (context, medidas) {
@@ -53,7 +59,7 @@ class PantallaInicio extends StatelessWidget {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: formatoNumero(totalPeliculasEjemplo),
+                        text: formatoNumero(todas.length),
                         style: TextStyle(
                           fontFamily: fuenteTitulos,
                           fontSize: 22,
@@ -76,7 +82,7 @@ class PantallaInicio extends StatelessWidget {
               alEnviar: (texto) =>
                   context.go('/catalogo?q=${Uri.encodeQueryComponent(texto)}'),
             ),
-            if (esAdministrador) const _AvisoNuevas(),
+            if (esAdministrador && nuevas.isNotEmpty) _AvisoNuevas(nuevas),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -91,7 +97,7 @@ class PantallaInicio extends StatelessWidget {
                     height: 260,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: 6,
+                      itemCount: recientes.length.clamp(0, 6),
                       separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (_, i) => SizedBox(
                         width: 132,
@@ -118,7 +124,7 @@ class PantallaInicio extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      for (final (nombre, _) in generosEjemplo)
+                      for (final (nombre, _) in generos)
                         ActionChip(
                           label: Text(nombre),
                           onPressed: () => _abrirGenero(context, nombre),
@@ -130,7 +136,7 @@ class PantallaInicio extends StatelessWidget {
                     anchoMinimo: 200,
                     separacion: 12,
                     children: [
-                      for (final (nombre, total) in generosEjemplo)
+                      for (final (nombre, total) in generos)
                         BotonGenero(
                           nombre: nombre,
                           total: total,
@@ -203,12 +209,13 @@ class BotonGenero extends StatelessWidget {
 
 /// Banda dorada "3 películas nuevas detectadas".
 class _AvisoNuevas extends StatelessWidget {
-  const _AvisoNuevas();
+  const _AvisoNuevas(this.nuevas);
+
+  final List<Pelicula> nuevas;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colores;
-    final nuevas = peliculasEjemplo.where((p) => p.nueva).take(3).toList();
     return Material(
       color: c.doradoFondo,
       shape: RoundedRectangleBorder(

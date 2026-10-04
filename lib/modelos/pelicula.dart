@@ -5,8 +5,8 @@ import '../disco/lector_archivo.dart';
 
 /// Una película de la colección.
 ///
-/// De momento es una clase sencilla (datos de ejemplo o leídos de un `.mp4`).
-/// El día 4 se convertirá en una tabla de la base de datos (Drift) con estos mismos campos.
+/// Se crea a partir de una fila de la base de datos (ver `datos/catalogo.dart`),
+/// de lo leído en un `.mp4` o de los datos de ejemplo.
 class Pelicula {
   const Pelicula({
     required this.id,
@@ -37,6 +37,11 @@ class Pelicula {
     this.nueva = false,
     this.tono = const Color(0xFF2E4034),
     this.caratula,
+    this.miniatura,
+    this.tieneCaratula = false,
+    this.grupo = '',
+    this.enlaceFilmaffinity = '',
+    this.enlaceImdb = '',
   });
 
   /// Película a partir de lo leído en su `.mp4`.
@@ -65,6 +70,9 @@ class Pelicula {
     saga: d.texto('System.Music.AlbumTitle'),
     numeroSaga: d.numero('System.Music.TrackNumber'),
     caratula: d.caratula,
+    tieneCaratula: d.caratula != null,
+    enlaceFilmaffinity: d.texto('System.Media.AuthorUrl'),
+    enlaceImdb: d.texto('System.Media.PromotionUrl'),
   );
 
   final int id;
@@ -111,6 +119,19 @@ class Pelicula {
 
   /// Carátula incrustada en el `.mp4`.
   final Uint8List? caratula;
+
+  /// Ruta de la miniatura de la carátula que guarda la app (para listas y
+  /// cuadrículas: pesa mucho menos que la carátula completa).
+  final String? miniatura;
+
+  /// El `.mp4` lleva carátula incrustada.
+  final bool tieneCaratula;
+
+  /// Carpeta de primer nivel, p. ej. "Comedias".
+  final String grupo;
+
+  final String enlaceFilmaffinity;
+  final String enlaceImdb;
 
   /// Carpeta donde está el archivo (sin el nombre).
   String get carpeta {

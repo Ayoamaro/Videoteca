@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../datos/catalogo.dart';
 import '../pantallas/ficha.dart' show InsigniaEdad;
 import '../tema/colores.dart';
 import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/comunes.dart';
+import '../widgets/progreso_escaneo.dart';
 
 /// Ajustes de la app. De momento solo funciona la apariencia; el resto se
 /// irá activando en los días indicados.
@@ -52,30 +54,7 @@ class PantallaAjustes extends ConsumerWidget {
               ],
             ),
             if (esAdministrador) ...[
-              _Seccion(
-                titulo: 'Colección',
-                dia: 4,
-                children: [
-                  _campo(context, 'Carpeta raíz', r'D:\', monoespacio: true),
-                  Text(
-                    'Detectadas automáticamente: 7 carpetas y 16 géneros · '
-                    '5.541 archivos .mp4 (ejemplo)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.6,
-                      color: context.colores.textoSuave,
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.go('/lectura'),
-                      icon: const Icon(Icons.manage_search_rounded, size: 18),
-                      label: const Text('Leer un archivo .mp4'),
-                    ),
-                  ),
-                ],
-              ),
+              const _SeccionColeccion(),
               _Seccion(
                 titulo: 'Publicación (tablón en GitHub)',
                 dia: 14,
@@ -216,7 +195,6 @@ class PantallaAjustes extends ConsumerWidget {
                   for (final (texto, dia) in const [
                     ('Exportar catálogo a Excel', 17),
                     ('Copia de seguridad del catálogo', 17),
-                    ('Volver a escanear todo el disco', 4),
                   ])
                     OutlinedButton(
                       onPressed: () => avisoProximamente(context, texto, dia),
@@ -305,6 +283,85 @@ class _Seccion extends StatelessWidget {
           for (final hijo in children) ...[const SizedBox(height: 14), hijo],
         ],
       ),
+    );
+  }
+}
+
+/// Carpeta de la colección, qué se ha detectado y botones para escanear.
+class _SeccionColeccion extends ConsumerWidget {
+  const _SeccionColeccion();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final raiz = ref.watch(carpetaRaizProvider) ?? '—';
+    final peliculas = ref.watch(catalogoProvider).value ?? const [];
+    final generos = ref.watch(generosProvider);
+    final grupos = {
+      for (final p in peliculas)
+        if (p.grupo.isNotEmpty) p.grupo,
+    };
+    final escaneo = ref.watch(escaneoProvider);
+    final enMarcha = escaneo?.enMarcha ?? false;
+    final ultimo = DateTime.tryParse(
+      ref.watch(ajustesInicialesProvider)['ultimoEscaneo'] ?? '',
+    );
+    final notificador = ref.read(escaneoProvider.notifier);
+
+    return _Seccion(
+      titulo: 'Colección',
+      children: [
+        Row(
+          children: [
+            Icon(Icons.folder_rounded, color: c.doradoTexto),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                raiz,
+                style: TextStyle(
+                  fontFamily: fuenteRutas,
+                  fontSize: 15,
+                  color: c.texto,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: enMarcha ? null : () => context.go('/bienvenida'),
+              child: const Text('Cambiar…'),
+            ),
+          ],
+        ),
+        Text(
+          '${formatoNumero(peliculas.length)} películas · '
+          '${grupos.length} carpetas · ${generos.length} géneros'
+          '${ultimo == null || escaneo != null ? '' : '\nÚltimo escaneo: ${fechaLarga(ultimo)}'}',
+          style: TextStyle(fontSize: 14, height: 1.6, color: c.textoSuave),
+        ),
+        if (escaneo != null)
+          ProgresoEscaneoVista(escaneo, alCancelar: notificador.cancelar),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.icon(
+              onPressed: enMarcha ? null : () => notificador.iniciar(),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Buscar cambios'),
+            ),
+            OutlinedButton(
+              onPressed: enMarcha
+                  ? null
+                  : () => notificador.iniciar(completo: true),
+              child: const Text('Volver a leer todo'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/lectura'),
+              icon: const Icon(Icons.manage_search_rounded, size: 18),
+              label: const Text('Leer un archivo .mp4'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

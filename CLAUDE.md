@@ -10,7 +10,7 @@ App de catálogo de películas para **Windows (administrador) y Android (consult
 - Diseño aprobado: https://claude.ai/artifact/ExVasA5vV2r3fByTLLAxnW · prompt: `docs/prompt-claude-design.md`. Estilo: oscuro "sala de cine", acento dorado `#E2AE4F`, fondo `#0F0E13`, tipografías Bricolage Grotesque (títulos) + Manrope (texto).
 
 ## La colección del usuario (comprobado el 2026-10-03)
-- Disco `D:\` con **5.541 `.mp4`** en `D:\<Grupo>\<Género>\Título (Año).mp4` (7 grupos, 16 géneros; siempre 2 niveles). Usa `꞉` (U+A789) en lugar de `:` en los nombres. Hay 12 títulos duplicados en dos carpetas y 1 archivo fuera de formato (`…(1990)-1.mp4`).
+- Disco `D:\` (HDD de 16 TB) con **5.540 `.mp4` + 1 `.m4v`** (`Wonka (2023).m4v`; la app acepta ambas extensiones) en `D:\<Grupo>\<Género>\Título (Año).mp4` (7 grupos, 16 géneros; siempre 2 niveles). Usa `꞉` (U+A789) en lugar de `:` en los nombres. Hay 12 títulos duplicados en dos carpetas y 1 archivo fuera de formato (`…(1990)-1.mp4`).
 - Cada `.mp4` lleva los datos en las propiedades de Windows (~99 % completos) y una **carátula incrustada** (átomo `covr`, 350×500, la pone el usuario a mano; la app **nunca** pone carátulas por su cuenta).
 - Escribir propiedades con `IPropertyStore` (Windows Property System) **conserva la carátula byte a byte** y no toca el vídeo (probado en una copia).
 - La app debe ser **genérica**: carpeta raíz configurable y géneros detectados de las carpetas, sin nada fijo a este disco.
@@ -50,7 +50,9 @@ No se pueden escribir en MP4: Copyright, ParentalRatingReason, PartOfSet, DateEn
 ## Arquitectura (decidida)
 - **Flutter** (Windows + Android, un solo código), Riverpod, SQLite con Drift + FTS5.
 - Property System con **FFI propio** (`lib/disco/propiedades_windows.dart`, sin el paquete `win32`: su v6 no trae `SHGetPropertyStoreFromParsingName`). Carátula leída en Dart puro (`lib/disco/caratula_mp4.dart`). `System.Rating` 0–99 → estrellas: 1/25/50/75/99.
-- **Sin plugins de Flutter** mientras Windows no tenga el *Modo de desarrollador* (los plugins lo exigen y requiere administrador): diálogos de Windows también por FFI.
+- **Sin plugins de Flutter** mientras Windows no tenga el *Modo de desarrollador* (los plugins lo exigen y requiere administrador): diálogos de Windows (abrir archivo, elegir carpeta con `IFileOpenDialog`) también por FFI. El paquete `sqlite3` v3 **sí funciona**: trae SQLite (con FTS5) mediante *build hooks*, no es un plugin.
+- Base de datos: `lib/datos/base_datos.dart` (Drift; el `.g.dart` generado se sube al repo). Datos de la app en `%LOCALAPPDATA%\Videoteca` (`videoteca.sqlite` + `miniaturas\<id>.jpg`, 240 px). Proveedores Riverpod en `lib/datos/catalogo.dart`.
+- Escáner (`lib/disco/escaner.dart`, sin Flutter): 4 isolates en paralelo, ~60 ms/película en el HDD (escaneo completo ≈ 5,5 min), incremental por tamaño + fecha de modificación; se salta carpetas ocultas/de sistema. Carpeta raíz guardada en el ajuste `carpetaRaiz`; sin ella, el PC abre el asistente `/bienvenida`.
 - **Sin servidor y gratis:** el PC administrador publica el catálogo y las miniaturas WebP, **cifrados** (AES-256-GCM + Argon2id), en un **repositorio de GitHub "tablón"** separado, vía REST API y automáticamente al guardar, con número de versión. Los usuarios base (Android/Windows) lo descargan al abrir la app y entran con una **contraseña común**. El administrador solo trabaja desde el PC.
 - Las claves (TMDB, OMDb, llave de GitHub) **nunca** se suben al repositorio.
 

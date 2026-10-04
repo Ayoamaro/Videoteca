@@ -29,7 +29,7 @@ const destinosColeccion = [
   Destino('/estadisticas', 'Estadísticas', Icons.bar_chart_rounded),
 ];
 
-// Las insignias son datos de ejemplo hasta que la app lea el disco.
+// Las insignias son datos de ejemplo hasta el día 8 (detección de cambios).
 const destinosAdministracion = [
   Destino(
     '/nuevas',
@@ -324,7 +324,7 @@ class _Estado extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Datos de ejemplo',
+            'Nuevas y Pendientes: de ejemplo',
             style: estilo.copyWith(fontSize: 12, color: c.doradoTexto),
           ),
         ],

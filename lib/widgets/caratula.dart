@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,8 @@ import '../tema/tema.dart';
 
 /// Carátula de una película, en proporción 7:10 (como las de 350 × 500).
 ///
-/// Si la película tiene carátula incrustada, la muestra. Si no, dibuja una
+/// Si hay imagen (la carátula completa o la miniatura que guarda la app), la
+/// muestra. Si no, dibuja una
 /// provisional con el color, el título y el año. Se adapta sola al ancho que
 /// le den: en tamaños pequeños (listas) oculta los textos.
 class Caratula extends StatelessWidget {
@@ -19,6 +21,7 @@ class Caratula extends StatelessWidget {
     this.tono = const Color(0xFF2E4034),
     this.nueva = false,
     this.imagen,
+    this.miniatura,
   });
 
   Caratula.de(Pelicula p, {super.key, bool mostrarNueva = true})
@@ -26,13 +29,17 @@ class Caratula extends StatelessWidget {
       anio = p.anio,
       tono = p.tono,
       nueva = mostrarNueva && p.nueva,
-      imagen = p.caratula;
+      imagen = p.caratula,
+      miniatura = p.miniatura;
 
   final String titulo;
   final int? anio;
   final Color tono;
   final bool nueva;
   final Uint8List? imagen;
+
+  /// Ruta de la miniatura guardada por la app (si no hay [imagen]).
+  final String? miniatura;
 
   static const proporcion = 7 / 10;
 
@@ -60,7 +67,20 @@ class Caratula extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(radio),
               child: imagen != null
-                  ? Image.memory(imagen!, fit: BoxFit.cover)
+                  ? Image.memory(
+                      imagen!,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                    )
+                  : miniatura != null
+                  ? Image.file(
+                      File(miniatura!),
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      // Si falta el archivo de la miniatura, la provisional.
+                      errorBuilder: (context, _, _) =>
+                          _provisional(context, ancho),
+                    )
                   : _provisional(context, ancho),
             ),
           );

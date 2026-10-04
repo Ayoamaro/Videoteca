@@ -1,0 +1,7 @@
+# Drift solo tiene que generar código para la base de datos (más rápido).
+targets:
+  $default:
+    builders:
+      drift_dev:
+        generate_for:
+          - lib/datos/base_datos.dart

@@ -21,7 +21,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 |---|---|
 | App Windows + Android | Flutter (Dart), Material 3, Riverpod |
 | Base de datos local y buscador | SQLite con Drift + FTS5 |
-| Datos del `.mp4` | API nativa de Windows (Property System) vía `win32` |
+| Datos del `.mp4` | API nativa de Windows (Property System) vía FFI propio |
 | Datos automáticos | TMDB, OMDb, Wikidata (APIs) · FilmAffinity (WebView2) |
 | Tablón compartido | Repositorio de GitHub (REST API), cifrado AES-256-GCM + Argon2id |
 | Compilación e instaladores | GitHub Actions · instalador Windows · APK Android |
@@ -72,13 +72,14 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Al terminar:** la app muestra los datos reales de una película elegida.
 **Hecho:** Ajustes → *Leer un archivo .mp4*. Para probar desde la terminal: `dart run tool/probar_lectura.dart` (lee 10 películas de `D:\`, ~0,12 s cada una).
 
-### ☐ Día 4 — Escaneo del disco y base de datos
+### ☑ Día 4 — Escaneo del disco y base de datos
 - Base de datos local (SQLite) con el modelo `Película`.
 - Asistente de primer arranque: elegir la carpeta raíz (`D:\`) y detectar las carpetas de géneros automáticamente.
 - Escaneo completo de las 5.541 películas con barra de progreso.
 - Guardar miniaturas de las carátulas para que todo vaya rápido.
 
 **Al terminar:** tus 5.541 películas están en el catálogo de la app.
+**Hecho:** el escaneo completo tarda ~5,5 min (4 lecturas a la vez); los siguientes solo leen lo nuevo o cambiado (Ajustes → *Buscar cambios*). Base de datos y miniaturas (240 px, ~27 KB) en `%LOCALAPPDATA%\Videoteca`. Son 5.540 `.mp4` + 1 `.m4v` (*Wonka*), que también se acepta. Prueba desde la terminal: `dart run tool/escanear.dart D:\ <carpeta temporal>`.
 
 ### ☐ Día 5 — Inicio y buscador
 - Pantalla de Inicio: contador, "Añadidas recientemente" y géneros.

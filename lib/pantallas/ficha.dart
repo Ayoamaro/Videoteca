@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../datos/ejemplo.dart';
+import '../datos/catalogo.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../tema/tema.dart';
@@ -11,7 +12,7 @@ import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
 
 /// Ficha completa de una película.
-class PantallaFicha extends StatelessWidget {
+class PantallaFicha extends ConsumerWidget {
   const PantallaFicha({super.key, this.id = 0, this.pelicula});
 
   final int id;
@@ -21,8 +22,8 @@ class PantallaFicha extends StatelessWidget {
   final Pelicula? pelicula;
 
   @override
-  Widget build(BuildContext context) {
-    final p = pelicula ?? peliculaPorId(id);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = pelicula ?? ref.watch(peliculaPorIdProvider(id));
     if (p == null) {
       return PaginaBase(
         children: [
@@ -36,10 +37,10 @@ class PantallaFicha extends StatelessWidget {
         final ancha = medidas.maxWidth >= 820;
         final columnaCaratula = Column(
           children: [
-            Caratula.de(p, mostrarNueva: false),
+            _CaratulaGrande(p),
             const SizedBox(height: 14),
             Text(
-              p.caratula == null
+              !p.tieneCaratula
                   ? 'Sin carátula incrustada'
                   : 'Carátula incrustada en el archivo',
               textAlign: TextAlign.center,
@@ -87,13 +88,35 @@ class PantallaFicha extends StatelessWidget {
   }
 }
 
-class _Detalles extends StatelessWidget {
+/// Carátula de la ficha: la completa leída del `.mp4`; mientras se lee (o si
+/// el disco no está conectado), la miniatura.
+class _CaratulaGrande extends ConsumerWidget {
+  const _CaratulaGrande(this.p);
+
+  final Pelicula p;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final completa = p.caratula != null || !p.tieneCaratula
+        ? null
+        : ref.watch(caratulaCompletaProvider(p.ruta)).value;
+    return Caratula(
+      titulo: p.titulo,
+      anio: p.anio,
+      tono: p.tono,
+      imagen: p.caratula ?? completa,
+      miniatura: p.miniatura,
+    );
+  }
+}
+
+class _Detalles extends ConsumerWidget {
   const _Detalles(this.p);
 
   final Pelicula p;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colores;
     final tema = Theme.of(context).textTheme;
     final separador = Text('•', style: TextStyle(color: c.bordeFuerte));
@@ -114,7 +137,9 @@ class _Detalles extends StatelessWidget {
     ].where((e) => e.$2.isNotEmpty).toList();
     final saga = p.saga.isEmpty
         ? <Pelicula>[]
-        : (peliculasEjemplo.where((o) => o.saga == p.saga).toList()
+        : ((ref.watch(catalogoProvider).value ?? const <Pelicula>[])
+              .where((o) => o.saga == p.saga)
+              .toList()
             ..sort((a, b) => a.numeroSaga.compareTo(b.numeroSaga)));
 
     return Column(

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../datos/ejemplo.dart';
+import '../datos/catalogo.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../utilidades.dart';
@@ -17,22 +18,30 @@ const _nombresOrden = {
   Orden.estrellas: 'Estrellas',
 };
 
+/// Texto de búsqueda ya preparado (sin tildes) de cada película, calculado
+/// una sola vez para que buscar entre miles sea rápido.
+final _textoBusqueda = Expando<String>();
+
+String _buscable(Pelicula p) => _textoBusqueda[p] ??= normalizar(
+  '${p.titulo} ${p.tituloOriginal} ${p.reparto} ${p.direccion}',
+);
+
 /// Catálogo con buscador, filtros, orden y vista de cuadrícula o lista.
 ///
-/// Por ahora trabaja con los datos de ejemplo. El buscador de verdad
-/// (instantáneo, con autocompletado) llega el día 5 y los filtros completos
-/// el día 6.
-class PantallaCatalogo extends StatefulWidget {
+/// Solo se dibujan las películas que caben en pantalla: así va igual de
+/// fluido con 10 que con 5.541. El buscador instantáneo con autocompletado
+/// llega el día 5 y los filtros completos el día 6.
+class PantallaCatalogo extends ConsumerStatefulWidget {
   const PantallaCatalogo({super.key, this.busqueda = '', this.genero});
 
   final String busqueda;
   final String? genero;
 
   @override
-  State<PantallaCatalogo> createState() => _PantallaCatalogoState();
+  ConsumerState<PantallaCatalogo> createState() => _PantallaCatalogoState();
 }
 
-class _PantallaCatalogoState extends State<PantallaCatalogo> {
+class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
   late final _texto = TextEditingController(text: widget.busqueda);
   late final Set<String> _generos = {if (widget.genero != null) widget.genero!};
   Orden _orden = Orden.recientes;
@@ -44,18 +53,16 @@ class _PantallaCatalogoState extends State<PantallaCatalogo> {
     super.dispose();
   }
 
-  List<Pelicula> get _resultados {
+  List<Pelicula> _resultados(List<Pelicula> todas) {
     // Cada palabra escrita tiene que aparecer en algún sitio, en cualquier orden.
     final palabras = normalizar(_texto.text)
         .split(' ')
         .where((w) => w.isNotEmpty)
         .toList();
     final generos = _generos.map(normalizar).toSet();
-    final lista = peliculasEjemplo.where((p) {
+    final lista = todas.where((p) {
       if (palabras.isNotEmpty) {
-        final donde = normalizar(
-          '${p.titulo} ${p.tituloOriginal} ${p.reparto} ${p.direccion}',
-        );
+        final donde = _buscable(p);
         if (!palabras.every(donde.contains)) return false;
       }
       if (generos.isNotEmpty) {
@@ -65,9 +72,12 @@ class _PantallaCatalogoState extends State<PantallaCatalogo> {
       return true;
     }).toList();
 
+    final antiguo = DateTime(1900);
     switch (_orden) {
       case Orden.recientes:
-        lista.sort((a, b) => b.anadida!.compareTo(a.anadida!));
+        lista.sort(
+          (a, b) => (b.anadida ?? antiguo).compareTo(a.anadida ?? antiguo),
+        );
       case Orden.titulo:
         lista.sort(
           (a, b) => normalizar(a.titulo).compareTo(normalizar(b.titulo)),
@@ -84,7 +94,7 @@ class _PantallaCatalogoState extends State<PantallaCatalogo> {
     marcado ? _generos.add(genero) : _generos.remove(genero);
   });
 
-  void _abrirFiltrosMovil() {
+  void _abrirFiltrosMovil(List<(String, int)> generos) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -97,6 +107,7 @@ class _PantallaCatalogoState extends State<PantallaCatalogo> {
             controller: desplazamiento,
             padding: const EdgeInsets.all(20),
             child: _PanelFiltros(
+              generos: generos,
               seleccionados: _generos,
               alCambiar: (g, v) {
                 _cambiarGenero(g, v);
@@ -115,157 +126,227 @@ class _PantallaCatalogoState extends State<PantallaCatalogo> {
 
   @override
   Widget build(BuildContext context) {
-    final resultados = _resultados;
+    final todas = ref.watch(catalogoProvider).value ?? const <Pelicula>[];
+    final generos = ref.watch(generosProvider);
+    final resultados = _resultados(todas);
     return LayoutBuilder(
       builder: (context, medidas) {
         final ancha = medidas.maxWidth >= 860;
-        return PaginaBase(
-          separacion: 24,
-          children: [
-            CampoBusqueda(
-              controlador: _texto,
-              alto: ancha ? 58 : 52,
-              indicacion: ancha
-                  ? 'Busca por título, título original, actor o director…'
-                  : 'Título, actor o director…',
-              alCambiar: (_) => setState(() {}),
+        final estrecha = medidas.maxWidth < 700;
+        final margen = estrecha ? 20.0 : 48.0;
+        final zonaResultados = _zonaResultados(
+          resultados,
+          generos,
+          ancha,
+          EdgeInsets.only(bottom: estrecha ? 32 : 56),
+        );
+        return SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(margen, estrecha ? 24 : 36, margen, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                CampoBusqueda(
+                  controlador: _texto,
+                  alto: ancha ? 58 : 52,
+                  indicacion: ancha
+                      ? 'Busca por título, título original, actor o director…'
+                      : 'Título, actor o director…',
+                  alCambiar: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 24),
+                Expanded(
+                  child: ancha
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 230,
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.only(bottom: 32),
+                                child: _PanelFiltros(
+                                  generos: generos,
+                                  seleccionados: _generos,
+                                  alCambiar: _cambiarGenero,
+                                  alLimpiar: () => setState(_generos.clear),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 28),
+                            Expanded(child: zonaResultados),
+                          ],
+                        )
+                      : zonaResultados,
+                ),
+              ],
             ),
-            if (ancha)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 230,
-                    child: _PanelFiltros(
-                      seleccionados: _generos,
-                      alCambiar: _cambiarGenero,
-                      alLimpiar: () => setState(_generos.clear),
-                    ),
-                  ),
-                  const SizedBox(width: 28),
-                  Expanded(child: _zonaResultados(resultados, ancha)),
-                ],
-              )
-            else
-              _zonaResultados(resultados, ancha),
-          ],
+          ),
         );
       },
     );
   }
 
-  Widget _zonaResultados(List<Pelicula> resultados, bool ancha) {
+  /// Barra de resultados y la cuadrícula o lista, que se desplazan juntas.
+  Widget _zonaResultados(
+    List<Pelicula> resultados,
+    List<(String, int)> generos,
+    bool ancha,
+    EdgeInsets relleno,
+  ) {
     final c = context.colores;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final barra = Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      runSpacing: 12,
       children: [
         Wrap(
-          alignment: WrapAlignment.spaceBetween,
+          spacing: 8,
+          runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 12,
-          runSpacing: 12,
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text.rich(
+            Text.rich(
+              TextSpan(
+                children: [
                   TextSpan(
-                    children: [
-                      TextSpan(
-                        text: formatoNumero(resultados.length),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: c.texto,
-                        ),
-                      ),
-                      TextSpan(
-                        text: resultados.length == 1
-                            ? ' película'
-                            : ' películas',
-                      ),
-                    ],
+                    text: formatoNumero(resultados.length),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: c.texto,
+                    ),
                   ),
-                  style: TextStyle(fontSize: 15, color: c.textoSecundario),
-                ),
-                for (final g in _generos)
-                  InputChip(
-                    label: Text(g),
-                    onDeleted: () => _cambiarGenero(g, false),
-                    deleteButtonTooltipMessage: 'Quitar filtro',
+                  TextSpan(
+                    text: resultados.length == 1 ? ' película' : ' películas',
                   ),
-                if (!ancha)
-                  OutlinedButton.icon(
-                    onPressed: _abrirFiltrosMovil,
-                    icon: const Icon(Icons.tune_rounded, size: 18),
-                    label: const Text('Filtros'),
-                  ),
-              ],
+                ],
+              ),
+              style: TextStyle(fontSize: 15, color: c.textoSecundario),
             ),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                DropdownButton<Orden>(
-                  value: _orden,
-                  underline: const SizedBox.shrink(),
-                  borderRadius: BorderRadius.circular(10),
-                  dropdownColor: c.superficieAlta,
-                  items: [
-                    for (final o in Orden.values)
-                      DropdownMenuItem(
-                        value: o,
-                        child: Text(_nombresOrden[o]!),
-                      ),
-                  ],
-                  onChanged: (o) => setState(() => _orden = o!),
+            for (final g in _generos)
+              InputChip(
+                label: Text(g),
+                onDeleted: () => _cambiarGenero(g, false),
+                deleteButtonTooltipMessage: 'Quitar filtro',
+              ),
+            if (!ancha)
+              OutlinedButton.icon(
+                onPressed: () => _abrirFiltrosMovil(generos),
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                label: const Text('Filtros'),
+              ),
+          ],
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            DropdownButton<Orden>(
+              value: _orden,
+              underline: const SizedBox.shrink(),
+              borderRadius: BorderRadius.circular(10),
+              dropdownColor: c.superficieAlta,
+              items: [
+                for (final o in Orden.values)
+                  DropdownMenuItem(value: o, child: Text(_nombresOrden[o]!)),
+              ],
+              onChanged: (o) => setState(() => _orden = o!),
+            ),
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.grid_view_rounded, size: 18),
+                  tooltip: 'Vista de cuadrícula',
                 ),
-                SegmentedButton<bool>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: false,
-                      icon: Icon(Icons.grid_view_rounded, size: 18),
-                      tooltip: 'Vista de cuadrícula',
-                    ),
-                    ButtonSegment(
-                      value: true,
-                      icon: Icon(Icons.view_list_rounded, size: 18),
-                      tooltip: 'Vista de lista',
-                    ),
-                  ],
-                  selected: {_lista},
-                  onSelectionChanged: (v) => setState(() => _lista = v.first),
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.view_list_rounded, size: 18),
+                  tooltip: 'Vista de lista',
                 ),
               ],
+              selected: {_lista},
+              onSelectionChanged: (v) => setState(() => _lista = v.first),
             ),
           ],
         ),
-        const SizedBox(height: 18),
-        if (resultados.isEmpty)
-          _SinResultados(texto: _texto.text)
-        else if (_lista)
-          Column(children: [for (final p in resultados) _FilaPelicula(p)])
-        else
-          CuadriculaAdaptable(
-            anchoMinimo: ancha ? 150 : 130,
-            separacion: ancha ? 22 : 14,
-            children: [for (final p in resultados) TarjetaPelicula(p)],
-          ),
       ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, medidas) {
+        // Columnas que caben (como CuadriculaAdaptable), pero construyendo
+        // cada fila solo cuando aparece en pantalla.
+        final separacion = ancha ? 22.0 : 14.0;
+        final anchoMinimo = ancha ? 150.0 : 130.0;
+        final columnas =
+            ((medidas.maxWidth + separacion) / (anchoMinimo + separacion))
+                .floor()
+                .clamp(1, 99);
+        final anchoHijo =
+            (medidas.maxWidth - separacion * (columnas - 1)) / columnas;
+        final filas = (resultados.length / columnas).ceil();
+
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: barra),
+            const SliverToBoxAdapter(child: SizedBox(height: 18)),
+            if (resultados.isEmpty)
+              SliverToBoxAdapter(child: _SinResultados(texto: _texto.text))
+            else if (_lista)
+              SliverPadding(
+                padding: relleno,
+                sliver: SliverList.builder(
+                  itemCount: resultados.length,
+                  itemBuilder: (_, i) => _FilaPelicula(resultados[i]),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: relleno,
+                sliver: SliverList.builder(
+                  itemCount: filas,
+                  itemBuilder: (_, fila) => Padding(
+                    padding: EdgeInsets.only(
+                      bottom: fila == filas - 1 ? 0 : separacion,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var col = 0; col < columnas; col++) ...[
+                          if (col > 0) SizedBox(width: separacion),
+                          SizedBox(
+                            width: anchoHijo,
+                            child: fila * columnas + col < resultados.length
+                                ? TarjetaPelicula(
+                                    resultados[fila * columnas + col],
+                                  )
+                                : null,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _PanelFiltros extends StatelessWidget {
   const _PanelFiltros({
+    required this.generos,
     required this.seleccionados,
     required this.alCambiar,
     required this.alLimpiar,
   });
 
+  final List<(String, int)> generos;
   final Set<String> seleccionados;
   final void Function(String genero, bool marcado) alCambiar;
   final VoidCallback alLimpiar;
@@ -290,7 +371,7 @@ class _PanelFiltros extends StatelessWidget {
         const SizedBox(height: 12),
         const Etiqueta('Género'),
         const SizedBox(height: 6),
-        for (final (nombre, total) in generosEjemplo)
+        for (final (nombre, total) in generos)
           InkWell(
             borderRadius: BorderRadius.circular(6),
             onTap: () => alCambiar(nombre, !seleccionados.contains(nombre)),

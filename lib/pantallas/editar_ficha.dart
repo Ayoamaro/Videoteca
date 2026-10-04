@@ -10,6 +10,7 @@ import 'package:image/image.dart' as img;
 import '../datos/catalogo.dart';
 import '../datos/edicion.dart';
 import '../datos/fuentes.dart';
+import '../datos/lote.dart';
 import '../datos/nuevas.dart';
 import '../disco/arrastre.dart';
 import '../disco/dialogo_abrir.dart';
@@ -17,6 +18,7 @@ import '../disco/escritor.dart';
 import '../disco/lector_archivo.dart';
 import '../fuentes/datos_automaticos.dart';
 import '../fuentes/identificacion.dart' show DatosIdentificacion;
+import '../fuentes/lote.dart' show TipoRepaso;
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../utilidades.dart';
@@ -37,15 +39,21 @@ import 'registro.dart';
 /// el título y el año salen del nombre del archivo, los datos encontrados
 /// en internet (ver `datos/nuevas.dart`) se ponen solos en los campos
 /// vacíos, y si hay dudas se elige la película en «¿Cuál es?».
+///
+/// Con [repaso] es el «Repaso con FilmAffinity» de Completar mi colección:
+/// se abre FilmAffinity nada más entrar y, al guardar o saltar, se pasa a la
+/// siguiente película de ese tipo.
 class PantallaEditarFicha extends ConsumerStatefulWidget {
   const PantallaEditarFicha({
     super.key,
     required this.id,
     this.completar = false,
+    this.repaso,
   });
 
   final int id;
   final bool completar;
+  final TipoRepaso? repaso;
 
   @override
   ConsumerState<PantallaEditarFicha> createState() => _EstadoEditarFicha();
@@ -161,6 +169,12 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
       });
       if (widget.completar) {
         _aplicarBusqueda(ref.read(busquedasNuevasProvider)[widget.id]);
+      }
+      // Repaso: FilmAffinity se abre solo.
+      if (widget.repaso != null && esAdministrador) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _leerFilmaffinity();
+        });
       }
     } catch (e) {
       if (mounted) setState(() => _errorLectura = '$e');
@@ -360,6 +374,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     final cambios = _cambios;
     final caratula = _caratula;
     final completar = widget.completar;
+    final repaso = widget.repaso;
     if (completar && !await _confirmarSinCaratula()) return;
     if (!mounted) return;
     final mensajero = ScaffoldMessenger.of(context);
@@ -373,9 +388,16 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         p,
         cambios,
         caratula: caratula,
-        origen: completar ? 'Completar ficha' : 'Editar ficha',
+        origen: completar
+            ? 'Completar ficha'
+            : repaso != null
+            ? 'Repaso con FilmAffinity'
+            : 'Editar ficha',
       );
       if (completar) await catalogo.marcarCompletada(p.id);
+      if (repaso != null) {
+        await ref.read(repasadasProvider.notifier).marcar(p.id);
+      }
       navegador.pop();
       if (!mounted) return;
       // Ya no hay cambios pendientes: se puede salir sin preguntar.
@@ -384,14 +406,22 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         _caratula = null;
       });
       // Completar ficha: se pasa a la siguiente nueva sin guardar (o a la
-      // bandeja si no quedan).
+      // bandeja si no quedan). Repaso: a la siguiente por repasar.
       final siguiente = completar
           ? ref
                 .read(nuevasSinGuardarProvider)
                 .where((o) => o.id != p.id)
                 .firstOrNull
+          : repaso != null
+          ? _siguienteRepaso(p.id)
           : null;
-      if (!completar) {
+      if (repaso != null) {
+        enrutador.go(
+          siguiente == null
+              ? '/coleccion'
+              : '/repaso/${repaso.name}/${siguiente.id}',
+        );
+      } else if (!completar) {
         enrutador.pop();
       } else if (siguiente != null) {
         enrutador.go('/nuevas/${siguiente.id}');
@@ -403,6 +433,8 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
           ? (completar
                 ? '«${p.titulo}» marcada como guardada (el archivo ya estaba '
                       'así).'
+                : repaso != null
+                ? '«${p.titulo}» repasada (sin cambios).'
                 : 'No había nada distinto que guardar.')
           : 'Guardado en el archivo y comprobado '
                 '($n ${n == 1 ? 'cambio' : 'cambios'}).';
@@ -411,9 +443,13 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         ..showSnackBar(
           SnackBar(
             duration: const Duration(seconds: 8),
+            // Con botón, Flutter lo dejaría fijo hasta cerrarlo a mano.
+            persist: false,
             content: Text(
               siguiente == null
-                  ? hecho
+                  ? (repaso != null
+                        ? '$hecho No quedan más por repasar.'
+                        : hecho)
                   : '$hecho Siguiente: «${siguiente.titulo}».',
             ),
             action: id == null
@@ -494,9 +530,35 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     return si ?? false;
   }
 
+  /// La siguiente película por repasar (sin contar [id]).
+  Pelicula? _siguienteRepaso(int id) => ref
+      .read(colaRepasoProvider(widget.repaso!))
+      .where((o) => o.id != id)
+      .firstOrNull;
+
+  /// Repaso: deja esta película sin tocar (no se vuelve a proponer) y pasa
+  /// a la siguiente.
+  Future<void> _saltar() async {
+    if (!await _descartar() || !mounted) return;
+    final repaso = widget.repaso!;
+    final enrutador = GoRouter.of(context);
+    final siguiente = _siguienteRepaso(widget.id);
+    await ref.read(repasadasProvider.notifier).marcar(widget.id);
+    // Ya no hay cambios pendientes: se puede salir sin preguntar.
+    setState(() => _caratula = null);
+    _original = {for (final c in Campo.values) c: _actual(c)};
+    enrutador.go(
+      siguiente == null
+          ? '/coleccion'
+          : '/repaso/${repaso.name}/${siguiente.id}',
+    );
+  }
+
   Future<void> _salir() async {
     if (await _descartar() && mounted) {
-      if (widget.completar) {
+      if (widget.repaso != null) {
+        context.go('/coleccion');
+      } else if (widget.completar) {
         context.go('/nuevas');
       } else {
         context.canPop() ? context.pop() : context.go('/pelicula/${widget.id}');
@@ -527,13 +589,14 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
               'borrado.'
         : _errorLectura;
     final completar = widget.completar;
-    // En Completar ficha se puede «guardar» sin cambios: si el archivo ya
-    // estaba completo, solo se marca como guardada.
+    final repaso = widget.repaso;
+    // En Completar ficha (y en el repaso) se puede «guardar» sin cambios:
+    // si el archivo ya estaba completo, solo se marca como guardada.
     final puedeGuardar =
         cargado &&
         problema == null &&
         errores.isEmpty &&
-        (_hayCambios || completar);
+        (_hayCambios || completar || repaso != null);
     final busqueda = completar
         ? ref.watch(busquedasNuevasProvider)[widget.id]
         : null;
@@ -561,7 +624,11 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                     onPressed: _salir,
                     icon: const Icon(Icons.chevron_left_rounded),
                     label: Text(
-                      completar ? 'Películas nuevas' : 'Volver a la ficha',
+                      repaso != null
+                          ? 'Completar mi colección'
+                          : completar
+                          ? 'Películas nuevas'
+                          : 'Volver a la ficha',
                     ),
                     style: TextButton.styleFrom(
                       foregroundColor: c.textoSecundario,
@@ -569,7 +636,24 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                     ),
                   ),
                 ),
-                if (completar)
+                if (repaso != null)
+                  CabeceraPagina(
+                    titulo: 'Repaso con FilmAffinity',
+                    descripcion:
+                        '${repaso.nombre}: quedan '
+                        '${formatoNumero(ref.watch(colaRepasoProvider(repaso)).length)}. '
+                        'FilmAffinity se abre solo con «${p.titulo}»: revisa '
+                        'lo que trae, pulsa «Guardar en el archivo» y se pasa '
+                        'a la siguiente. «Saltar» la deja sin tocar.',
+                    acciones: [
+                      OutlinedButton.icon(
+                        onPressed: _saltar,
+                        icon: const Icon(Icons.skip_next_rounded, size: 18),
+                        label: const Text('Saltar'),
+                      ),
+                    ],
+                  )
+                else if (completar)
                   CabeceraCompletar(
                     pelicula: p,
                     titulo: _actual(Campo.titulo),
@@ -736,6 +820,9 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                           ? (completar
                                 ? 'Sin cambios: al guardar solo se marca como '
                                       'guardada'
+                                : repaso != null
+                                ? 'Sin cambios: al guardar se marca como '
+                                      'repasada'
                                 : 'Sin cambios')
                           : '$numCambios ${numCambios == 1 ? 'cambio' : 'cambios'} sin guardar',
                       style: TextStyle(
@@ -751,7 +838,13 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                   ),
                   TextButton(
                     onPressed: _salir,
-                    child: Text(completar ? 'Descartar' : 'Cancelar'),
+                    child: Text(
+                      repaso != null
+                          ? 'Terminar el repaso'
+                          : completar
+                          ? 'Descartar'
+                          : 'Cancelar',
+                    ),
                   ),
                   const SizedBox(width: 10),
                   FilledButton.icon(

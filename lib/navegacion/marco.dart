@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../datos/catalogo.dart';
+import '../datos/lote.dart';
 import '../datos/nuevas.dart';
 import '../datos/vigilancia.dart';
 import '../disco/escaner.dart';
@@ -107,6 +108,7 @@ class Marco extends StatelessWidget {
   static String _activoEscritorio(String ruta) {
     if (ruta.startsWith('/pelicula') || ruta == '/generos') return '/catalogo';
     if (ruta.startsWith('/nuevas')) return '/nuevas';
+    if (ruta.startsWith('/repaso')) return '/coleccion';
     if (ruta == '/mas' || ruta == '/lectura' || ruta == '/archivo') {
       return '/ajustes';
     }
@@ -189,6 +191,8 @@ class _Vigilancia extends ConsumerWidget {
           SnackBar(
             content: Text(texto),
             duration: const Duration(seconds: 8),
+            // Con botón, Flutter lo dejaría fijo hasta cerrarlo a mano.
+            persist: false,
             action: destino == null
                 ? null
                 : SnackBarAction(
@@ -252,6 +256,11 @@ class MenuLateral extends ConsumerWidget {
       '/nuevas': ref.watch(nuevasSinGuardarProvider).length,
       '/pendientes': ref.watch(totalPendientesProvider),
     };
+    // Mientras «Completar mi colección» trabaja, su entrada lo indica.
+    final ocupados = {
+      if (ref.watch(coleccionProvider.select((e) => e.trabajando)))
+        '/coleccion',
+    };
     return Container(
       width: 248,
       decoration: BoxDecoration(
@@ -278,6 +287,7 @@ class MenuLateral extends ConsumerWidget {
                         'Administración',
                         destinosAdministracion,
                         insignias,
+                        ocupados: ocupados,
                       ),
                     ] else ...[
                       const SizedBox(height: 4),
@@ -331,8 +341,9 @@ class MenuLateral extends ConsumerWidget {
     BuildContext context,
     String titulo,
     List<Destino> destinos,
-    Map<String, int> insignias,
-  ) {
+    Map<String, int> insignias, {
+    Set<String> ocupados = const {},
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -353,6 +364,7 @@ class MenuLateral extends ConsumerWidget {
             destino: d,
             activo: d.ruta == activo,
             insignia: insignias[d.ruta],
+            ocupado: ocupados.contains(d.ruta),
           ),
           const SizedBox(height: 4),
         ],
@@ -366,10 +378,14 @@ class _ElementoMenu extends StatelessWidget {
     required this.destino,
     required this.activo,
     this.insignia,
+    this.ocupado = false,
   });
 
   final Destino destino;
   final bool activo;
+
+  /// Está trabajando en segundo plano (se ve una ruedecita).
+  final bool ocupado;
 
   /// Número a la derecha (si es 0 no se enseña).
   final int? insignia;
@@ -394,7 +410,22 @@ class _ElementoMenu extends StatelessWidget {
                 : null,
             child: Row(
               children: [
-                Icon(destino.icono, size: 19, color: color),
+                // Si está trabajando, una ruedecita en lugar del icono.
+                if (ocupado)
+                  Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: c.dorado,
+                        semanticsLabel: 'Trabajando',
+                      ),
+                    ),
+                  )
+                else
+                  Icon(destino.icono, size: 19, color: color),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

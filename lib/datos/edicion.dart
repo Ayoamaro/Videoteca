@@ -53,14 +53,21 @@ class Edicion {
   /// Escribe los [cambios] (y la [caratula], si se da) en el archivo de [p].
   /// Devuelve el número del cambio en el registro, o `null` si no había
   /// nada distinto que guardar. Lanza [EscrituraException] si falla.
+  ///
+  /// Con [soloVacios] solo se escriben los campos vacíos en el archivo (ver
+  /// `escribirFicha`). Con [recargar] en `false` no se vuelve a cargar el
+  /// catálogo entero (el lote lo hace de vez en cuando con
+  /// [recargarCatalogo]).
   Future<int?> guardar(
     Pelicula p,
     Map<Campo, String> cambios, {
     CaratulaNueva? caratula,
     String origen = 'Editar ficha',
+    bool soloVacios = false,
+    bool recargar = true,
   }) async {
     final ruta = p.ruta;
-    final r = await _escribir(ruta, cambios, caratula);
+    final r = await _escribir(ruta, cambios, caratula, soloVacios);
     if (r.sinCambios) return null;
     final bd = ref.read(baseDatosProvider);
     final id = await bd.anotarCambio(
@@ -87,7 +94,7 @@ class Edicion {
         }
       }
     }
-    await _actualizarCatalogo(ruta);
+    await _actualizarCatalogo(ruta, recargar: recargar);
     return id;
   }
 
@@ -107,13 +114,20 @@ class Edicion {
 
   /// Deja el archivo como estaba antes del cambio [id]. Lanza
   /// [EscrituraException] si falla.
-  Future<void> deshacer(int id) async {
+  Future<void> deshacer(int id, {bool recargar = true}) async {
     final (cambio, ruta, antesImagen, _) = await _preparar(id);
     final caratula = cambio.fila.caratula ? CaratulaNueva(antesImagen) : null;
     final antes = cambio.antes;
-    await _escribir(ruta, antes, caratula);
+    await _escribir(ruta, antes, caratula, false);
     await ref.read(baseDatosProvider).marcarDeshecho(id, DateTime.now());
-    await _actualizarCatalogo(ruta);
+    await _actualizarCatalogo(ruta, recargar: recargar);
+  }
+
+  /// Vuelve a cargar el catálogo (después de guardar varias con
+  /// `recargar: false`).
+  Future<void> recargarCatalogo() async {
+    ref.invalidate(registroProvider);
+    await ref.read(catalogoProvider.notifier).recargar(olvidarImagenes: true);
   }
 
   /// El cambio, dónde está ahora su archivo y las carátulas guardadas.
@@ -145,7 +159,7 @@ class Edicion {
 
   /// Vuelve a leer el archivo y guarda en el catálogo cómo ha quedado (con
   /// su tamaño y fecha nuevos, para que el escáner no lo lea otra vez).
-  Future<void> _actualizarCatalogo(String ruta) async {
+  Future<void> _actualizarCatalogo(String ruta, {bool recargar = true}) async {
     final raiz = ref.read(carpetaRaizProvider) ?? '';
     final datos = File(ruta).statSync();
     final ArchivoEncontrado archivo = (
@@ -163,8 +177,7 @@ class Edicion {
       await miniatura.delete();
     }
     ref.invalidate(caratulaCompletaProvider(ruta));
-    ref.invalidate(registroProvider);
-    await ref.read(catalogoProvider.notifier).recargar(olvidarImagenes: true);
+    if (recargar) await recargarCatalogo();
   }
 
   static String _codificar(Map<Campo, String> valores) => jsonEncode({
@@ -180,7 +193,11 @@ Future<ResultadoEscritura> _escribir(
   String ruta,
   Map<Campo, String> cambios,
   CaratulaNueva? caratula,
-) => Isolate.run(() => escribirFicha(ruta, cambios, caratula: caratula));
+  bool soloVacios,
+) => Isolate.run(
+  () =>
+      escribirFicha(ruta, cambios, caratula: caratula, soloVacios: soloVacios),
+);
 
 Future<DatosArchivo> _leer(String ruta) => Isolate.run(() => leerArchivo(ruta));
 

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../datos/buscador.dart';
 import '../datos/catalogo.dart';
 import '../datos/filtros.dart';
+import '../fuentes/lote.dart' show TipoRepaso;
 import '../pantallas/ajustes.dart';
 import '../pantallas/bienvenida.dart';
 import '../pantallas/catalogo.dart';
@@ -149,6 +150,22 @@ final rutasProvider = Provider<GoRouter>((ref) {
             path: '/coleccion',
             pageBuilder: (c, e) =>
                 sinAnimacion(e, const PantallaCompletarColeccion()),
+          ),
+          GoRoute(
+            path: '/repaso/:tipo/:id',
+            pageBuilder: (c, e) {
+              final id = int.tryParse(e.pathParameters['id'] ?? '') ?? 0;
+              return sinAnimacion(
+                e,
+                PantallaEditarFicha(
+                  key: ValueKey('repaso-$id'),
+                  id: id,
+                  repaso:
+                      TipoRepaso.porNombre(e.pathParameters['tipo']) ??
+                      TipoRepaso.cortadas,
+                ),
+              );
+            },
           ),
           GoRoute(
             path: '/ajustes',

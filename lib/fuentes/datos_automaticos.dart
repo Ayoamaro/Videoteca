@@ -29,15 +29,18 @@ class DatoEncontrado {
 }
 
 class ResultadoDatos {
-  const ResultadoDatos(this.identificacion, this.datos, this.avisos);
+  const ResultadoDatos(this.identificacion, this.datos, this.fallos);
 
   final Identificacion identificacion;
 
   /// Vacío si la película no se ha identificado sin dudas.
   final Map<Campo, DatoEncontrado> datos;
 
-  /// Lo que no se ha podido consultar (p. ej. «OMDb: límite de hoy»).
-  final List<String> avisos;
+  /// Lo que no se ha podido consultar (p. ej. el límite diario de OMDb).
+  final List<FuenteException> fallos;
+
+  /// Los [fallos], para enseñarlos («OMDb: Se ha llegado al máximo…»).
+  List<String> get avisos => [for (final f in fallos) '$f'];
 }
 
 /// Los tres servicios juntos.
@@ -59,13 +62,20 @@ class FuentesDatos {
   final Wikidata wikidata;
 
   /// Identifica la película [p] y, si no hay dudas, reúne sus datos.
-  Future<ResultadoDatos> buscar(DatosIdentificacion p) async {
+  ///
+  /// Con [solo] se ahorran las consultas a OMDb y Wikidata si no hacen falta
+  /// las estrellas ni el enlace a FilmAffinity (OMDb gratis solo deja 1.000
+  /// al día).
+  Future<ResultadoDatos> buscar(
+    DatosIdentificacion p, {
+    Set<Campo>? solo,
+  }) async {
     final identificacion = await identificar(tmdb, p);
     final ficha = identificacion.ficha;
     if (ficha == null) {
       return ResultadoDatos(identificacion, const {}, const []);
     }
-    return completar(identificacion, ficha);
+    return completar(identificacion, ficha, solo: solo);
   }
 
   /// El enlace a la ficha de FilmAffinity de [p] (TMDB → IMDb → Wikidata),
@@ -82,10 +92,12 @@ class FuentesDatos {
   /// entre las dudosas).
   Future<ResultadoDatos> completar(
     Identificacion identificacion,
-    FichaTmdb ficha,
-  ) async {
+    FichaTmdb ficha, {
+    Set<Campo>? solo,
+  }) async {
+    bool hace(Campo c) => solo == null || solo.contains(c);
     final datos = <Campo, DatoEncontrado>{};
-    final avisos = <String>[];
+    final fallos = <FuenteException>[];
     void poner(Campo c, String valor, String origen, [String detalle = '']) {
       if (valor.trim().isNotEmpty) {
         datos[c] = DatoEncontrado(valor.trim(), origen, detalle: detalle);
@@ -102,7 +114,10 @@ class FuentesDatos {
     poner(Campo.guion, ficha.guion.join(', '), t);
     poner(Campo.fotografia, ficha.fotografia.join(', '), t);
     poner(Campo.pais, ficha.paises.join(', '), t);
-    if (ficha.saga.isNotEmpty) {
+    // La saga, también solo en letras latinas: algunas «colecciones» de TMDB
+    // las crean usuarios en su idioma («新海诚（导演作品合集）» = las
+    // películas de Makoto Shinkai) y no son sagas de verdad.
+    if (ficha.saga.isNotEmpty && esLatino(ficha.saga)) {
       poner(Campo.saga, ficha.saga, t);
       if (ficha.numeroSaga > 0) {
         poner(Campo.numeroSaga, '${ficha.numeroSaga}', t);
@@ -124,7 +139,7 @@ class FuentesDatos {
       poner(Campo.enlaceImdb, enlaceImdb(ficha.imdb), t);
 
       final omdb = this.omdb;
-      if (omdb != null) {
+      if (omdb != null && hace(Campo.estrellas)) {
         try {
           final nota = await omdb.rottenTomatoes(ficha.imdb);
           if (nota != null) {
@@ -136,19 +151,21 @@ class FuentesDatos {
             );
           }
         } on FuenteException catch (e) {
-          avisos.add('$e');
+          fallos.add(e);
         }
       }
 
-      try {
-        final fa = await wikidata.idFilmaffinity(ficha.imdb);
-        if (fa != null) {
-          poner(Campo.enlaceFilmaffinity, enlaceFilmaffinity(fa), 'Wikidata');
+      if (hace(Campo.enlaceFilmaffinity)) {
+        try {
+          final fa = await wikidata.idFilmaffinity(ficha.imdb);
+          if (fa != null) {
+            poner(Campo.enlaceFilmaffinity, enlaceFilmaffinity(fa), 'Wikidata');
+          }
+        } on FuenteException catch (e) {
+          fallos.add(e);
         }
-      } on FuenteException catch (e) {
-        avisos.add('$e');
       }
     }
-    return ResultadoDatos(identificacion, datos, avisos);
+    return ResultadoDatos(identificacion, datos, fallos);
   }
 }

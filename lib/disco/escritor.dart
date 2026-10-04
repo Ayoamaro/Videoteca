@@ -217,7 +217,10 @@ class EscrituraException implements Exception {
 
 /// Escribe en el `.mp4` de [ruta] los [cambios] (campo → texto nuevo) y, si
 /// se da, la [caratula] nueva. Los campos que ya tienen ese valor no se
-/// tocan; si no queda nada que cambiar, no se escribe nada.
+/// tocan; si no queda nada que cambiar, no se escribe nada. Con
+/// [soloVacios] solo se escriben los campos que están vacíos en el archivo
+/// (los que ya tienen algo se dejan como están, aunque [cambios] diga otra
+/// cosa): es lo que usa «Completar mi colección».
 ///
 /// Después lo comprueba todo (ver el principio de este archivo). Si falla,
 /// deja el archivo como estaba y lanza [EscrituraException]. Es síncrona:
@@ -226,6 +229,7 @@ ResultadoEscritura escribirFicha(
   String ruta,
   Map<Campo, String> cambios, {
   CaratulaNueva? caratula,
+  bool soloVacios = false,
 }) {
   for (final MapEntry(key: c, value: texto) in cambios.entries) {
     final problema = validarCampo(c, texto);
@@ -249,7 +253,9 @@ ResultadoEscritura escribirFicha(
   final valoresAntes = valoresFicha(antes);
   final pendientes = {
     for (final MapEntry(key: c, value: texto) in cambios.entries)
-      if (texto.trim() != valoresAntes[c]) c: texto.trim(),
+      if (texto.trim() != valoresAntes[c] &&
+          (!soloVacios || valoresAntes[c]!.isEmpty))
+        c: texto.trim(),
   };
   final cambiaCaratula =
       caratula != null && !mismaImagen(caratula.imagen, antes.caratula);

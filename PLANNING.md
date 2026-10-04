@@ -159,6 +159,10 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 - Ejecución por etapas: **primero 50 películas**, revisamos juntos el resultado y después el resto.
 
 **Necesito de ti:** decidir si los temas y premios de FilmAffinity se intentan también en lote o solo para películas nuevas. Visto el día 11: un lote desatendido **no es viable** (Cloudflare pide marcar la casilla a mano y no se va a saltar); como mucho, una pasada «contigo delante» por tandas.
+**Decidido:** el lote automático usa TMDB, OMDb y Wikidata; temas, premios y sinopsis cortadas van en un **Repaso con FilmAffinity** aparte, contigo delante.
+**Hecho:** pantalla **Completar mi colección**. Eliges qué rellenar (título original, país, guion, fotografía, saga y nº, edad, estrellas, IMDb, FilmAffinity; cada casilla dice cuántas lo tienen vacío) y pulsas **Probar con 50 películas** (después *Seguir con 50 / 500 / Todas*). La app las hace de una en una en segundo plano (~1,4 s cada una; puedes cambiar de pantalla, el menú enseña una ruedecita): busca la película, solo escribe si coinciden **título, año y director**, y solo en los campos **vacíos** (esto lo garantiza también el propio escritor: aunque le pidieran otra cosa, no pisa un dato que ya existe). Cada escritura se comprueba con Windows y queda en el Registro de cambios. Contadores (completadas, sin datos nuevos, dudosas sin tocar, no encontradas), lista de resultados filtrable (las dudosas con «Revisar a mano») y **Deshacer la tanda** entera (las que hayas cambiado después a mano no se tocan). **Pausar / Reanudar**; si cierras la app a mitad, la tanda queda en pausa y sigue donde iba. Sin internet, sin clave o con el disco desconectado se para sola. OMDb solo se consulta para las 57 sin estrellas (no hay problema con las 1.000 al día). **Repaso con FilmAffinity**: *Sinopsis cortadas* (792) y *Sin temas*: abre cada película en Editar ficha con FilmAffinity ya buscando; guardas o «Saltar» y pasa a la siguiente; se puede dejar y seguir otro día. La base de datos pasa sola a la **versión 5**.
+**Probado con copias** (14 películas): 14 completadas, 0 datos existentes cambiados; tras *Deshacer la tanda*, **14 de 14 idénticas byte a byte** a los originales; cierre brusco a mitad → al reabrir, en pausa y reanudable; repaso con FilmAffinity de una sinopsis cortada guardado y comprobado. Arreglado de paso: una «saga» de TMDB en chino (colección de usuario) ya no se acepta, y los avisos con «Deshacer» ya se cierran solos.
+**Tanda 1 en tu disco (50 películas, 4/10/2026):** 50 completadas en 1 min 10 s, 0 dudosas, 0 errores, **0 datos existentes cambiados**. Guion, fotografía, país e IMDb en las 50; FilmAffinity en 46; saga en 19 (*Arma letal* 1–4, *Bourne* 1–5…). **Falta:** revisarla juntos y lanzar el resto (5.476, unas 2 h 10 min).
 
 ---
 
@@ -213,7 +217,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 |---|---|
 | ~~Rangos de Rotten Tomatoes → estrellas~~ | ☑ Día 10: tramos de 20 % |
 | ~~Frases exactas de clasificación por edades~~ | ☑ Día 10: EE. UU. primero, si no España |
-| Temas y premios de FilmAffinity en lote o solo en nuevas (día 11: el lote desatendido no es viable por Cloudflare) | Día 13 |
+| ~~Temas y premios de FilmAffinity en lote o solo en nuevas~~ | ☑ Día 13: repaso aparte, contigo delante |
 | Contraseña común para los usuarios | Día 14 |
 | Publicar la APK en Google Play (25 €, opcional) | Día 19 |
 

@@ -125,6 +125,30 @@ class Cambios extends Table {
   DateTimeColumn get deshecho => dateTime().nullable()();
 }
 
+/// «Completar mi colección»: una fila por cada película ya procesada en el
+/// lote (las que no tienen fila están pendientes).
+@DataClassName('FilaLote')
+class Lote extends Table {
+  IntColumn get pelicula => integer()();
+
+  /// Número de la tanda (cada vez que se pulsa «Empezar»).
+  IntColumn get tanda => integer()();
+
+  /// Nombre de `EstadoLote`: completada, sinDatos, dudosa, noEncontrada,
+  /// error.
+  TextColumn get estado => text()();
+
+  /// «+ País, Guion…», o el motivo de las dudas o del error.
+  TextColumn get mensaje => text().withDefault(const Constant(''))();
+
+  /// El cambio escrito en el archivo (id en `Cambios`), si lo hubo.
+  IntColumn get cambio => integer().nullable()();
+  DateTimeColumn get fecha => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {pelicula};
+}
+
 /// Lo que se sabe de un archivo ya escaneado, para saber si ha cambiado.
 typedef ArchivoConocido = ({
   int id,
@@ -134,7 +158,7 @@ typedef ArchivoConocido = ({
   bool desaparecida,
 });
 
-@DriftDatabase(tables: [Peliculas, Ajustes, Cambios])
+@DriftDatabase(tables: [Peliculas, Ajustes, Cambios, Lote])
 class BaseDatos extends _$BaseDatos {
   BaseDatos(super.conexion);
 
@@ -148,7 +172,7 @@ class BaseDatos extends _$BaseDatos {
   );
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -162,6 +186,8 @@ class BaseDatos extends _$BaseDatos {
       if (desde < 3) await m.createTable(cambios);
       // Versión 4 (día 12): fichas guardadas desde «Completar ficha».
       if (desde < 4) await m.addColumn(peliculas, peliculas.completada);
+      // Versión 5 (día 13): «Completar mi colección».
+      if (desde < 5) await m.createTable(lote);
     },
   );
 
@@ -283,6 +309,20 @@ class BaseDatos extends _$BaseDatos {
       (update(cambios)..where((c) => c.id.equals(id))).write(
         CambiosCompanion(deshecho: Value(cuando)),
       );
+
+  // ── Completar mi colección ─────────────────────────────────────────────
+
+  Future<List<FilaLote>> filasLote() => select(lote).get();
+
+  Future<void> anotarLote(LoteCompanion fila) =>
+      into(lote).insertOnConflictUpdate(fila);
+
+  /// Olvida lo hecho con esas películas en el lote (vuelven a quedar
+  /// pendientes). No toca los archivos.
+  Future<void> olvidarLote(Iterable<int> peliculas) async {
+    if (peliculas.isEmpty) return;
+    await (delete(lote)..where((l) => l.pelicula.isIn(peliculas))).go();
+  }
 
   // ── Ajustes ────────────────────────────────────────────────────────────
 

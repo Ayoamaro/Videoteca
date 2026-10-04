@@ -13,6 +13,7 @@ import 'package:videoteca/fuentes/conexion.dart';
 import 'package:videoteca/fuentes/conversiones.dart';
 import 'package:videoteca/fuentes/datos_automaticos.dart';
 import 'package:videoteca/fuentes/identificacion.dart';
+import 'package:videoteca/fuentes/lote.dart';
 import 'package:videoteca/fuentes/tmdb.dart';
 import 'package:videoteca/modelos/pelicula.dart';
 
@@ -481,6 +482,225 @@ void main() {
       final elegida = suscripcion.read()[1]!;
       expect(elegida.elegida, isTrue);
       expect(elegida.resultado!.datos[Campo.direccion]!.valor, 'Otro Director');
+    });
+  });
+
+  group('Completar mi colección (lote)', () {
+    const datos = (
+      titulo: 'El caballero oscuro',
+      tituloOriginal: 'The Dark Knight',
+      anio: 2008,
+      direccion: 'Christopher Nolan',
+    );
+    final todos = OpcionLote.camposDe(OpcionLote.values);
+    FuentesDatos fuentes([List<String>? registro]) => FuentesDatos(
+      claveTmdb: 'buena',
+      claveOmdb: 'otra',
+      cliente: _servicios(
+        [_caballero],
+        rotten: {'tt0468569': 94},
+        filmaffinity: {'tt0468569': '867354'},
+        registro: registro,
+      ),
+    );
+
+    test('solo rellena los campos vacíos', () async {
+      final plan = await planificarLote(
+        fuentes(),
+        datos: datos,
+        actuales: {
+          Campo.tituloOriginal: 'The Dark Knight (mío)',
+          Campo.clasificacion: 'No recomendado para menores de 12 años',
+          Campo.estrellas: '4',
+          Campo.pais: '',
+        },
+        campos: todos,
+      );
+      expect(plan.estado, EstadoLote.completada);
+      expect(plan.cambios.keys.toSet(), {
+        Campo.pais,
+        Campo.guion,
+        Campo.fotografia,
+        Campo.saga,
+        Campo.numeroSaga,
+        Campo.enlaceImdb,
+        Campo.enlaceFilmaffinity,
+      });
+      expect(plan.cambios[Campo.saga], 'El Caballero Oscuro');
+      expect(plan.mensaje, startsWith('+ Guion, Fotografía, País'));
+    });
+
+    test('sin estrellas que buscar, no se gasta OMDb', () async {
+      final registro = <String>[];
+      await planificarLote(
+        fuentes(registro),
+        datos: datos,
+        actuales: {Campo.estrellas: '3'},
+        campos: todos,
+      );
+      expect(registro.any((r) => r.contains('omdbapi')), isFalse);
+      expect(registro.any((r) => r.contains('wikidata')), isTrue);
+
+      registro.clear();
+      final plan = await planificarLote(
+        fuentes(registro),
+        datos: datos,
+        actuales: const {},
+        campos: todos,
+        sinOmdb: true,
+      );
+      expect(registro.any((r) => r.contains('omdbapi')), isFalse);
+      expect(plan.cambios.containsKey(Campo.estrellas), isFalse);
+    });
+
+    test('solo los campos elegidos', () async {
+      final plan = await planificarLote(
+        fuentes(),
+        datos: datos,
+        actuales: const {},
+        campos: OpcionLote.camposDe([OpcionLote.pais, OpcionLote.estrellas]),
+      );
+      expect(plan.cambios, {
+        Campo.pais: 'Estados Unidos, GB',
+        Campo.estrellas: '5',
+      });
+    });
+
+    test('el número de saga no se pone si tu saga es otra', () async {
+      final plan = await planificarLote(
+        fuentes(),
+        datos: datos,
+        actuales: {Campo.saga: 'Batman'},
+        campos: OpcionLote.camposDe([OpcionLote.saga]),
+      );
+      expect(plan.estado, EstadoLote.sinDatos);
+      final igual = await planificarLote(
+        fuentes(),
+        datos: datos,
+        actuales: {Campo.saga: 'El Caballero Oscuro'},
+        campos: OpcionLote.camposDe([OpcionLote.saga]),
+      );
+      expect(igual.cambios, {Campo.numeroSaga: '2'});
+    });
+
+    test('una «saga» que no está en letras latinas no se pone', () async {
+      final shinkai = _pelicula(
+        9,
+        'El lugar que nos prometimos',
+        'Kumo no Mukô, Yakusoku no Basho',
+        '2004-11-20',
+        directores: ['Makoto Shinkai'],
+        saga: {'id': 1, 'name': '新海诚（导演作品合集）'},
+        imdb: 'tt0381348',
+      );
+      final plan = await planificarLote(
+        FuentesDatos(
+          claveTmdb: 'buena',
+          claveOmdb: '',
+          cliente: _servicios([shinkai]),
+        ),
+        datos: (
+          titulo: 'El Lugar Que Nos Prometimos',
+          tituloOriginal: '',
+          anio: 2004,
+          direccion: 'Makoto Shinkai',
+        ),
+        actuales: const {},
+        campos: todos,
+      );
+      expect(plan.estado, EstadoLote.completada);
+      expect(plan.cambios.containsKey(Campo.saga), isFalse);
+      expect(plan.cambios.containsKey(Campo.numeroSaga), isFalse);
+    });
+
+    test('dudosas y no encontradas: no se toca nada', () async {
+      final sinDirector = await planificarLote(
+        fuentes(),
+        datos: (
+          titulo: 'El caballero oscuro',
+          tituloOriginal: '',
+          anio: 2008,
+          direccion: '',
+        ),
+        actuales: const {},
+        campos: todos,
+      );
+      expect(sinDirector.estado, EstadoLote.dudosa);
+      expect(sinDirector.cambios, isEmpty);
+
+      final otroDirector = await planificarLote(
+        fuentes(),
+        datos: (
+          titulo: 'El caballero oscuro',
+          tituloOriginal: '',
+          anio: 2008,
+          direccion: 'Tim Burton',
+        ),
+        actuales: const {},
+        campos: todos,
+      );
+      expect(otroDirector.estado, EstadoLote.dudosa);
+      expect(otroDirector.cambios, isEmpty);
+
+      final nada = await planificarLote(
+        fuentes(),
+        datos: (
+          titulo: 'Película que no existe',
+          tituloOriginal: '',
+          anio: 2020,
+          direccion: 'Nadie',
+        ),
+        actuales: const {},
+        campos: todos,
+      );
+      expect(nada.estado, EstadoLote.noEncontrada);
+    });
+
+    test('si ya está completa no se consulta nada', () async {
+      final registro = <String>[];
+      final plan = await planificarLote(
+        fuentes(registro),
+        datos: datos,
+        actuales: {for (final c in todos) c: 'algo'},
+        campos: todos,
+      );
+      expect(plan.estado, EstadoLote.sinDatos);
+      expect(registro, isEmpty);
+    });
+
+    test('sin internet se para el lote (no se anota como error)', () async {
+      final caida = FuentesDatos(
+        claveTmdb: 'buena',
+        claveOmdb: '',
+        cliente: MockClient((_) async => throw http.ClientException('x')),
+      );
+      expect(
+        planificarLote(caida, datos: datos, actuales: const {}, campos: todos),
+        throwsA(
+          isA<FuenteException>().having(
+            (e) => e.sinInternet,
+            'sin internet',
+            true,
+          ),
+        ),
+      );
+    });
+
+    test('sinopsis cortadas y repaso', () {
+      final cortada = '${'a' * 250}palab';
+      expect(cortada.length, 255);
+      expect(sinopsisCortadaProbable(cortada), isTrue);
+      expect(sinopsisCortadaProbable('${'a' * 254}.'), isFalse);
+      expect(sinopsisCortadaProbable('Corta.'), isFalse);
+      expect(sinopsisCortadaProbable('a' * 300), isFalse);
+      expect(
+        entraEnRepaso(TipoRepaso.sinTemas, sinopsis: '', temas: ''),
+        isTrue,
+      );
+      expect(
+        entraEnRepaso(TipoRepaso.sinTemas, sinopsis: '', temas: 'Navidad'),
+        isFalse,
+      );
     });
   });
 }

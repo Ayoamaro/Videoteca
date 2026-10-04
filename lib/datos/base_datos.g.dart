@@ -2688,12 +2688,413 @@ class CambiosCompanion extends UpdateCompanion<FilaCambio> {
   }
 }
 
+class $LoteTable extends Lote with TableInfo<$LoteTable, FilaLote> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LoteTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _peliculaMeta = const VerificationMeta(
+    'pelicula',
+  );
+  @override
+  late final GeneratedColumn<int> pelicula = GeneratedColumn<int>(
+    'pelicula',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tandaMeta = const VerificationMeta('tanda');
+  @override
+  late final GeneratedColumn<int> tanda = GeneratedColumn<int>(
+    'tanda',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _estadoMeta = const VerificationMeta('estado');
+  @override
+  late final GeneratedColumn<String> estado = GeneratedColumn<String>(
+    'estado',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mensajeMeta = const VerificationMeta(
+    'mensaje',
+  );
+  @override
+  late final GeneratedColumn<String> mensaje = GeneratedColumn<String>(
+    'mensaje',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _cambioMeta = const VerificationMeta('cambio');
+  @override
+  late final GeneratedColumn<int> cambio = GeneratedColumn<int>(
+    'cambio',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fechaMeta = const VerificationMeta('fecha');
+  @override
+  late final GeneratedColumn<DateTime> fecha = GeneratedColumn<DateTime>(
+    'fecha',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    pelicula,
+    tanda,
+    estado,
+    mensaje,
+    cambio,
+    fecha,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lote';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FilaLote> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('pelicula')) {
+      context.handle(
+        _peliculaMeta,
+        pelicula.isAcceptableOrUnknown(data['pelicula']!, _peliculaMeta),
+      );
+    }
+    if (data.containsKey('tanda')) {
+      context.handle(
+        _tandaMeta,
+        tanda.isAcceptableOrUnknown(data['tanda']!, _tandaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tandaMeta);
+    }
+    if (data.containsKey('estado')) {
+      context.handle(
+        _estadoMeta,
+        estado.isAcceptableOrUnknown(data['estado']!, _estadoMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_estadoMeta);
+    }
+    if (data.containsKey('mensaje')) {
+      context.handle(
+        _mensajeMeta,
+        mensaje.isAcceptableOrUnknown(data['mensaje']!, _mensajeMeta),
+      );
+    }
+    if (data.containsKey('cambio')) {
+      context.handle(
+        _cambioMeta,
+        cambio.isAcceptableOrUnknown(data['cambio']!, _cambioMeta),
+      );
+    }
+    if (data.containsKey('fecha')) {
+      context.handle(
+        _fechaMeta,
+        fecha.isAcceptableOrUnknown(data['fecha']!, _fechaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fechaMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {pelicula};
+  @override
+  FilaLote map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FilaLote(
+      pelicula: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pelicula'],
+      )!,
+      tanda: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tanda'],
+      )!,
+      estado: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}estado'],
+      )!,
+      mensaje: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mensaje'],
+      )!,
+      cambio: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}cambio'],
+      ),
+      fecha: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}fecha'],
+      )!,
+    );
+  }
+
+  @override
+  $LoteTable createAlias(String alias) {
+    return $LoteTable(attachedDatabase, alias);
+  }
+}
+
+class FilaLote extends DataClass implements Insertable<FilaLote> {
+  final int pelicula;
+
+  /// Número de la tanda (cada vez que se pulsa «Empezar»).
+  final int tanda;
+
+  /// Nombre de `EstadoLote`: completada, sinDatos, dudosa, noEncontrada,
+  /// error.
+  final String estado;
+
+  /// «+ País, Guion…», o el motivo de las dudas o del error.
+  final String mensaje;
+
+  /// El cambio escrito en el archivo (id en `Cambios`), si lo hubo.
+  final int? cambio;
+  final DateTime fecha;
+  const FilaLote({
+    required this.pelicula,
+    required this.tanda,
+    required this.estado,
+    required this.mensaje,
+    this.cambio,
+    required this.fecha,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['pelicula'] = Variable<int>(pelicula);
+    map['tanda'] = Variable<int>(tanda);
+    map['estado'] = Variable<String>(estado);
+    map['mensaje'] = Variable<String>(mensaje);
+    if (!nullToAbsent || cambio != null) {
+      map['cambio'] = Variable<int>(cambio);
+    }
+    map['fecha'] = Variable<DateTime>(fecha);
+    return map;
+  }
+
+  LoteCompanion toCompanion(bool nullToAbsent) {
+    return LoteCompanion(
+      pelicula: Value(pelicula),
+      tanda: Value(tanda),
+      estado: Value(estado),
+      mensaje: Value(mensaje),
+      cambio: cambio == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cambio),
+      fecha: Value(fecha),
+    );
+  }
+
+  factory FilaLote.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FilaLote(
+      pelicula: serializer.fromJson<int>(json['pelicula']),
+      tanda: serializer.fromJson<int>(json['tanda']),
+      estado: serializer.fromJson<String>(json['estado']),
+      mensaje: serializer.fromJson<String>(json['mensaje']),
+      cambio: serializer.fromJson<int?>(json['cambio']),
+      fecha: serializer.fromJson<DateTime>(json['fecha']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'pelicula': serializer.toJson<int>(pelicula),
+      'tanda': serializer.toJson<int>(tanda),
+      'estado': serializer.toJson<String>(estado),
+      'mensaje': serializer.toJson<String>(mensaje),
+      'cambio': serializer.toJson<int?>(cambio),
+      'fecha': serializer.toJson<DateTime>(fecha),
+    };
+  }
+
+  FilaLote copyWith({
+    int? pelicula,
+    int? tanda,
+    String? estado,
+    String? mensaje,
+    Value<int?> cambio = const Value.absent(),
+    DateTime? fecha,
+  }) => FilaLote(
+    pelicula: pelicula ?? this.pelicula,
+    tanda: tanda ?? this.tanda,
+    estado: estado ?? this.estado,
+    mensaje: mensaje ?? this.mensaje,
+    cambio: cambio.present ? cambio.value : this.cambio,
+    fecha: fecha ?? this.fecha,
+  );
+  FilaLote copyWithCompanion(LoteCompanion data) {
+    return FilaLote(
+      pelicula: data.pelicula.present ? data.pelicula.value : this.pelicula,
+      tanda: data.tanda.present ? data.tanda.value : this.tanda,
+      estado: data.estado.present ? data.estado.value : this.estado,
+      mensaje: data.mensaje.present ? data.mensaje.value : this.mensaje,
+      cambio: data.cambio.present ? data.cambio.value : this.cambio,
+      fecha: data.fecha.present ? data.fecha.value : this.fecha,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FilaLote(')
+          ..write('pelicula: $pelicula, ')
+          ..write('tanda: $tanda, ')
+          ..write('estado: $estado, ')
+          ..write('mensaje: $mensaje, ')
+          ..write('cambio: $cambio, ')
+          ..write('fecha: $fecha')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(pelicula, tanda, estado, mensaje, cambio, fecha);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FilaLote &&
+          other.pelicula == this.pelicula &&
+          other.tanda == this.tanda &&
+          other.estado == this.estado &&
+          other.mensaje == this.mensaje &&
+          other.cambio == this.cambio &&
+          other.fecha == this.fecha);
+}
+
+class LoteCompanion extends UpdateCompanion<FilaLote> {
+  final Value<int> pelicula;
+  final Value<int> tanda;
+  final Value<String> estado;
+  final Value<String> mensaje;
+  final Value<int?> cambio;
+  final Value<DateTime> fecha;
+  const LoteCompanion({
+    this.pelicula = const Value.absent(),
+    this.tanda = const Value.absent(),
+    this.estado = const Value.absent(),
+    this.mensaje = const Value.absent(),
+    this.cambio = const Value.absent(),
+    this.fecha = const Value.absent(),
+  });
+  LoteCompanion.insert({
+    this.pelicula = const Value.absent(),
+    required int tanda,
+    required String estado,
+    this.mensaje = const Value.absent(),
+    this.cambio = const Value.absent(),
+    required DateTime fecha,
+  }) : tanda = Value(tanda),
+       estado = Value(estado),
+       fecha = Value(fecha);
+  static Insertable<FilaLote> custom({
+    Expression<int>? pelicula,
+    Expression<int>? tanda,
+    Expression<String>? estado,
+    Expression<String>? mensaje,
+    Expression<int>? cambio,
+    Expression<DateTime>? fecha,
+  }) {
+    return RawValuesInsertable({
+      if (pelicula != null) 'pelicula': pelicula,
+      if (tanda != null) 'tanda': tanda,
+      if (estado != null) 'estado': estado,
+      if (mensaje != null) 'mensaje': mensaje,
+      if (cambio != null) 'cambio': cambio,
+      if (fecha != null) 'fecha': fecha,
+    });
+  }
+
+  LoteCompanion copyWith({
+    Value<int>? pelicula,
+    Value<int>? tanda,
+    Value<String>? estado,
+    Value<String>? mensaje,
+    Value<int?>? cambio,
+    Value<DateTime>? fecha,
+  }) {
+    return LoteCompanion(
+      pelicula: pelicula ?? this.pelicula,
+      tanda: tanda ?? this.tanda,
+      estado: estado ?? this.estado,
+      mensaje: mensaje ?? this.mensaje,
+      cambio: cambio ?? this.cambio,
+      fecha: fecha ?? this.fecha,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (pelicula.present) {
+      map['pelicula'] = Variable<int>(pelicula.value);
+    }
+    if (tanda.present) {
+      map['tanda'] = Variable<int>(tanda.value);
+    }
+    if (estado.present) {
+      map['estado'] = Variable<String>(estado.value);
+    }
+    if (mensaje.present) {
+      map['mensaje'] = Variable<String>(mensaje.value);
+    }
+    if (cambio.present) {
+      map['cambio'] = Variable<int>(cambio.value);
+    }
+    if (fecha.present) {
+      map['fecha'] = Variable<DateTime>(fecha.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LoteCompanion(')
+          ..write('pelicula: $pelicula, ')
+          ..write('tanda: $tanda, ')
+          ..write('estado: $estado, ')
+          ..write('mensaje: $mensaje, ')
+          ..write('cambio: $cambio, ')
+          ..write('fecha: $fecha')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BaseDatos extends GeneratedDatabase {
   _$BaseDatos(QueryExecutor e) : super(e);
   $BaseDatosManager get managers => $BaseDatosManager(this);
   late final $PeliculasTable peliculas = $PeliculasTable(this);
   late final $AjustesTable ajustes = $AjustesTable(this);
   late final $CambiosTable cambios = $CambiosTable(this);
+  late final $LoteTable lote = $LoteTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2702,6 +3103,7 @@ abstract class _$BaseDatos extends GeneratedDatabase {
     peliculas,
     ajustes,
     cambios,
+    lote,
   ];
 }
 
@@ -3958,6 +4360,217 @@ typedef $$CambiosTableProcessedTableManager =
       FilaCambio,
       PrefetchHooks Function()
     >;
+typedef $$LoteTableCreateCompanionBuilder = LoteCompanion Function({
+  Value<int> pelicula,
+  required int tanda,
+  required String estado,
+  Value<String> mensaje,
+  Value<int?> cambio,
+  required DateTime fecha,
+});
+typedef $$LoteTableUpdateCompanionBuilder = LoteCompanion Function({
+  Value<int> pelicula,
+  Value<int> tanda,
+  Value<String> estado,
+  Value<String> mensaje,
+  Value<int?> cambio,
+  Value<DateTime> fecha,
+});
+
+class $$LoteTableFilterComposer extends Composer<_$BaseDatos, $LoteTable> {
+  $$LoteTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get pelicula => $composableBuilder(
+    column: $table.pelicula,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tanda => $composableBuilder(
+    column: $table.tanda,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get estado => $composableBuilder(
+    column: $table.estado,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mensaje => $composableBuilder(
+    column: $table.mensaje,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get cambio => $composableBuilder(
+    column: $table.cambio,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get fecha => $composableBuilder(
+    column: $table.fecha,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LoteTableOrderingComposer extends Composer<_$BaseDatos, $LoteTable> {
+  $$LoteTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get pelicula => $composableBuilder(
+    column: $table.pelicula,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tanda => $composableBuilder(
+    column: $table.tanda,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get estado => $composableBuilder(
+    column: $table.estado,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mensaje => $composableBuilder(
+    column: $table.mensaje,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cambio => $composableBuilder(
+    column: $table.cambio,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get fecha => $composableBuilder(
+    column: $table.fecha,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LoteTableAnnotationComposer extends Composer<_$BaseDatos, $LoteTable> {
+  $$LoteTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get pelicula =>
+      $composableBuilder(column: $table.pelicula, builder: (column) => column);
+
+  GeneratedColumn<int> get tanda =>
+      $composableBuilder(column: $table.tanda, builder: (column) => column);
+
+  GeneratedColumn<String> get estado =>
+      $composableBuilder(column: $table.estado, builder: (column) => column);
+
+  GeneratedColumn<String> get mensaje =>
+      $composableBuilder(column: $table.mensaje, builder: (column) => column);
+
+  GeneratedColumn<int> get cambio =>
+      $composableBuilder(column: $table.cambio, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get fecha =>
+      $composableBuilder(column: $table.fecha, builder: (column) => column);
+}
+
+class $$LoteTableTableManager
+    extends
+        RootTableManager<
+          _$BaseDatos,
+          $LoteTable,
+          FilaLote,
+          $$LoteTableFilterComposer,
+          $$LoteTableOrderingComposer,
+          $$LoteTableAnnotationComposer,
+          $$LoteTableCreateCompanionBuilder,
+          $$LoteTableUpdateCompanionBuilder,
+          (FilaLote, BaseReferences<_$BaseDatos, $LoteTable, FilaLote>),
+          FilaLote,
+          PrefetchHooks Function()
+        > {
+  $$LoteTableTableManager(_$BaseDatos db, $LoteTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LoteTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LoteTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LoteTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> pelicula = const Value.absent(),
+                Value<int> tanda = const Value.absent(),
+                Value<String> estado = const Value.absent(),
+                Value<String> mensaje = const Value.absent(),
+                Value<int?> cambio = const Value.absent(),
+                Value<DateTime> fecha = const Value.absent(),
+              }) => LoteCompanion(
+                pelicula: pelicula,
+                tanda: tanda,
+                estado: estado,
+                mensaje: mensaje,
+                cambio: cambio,
+                fecha: fecha,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> pelicula = const Value.absent(),
+                required int tanda,
+                required String estado,
+                Value<String> mensaje = const Value.absent(),
+                Value<int?> cambio = const Value.absent(),
+                required DateTime fecha,
+              }) => LoteCompanion.insert(
+                pelicula: pelicula,
+                tanda: tanda,
+                estado: estado,
+                mensaje: mensaje,
+                cambio: cambio,
+                fecha: fecha,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LoteTable, FilaLote>(table),
+                  BaseReferences<_$BaseDatos, $LoteTable, FilaLote>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LoteTableProcessedTableManager =
+    ProcessedTableManager<
+      _$BaseDatos,
+      $LoteTable,
+      FilaLote,
+      $$LoteTableFilterComposer,
+      $$LoteTableOrderingComposer,
+      $$LoteTableAnnotationComposer,
+      $$LoteTableCreateCompanionBuilder,
+      $$LoteTableUpdateCompanionBuilder,
+      (FilaLote, BaseReferences<_$BaseDatos, $LoteTable, FilaLote>),
+      FilaLote,
+      PrefetchHooks Function()
+    >;
 
 class $BaseDatosManager {
   final _$BaseDatos _db;
@@ -3968,4 +4581,5 @@ class $BaseDatosManager {
       $$AjustesTableTableManager(_db, _db.ajustes);
   $$CambiosTableTableManager get cambios =>
       $$CambiosTableTableManager(_db, _db.cambios);
+  $$LoteTableTableManager get lote => $$LoteTableTableManager(_db, _db.lote);
 }

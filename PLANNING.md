@@ -94,7 +94,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 - Ordenación: título, año, estrellas y fecha añadida.
 
 **Hecho:** panel lateral (en el móvil, hoja inferior con «Ver N películas»). **Género** = los de la ficha (Comedia 2.417…) y **Carpeta** = dónde está, en árbol (*Comedias › Romance*). Cada opción muestra cuántas películas saldrían con el resto de filtros; dentro de un grupo vale cualquiera de las marcadas y entre grupos se tienen que cumplir todos. Año con barra y atajos por décadas, estrellas «3 o más», edad, y país/saga/dirección/reparto escribiendo el nombre (país y saga se llenarán el día 10). Ordenar por fecha añadida, título, año o estrellas, con la flecha para darle la vuelta; la vista lista/cuadrícula se recuerda. Filtrar las 5.541 tarda 1–5 ms. También se puede abrir ya filtrado: `/catalogo?director=…&actor=…&carpeta=…`. Arreglada la insignia de edad para +10 y +13.
-**Datos raros vistos en el disco (para Pendientes, día 8):** *DC Liga de Supermascotas (2022)* tiene el año `20222`; *Jurassic World 2: El Reino Caído* tiene «Michael Giacchino» como clasificación de edad; 17 frases de edad con erratas («…de 16 año», punto final).
+**Datos raros vistos en el disco (para Pendientes, día 8):** *DC Liga de Supermascotas (2022)* tiene el año `20222`; *Jurassic World 2: El Reino Caído* tiene «Michael Giacchino» como clasificación de edad; 18 frases de edad con erratas («…de 16 año», punto final).
 
 ### ☐ Día 7 — Ficha de película
 - Ficha completa con el bloque **"Dónde está"** (ruta exacta, calidad y tamaño).

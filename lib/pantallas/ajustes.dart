@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../datos/catalogo.dart';
+import '../datos/fuentes.dart';
+import '../fuentes/conexion.dart';
+import '../fuentes/conversiones.dart';
 import '../pantallas/ficha.dart' show InsigniaEdad;
 import '../tema/colores.dart';
 import '../tema/tema.dart';
@@ -10,8 +13,8 @@ import '../utilidades.dart';
 import '../widgets/comunes.dart';
 import '../widgets/progreso_escaneo.dart';
 
-/// Ajustes de la app. De momento solo funciona la apariencia; el resto se
-/// irá activando en los días indicados.
+/// Ajustes de la app. Las secciones marcadas con «Día N» se activan ese día
+/// del planning.
 class PantallaAjustes extends ConsumerWidget {
   const PantallaAjustes({super.key});
 
@@ -77,32 +80,27 @@ class PantallaAjustes extends ConsumerWidget {
                   ),
                 ],
               ),
+              const _SeccionServicios(),
               _Seccion(
                 titulo: 'Rotten Tomatoes → estrellas',
-                dia: 10,
                 children: [
                   Text(
-                    'Rangos provisionales; los confirmamos el día 10.',
+                    'Al buscar datos en internet, la nota de Rotten Tomatoes '
+                    '(de OMDb) se pasa a estrellas así:',
                     style: TextStyle(
                       fontSize: 13,
                       color: context.colores.textoSecundario,
                     ),
                   ),
-                  for (final (estrellas, rango) in const [
-                    (5, '90–100 %'),
-                    (4, '70–89 %'),
-                    (3, '50–69 %'),
-                    (2, '30–49 %'),
-                    (1, '0–29 %'),
-                  ])
+                  for (final t in tramosEstrellas.reversed)
                     Row(
                       children: [
                         SizedBox(
                           width: 110,
-                          child: Estrellas(estrellas, tam: 17),
+                          child: Estrellas(t.estrellas, tam: 17),
                         ),
                         Text(
-                          rango,
+                          '${t.desde}–${t.hasta} %',
                           style: TextStyle(color: context.colores.textoSuave),
                         ),
                       ],
@@ -111,22 +109,16 @@ class PantallaAjustes extends ConsumerWidget {
               ),
               _Seccion(
                 titulo: 'Clasificación por edades',
-                dia: 10,
                 children: [
                   Text(
-                    'Cómo se escribe cada calificación oficial de España en tus archivos.',
+                    'Qué frase se pone según la calificación de TMDB: primero la '
+                    'de Estados Unidos y, si no la hay, la de España.',
                     style: TextStyle(
                       fontSize: 13,
                       color: context.colores.textoSecundario,
                     ),
                   ),
-                  for (final (edad, frase) in const [
-                    ('TP', 'Apta para todos los públicos'),
-                    ('7', 'No recomendado para menores de 7 años'),
-                    ('12', 'No recomendado para menores de 12 años'),
-                    ('16', 'No recomendado para menores de 16 años'),
-                    ('18', 'No recomendado para menores de 18 años'),
-                  ])
+                  for (final (edad, origen, frase) in reglasEdadParaVer)
                     Row(
                       children: [
                         SizedBox(
@@ -137,53 +129,25 @@ class PantallaAjustes extends ConsumerWidget {
                           ),
                         ),
                         Expanded(
-                          child: Text(
-                            frase,
-                            style: TextStyle(color: context.colores.textoSuave),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-              _Seccion(
-                titulo: 'Servicios de datos',
-                dia: 10,
-                children: [
-                  for (final (nombre, uso) in const [
-                    ('TMDB', 'País, guion, fotografía, saga, edad, IMDb'),
-                    ('OMDb', 'Nota de Rotten Tomatoes'),
-                    (
-                      'FilmAffinity',
-                      'Lectura semiautomática con navegador integrado',
-                    ),
-                  ])
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                nombre,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: frase,
+                                  style: TextStyle(
+                                    color: context.colores.textoSuave,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                uso,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: context.colores.textoSecundario,
+                                TextSpan(
+                                  text: '\n$origen',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: context.colores.textoSecundario,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        Pastilla(
-                          'Sin configurar',
-                          color: context.colores.naranja,
-                          fondo: context.colores.naranjaFondo,
                         ),
                       ],
                     ),
@@ -361,6 +325,226 @@ class _SeccionColeccion extends ConsumerWidget {
               onPressed: () => context.push('/registro'),
               icon: const Icon(Icons.history_rounded, size: 18),
               label: const Text('Registro de cambios'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Claves de TMDB y OMDb (se comprueban antes de guardarlas) y Wikidata,
+/// que no necesita clave.
+class _SeccionServicios extends ConsumerWidget {
+  const _SeccionServicios();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final claves = ref.watch(clavesProvider);
+    return _Seccion(
+      titulo: 'Servicios de datos',
+      children: [
+        Text(
+          'Las claves son gratuitas y se guardan solo en este PC.',
+          style: TextStyle(fontSize: 13, color: c.textoSecundario),
+        ),
+        _CampoClave(
+          servicio: Servicio.tmdb,
+          uso:
+              'Identifica la película. País, guion, fotografía, saga, edad '
+              'e IMDb.',
+          clave: claves[Servicio.tmdb]!,
+        ),
+        _CampoClave(
+          servicio: Servicio.omdb,
+          uso: 'Nota de Rotten Tomatoes (1.000 consultas al día).',
+          clave: claves[Servicio.omdb]!,
+        ),
+        _FilaServicio(
+          nombre: 'Wikidata',
+          uso: 'Enlace a FilmAffinity. No necesita clave.',
+          estado: Pastilla('Listo', color: c.verde, fondo: c.verdeFondo),
+        ),
+        _FilaServicio(
+          nombre: 'FilmAffinity',
+          uso: 'Lectura semiautomática con navegador integrado.',
+          estado: Text(
+            'Día 11',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: c.textoTenue,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilaServicio extends StatelessWidget {
+  const _FilaServicio({
+    required this.nombre,
+    required this.uso,
+    required this.estado,
+  });
+
+  final String nombre;
+  final String uso;
+  final Widget estado;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(nombre, style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                uso,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.colores.textoSecundario,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        estado,
+      ],
+    );
+  }
+}
+
+/// Una clave: no se enseña; «Cambiar» abre el campo para pegar otra, que se
+/// comprueba con el servicio antes de guardarla.
+class _CampoClave extends ConsumerStatefulWidget {
+  const _CampoClave({
+    required this.servicio,
+    required this.uso,
+    required this.clave,
+  });
+
+  final Servicio servicio;
+  final String uso;
+  final String clave;
+
+  @override
+  ConsumerState<_CampoClave> createState() => _EstadoCampoClave();
+}
+
+class _EstadoCampoClave extends ConsumerState<_CampoClave> {
+  final _texto = TextEditingController();
+  var _editando = false;
+  var _probando = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _texto.dispose();
+    super.dispose();
+  }
+
+  Future<void> _guardar() async {
+    setState(() {
+      _probando = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(clavesProvider.notifier)
+          .probarYGuardar(widget.servicio, _texto.text);
+      if (!mounted) return;
+      setState(() => _editando = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              _texto.text.trim().isEmpty
+                  ? 'Clave de ${widget.servicio.nombre} borrada.'
+                  : 'La clave de ${widget.servicio.nombre} funciona y se ha '
+                        'guardado.',
+            ),
+          ),
+        );
+    } on FuenteException catch (e) {
+      if (mounted) setState(() => _error = e.mensaje);
+    } catch (e) {
+      // Cualquier otro fallo también se enseña (nunca en silencio).
+      if (mounted) setState(() => _error = 'No se ha podido comprobar: $e');
+    } finally {
+      if (mounted) setState(() => _probando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final hay = widget.clave.isNotEmpty;
+    final fila = _FilaServicio(
+      nombre: widget.servicio.nombre,
+      uso: widget.uso,
+      estado: _editando
+          ? const SizedBox.shrink()
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                hay
+                    ? Pastilla('Funciona', color: c.verde, fondo: c.verdeFondo)
+                    : Pastilla(
+                        'Sin configurar',
+                        color: c.naranja,
+                        fondo: c.naranjaFondo,
+                      ),
+                const SizedBox(width: 6),
+                TextButton(
+                  onPressed: () => setState(() {
+                    _editando = true;
+                    _error = null;
+                    _texto.text = '';
+                  }),
+                  child: Text(hay ? 'Cambiar' : 'Poner clave'),
+                ),
+              ],
+            ),
+    );
+    if (!_editando) return fila;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        fila,
+        const SizedBox(height: 8),
+        TextField(
+          controller: _texto,
+          autofocus: true,
+          enabled: !_probando,
+          style: const TextStyle(fontFamily: fuenteRutas, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Pega aquí la clave de ${widget.servicio.nombre}',
+            errorText: _error,
+            errorMaxLines: 3,
+          ),
+          onSubmitted: (_) => _guardar(),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _probando
+                  ? null
+                  : () => setState(() => _editando = false),
+              child: const Text('Cancelar'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _probando ? null : _guardar,
+              child: Text(_probando ? 'Comprobando…' : 'Comprobar y guardar'),
             ),
           ],
         ),

@@ -44,6 +44,7 @@ dependencies:
   drift: ^2.35.1
   sqlite3: ^3.7.0
   image: ^4.10.1
+  http: ^1.6.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

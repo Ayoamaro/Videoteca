@@ -9,13 +9,17 @@ import 'package:image/image.dart' as img;
 
 import '../datos/catalogo.dart';
 import '../datos/edicion.dart';
+import '../datos/fuentes.dart';
 import '../disco/dialogo_abrir.dart';
 import '../disco/escritor.dart';
 import '../disco/lector_archivo.dart';
+import '../fuentes/datos_automaticos.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
+import '../utilidades.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
+import '../widgets/dialogo_datos.dart';
 import 'registro.dart';
 
 /// "Editar ficha": cambiar a mano los datos y la carátula de una película y
@@ -49,6 +53,15 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
 
   /// Frases de edad más usadas en la colección, para elegirlas de un toque.
   var _frasesEdad = <String>[];
+
+  /// Datos traídos de internet: de dónde salen («TMDB»…) y su valor. La
+  /// etiqueta de origen se ve mientras el campo siga con ese valor.
+  final _deInternet = <Campo, DatoEncontrado>{};
+
+  String? _origen(Campo c) {
+    final dato = _deInternet[c];
+    return dato != null && dato.valor == _actual(c) ? dato.origen : null;
+  }
 
   @override
   void initState() {
@@ -147,6 +160,61 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
           ? null
           : CaratulaNueva(bytes);
     });
+  }
+
+  /// Busca los datos en internet y pasa al formulario los que se elijan.
+  Future<void> _buscarDatos() async {
+    final fuentes = ref.read(fuentesDatosProvider);
+    if (fuentes == null) {
+      final ir = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Falta la clave de TMDB'),
+          content: const Text(
+            'Para buscar datos en internet hace falta la clave gratuita de '
+            'TMDB. Se pone en Ajustes → Servicios de datos.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Ahora no'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Ir a Ajustes'),
+            ),
+          ],
+        ),
+      );
+      if ((ir ?? false) && mounted) context.go('/ajustes');
+      return;
+    }
+    final elegidos = await mostrarDatosAutomaticos(
+      context,
+      fuentes: fuentes,
+      datos: (
+        titulo: _actual(Campo.titulo),
+        tituloOriginal: _actual(Campo.tituloOriginal),
+        anio: int.tryParse(_actual(Campo.anio)) ?? 0,
+        direccion: _actual(Campo.direccion),
+      ),
+      actuales: {for (final c in Campo.values) c: _actual(c)},
+    );
+    if (elegidos == null || !mounted) return;
+    setState(() {
+      for (final MapEntry(key: c, value: dato) in elegidos.entries) {
+        if (c == Campo.estrellas) {
+          _estrellas = int.tryParse(dato.valor) ?? _estrellas;
+        } else {
+          _textos[c]!.text = dato.valor;
+        }
+        _deInternet[c] = dato;
+      }
+    });
+    _aviso(
+      '${elegidos.length} ${elegidos.length == 1 ? 'dato pasado' : 'datos pasados'} '
+      'a la ficha. Revísalos y pulsa «Guardar en el archivo».',
+    );
   }
 
   void _aviso(String texto) => ScaffoldMessenger.of(context)
@@ -295,6 +363,15 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                       'carátula quedan intactos, y todo queda en el Registro '
                       'de cambios para poder deshacerlo.',
                 ),
+                if (cargado && esAdministrador)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _buscarDatos,
+                      icon: const Icon(Icons.travel_explore_rounded, size: 18),
+                      label: const Text('Buscar datos en internet'),
+                    ),
+                  ),
                 if (problema != null) _Aviso(problema),
                 if (!cargado && problema == null)
                   const Padding(
@@ -398,6 +475,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
           ejemplo: ejemplo,
           error: errores[c],
           cambiado: _actual(c) != _original![c],
+          origen: _origen(c),
           alRestaurar: () => _restaurar(c),
         );
 
@@ -419,6 +497,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
           _CampoEstrellas(
             estrellas: _estrellas,
             cambiado: _actual(Campo.estrellas) != _original![Campo.estrellas],
+            origen: _origen(Campo.estrellas),
             alCambiar: (n) => setState(() => _estrellas = n),
             alRestaurar: () => _restaurar(Campo.estrellas),
           ),
@@ -503,11 +582,19 @@ class _Grupo extends StatelessWidget {
 /// Nombre de un campo, con la marca «Cambiado» y el botón para volver al
 /// valor del archivo.
 class _NombreCampo extends StatelessWidget {
-  const _NombreCampo(this.nombre, {required this.cambiado, this.alRestaurar});
+  const _NombreCampo(
+    this.nombre, {
+    required this.cambiado,
+    this.alRestaurar,
+    this.origen,
+  });
 
   final String nombre;
   final bool cambiado;
   final VoidCallback? alRestaurar;
+
+  /// De dónde ha salido el valor nuevo, si se ha traído de internet.
+  final String? origen;
 
   @override
   Widget build(BuildContext context) {
@@ -539,6 +626,10 @@ class _NombreCampo extends StatelessWidget {
               'Cambiado',
               style: TextStyle(fontSize: 12, color: c.doradoTexto),
             ),
+            if (origen != null) ...[
+              const SizedBox(width: 8),
+              EtiquetaOrigen(origen!),
+            ],
             const Spacer(),
             Tooltip(
               message: 'Volver al valor del archivo',
@@ -566,8 +657,10 @@ class _CampoTexto extends StatelessWidget {
     this.ayuda,
     this.ejemplo,
     this.error,
+    this.origen,
   });
 
+  final String? origen;
   final Campo campo;
   final TextEditingController control;
   final bool cambiado;
@@ -587,6 +680,7 @@ class _CampoTexto extends StatelessWidget {
           campo.nombre,
           cambiado: cambiado,
           alRestaurar: alRestaurar,
+          origen: origen,
         ),
         const SizedBox(height: 4),
         TextField(
@@ -618,8 +712,10 @@ class _CampoEstrellas extends StatelessWidget {
     required this.cambiado,
     required this.alCambiar,
     required this.alRestaurar,
+    this.origen,
   });
 
+  final String? origen;
   final int estrellas;
   final bool cambiado;
   final ValueChanged<int> alCambiar;
@@ -635,6 +731,7 @@ class _CampoEstrellas extends StatelessWidget {
           'Estrellas (Rotten Tomatoes)',
           cambiado: cambiado,
           alRestaurar: alRestaurar,
+          origen: origen,
         ),
         Row(
           children: [

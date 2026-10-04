@@ -1,0 +1,349 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+import 'package:videoteca/disco/escritor.dart' show Campo;
+import 'package:videoteca/fuentes/conexion.dart';
+import 'package:videoteca/fuentes/conversiones.dart';
+import 'package:videoteca/fuentes/datos_automaticos.dart';
+import 'package:videoteca/fuentes/identificacion.dart';
+import 'package:videoteca/fuentes/tmdb.dart';
+
+// Pruebas de las fuentes de datos sin internet: las respuestas de TMDB, OMDb
+// y Wikidata se fabrican aquí. Con datos reales se prueba con
+// `dart run tool/probar_fuentes.dart`.
+
+/// Una película de TMDB de mentira.
+Map<String, Object?> _pelicula(
+  int id,
+  String titulo,
+  String original,
+  String fecha, {
+  List<String> directores = const [],
+  Map<String, String> edades = const {},
+  Map<String, Object?>? saga,
+  String imdb = '',
+  List<String> paises = const ['US'],
+}) => {
+  'id': id,
+  'title': titulo,
+  'original_title': original,
+  'release_date': fecha,
+  'imdb_id': imdb,
+  'origin_country': paises,
+  'belongs_to_collection': saga,
+  'credits': {
+    'crew': [
+      for (final d in directores)
+        {'name': d, 'job': 'Director', 'department': 'Directing'},
+      {'name': 'Jonathan Nolan', 'job': 'Screenplay', 'department': 'Writing'},
+      {
+        'name': 'Christopher Nolan',
+        'job': 'Screenplay',
+        'department': 'Writing',
+      },
+      {'name': 'Jonathan Nolan', 'job': 'Story', 'department': 'Writing'},
+      {
+        'name': 'Wally Pfister',
+        'job': 'Director of Photography',
+        'department': 'Camera',
+      },
+    ],
+  },
+  'release_dates': {
+    'results': [
+      for (final MapEntry(:key, :value) in edades.entries)
+        {
+          'iso_3166_1': key,
+          'release_dates': [
+            {'type': 1, 'certification': ''},
+            {'type': 3, 'certification': value},
+          ],
+        },
+    ],
+  },
+  'alternative_titles': {'titles': []},
+};
+
+/// Un cliente que contesta como TMDB/OMDb/Wikidata con [peliculas].
+MockClient _servicios(
+  List<Map<String, Object?>> peliculas, {
+  Map<String, int> rotten = const {},
+  Map<String, String> filmaffinity = const {},
+  List<String>? registro,
+}) => MockClient((peticion) async {
+  final u = peticion.url;
+  registro?.add('${u.host}${u.path}');
+  http.Response json(Object o, [int codigo = 200]) =>
+      http.Response.bytes(utf8.encode(jsonEncode(o)), codigo);
+  if (u.host == 'api.themoviedb.org') {
+    if (u.queryParameters['api_key'] != 'buena') {
+      return json({'status_code': 7}, 401);
+    }
+    final ruta = u.path.replaceFirst('/3', '');
+    if (ruta == '/configuration/countries') {
+      return json([
+        {
+          'iso_3166_1': 'US',
+          'english_name': 'United States of America',
+          'native_name': 'Estados Unidos de América',
+        },
+        {'iso_3166_1': 'ES', 'english_name': 'Spain', 'native_name': 'España'},
+      ]);
+    }
+    if (ruta == '/search/movie') {
+      final q = u.queryParameters['query']!.toLowerCase();
+      final anio = u.queryParameters['year'];
+      return json({
+        'results': [
+          for (final p in peliculas)
+            if (('${p['title']} ${p['original_title']}').toLowerCase().contains(
+                  q,
+                ) &&
+                (anio == null ||
+                    (p['release_date'] as String).startsWith(anio)))
+              p,
+        ],
+      });
+    }
+    if (ruta.startsWith('/collection/')) {
+      return json({
+        'parts': [
+          {'id': 3, 'release_date': '2012-07-20'},
+          {'id': 1, 'release_date': '2005-06-15'},
+          {'id': 2, 'release_date': '2008-07-18'},
+        ],
+      });
+    }
+    if (ruta.endsWith('/credits')) {
+      final id = int.parse(ruta.split('/')[2]);
+      return json(peliculas.firstWhere((p) => p['id'] == id)['credits']!);
+    }
+    final id = int.parse(ruta.split('/').last);
+    return json(peliculas.firstWhere((p) => p['id'] == id));
+  }
+  if (u.host == 'www.omdbapi.com') {
+    final nota = rotten[u.queryParameters['i']];
+    return json({
+      'Response': 'True',
+      'Ratings': [
+        {'Source': 'Internet Movie Database', 'Value': '9.0/10'},
+        if (nota != null) {'Source': 'Rotten Tomatoes', 'Value': '$nota%'},
+      ],
+    });
+  }
+  if (u.host == 'query.wikidata.org') {
+    final imdb = RegExp(r'tt\d+')
+        .firstMatch(u.queryParameters['query']!)!
+        .group(0);
+    final fa = filmaffinity[imdb];
+    return json({
+      'results': {
+        'bindings': [
+          if (fa != null)
+            {
+              'fa': {'type': 'literal', 'value': fa},
+            },
+        ],
+      },
+    });
+  }
+  return http.Response('', 404);
+});
+
+final _caballero = _pelicula(
+  2,
+  'El caballero oscuro',
+  'The Dark Knight',
+  '2008-07-16',
+  directores: ['Christopher Nolan'],
+  edades: {'ES': '12', 'US': 'PG-13'},
+  saga: {'id': 263, 'name': 'El Caballero Oscuro - Colección'},
+  imdb: 'tt0468569',
+  paises: ['US', 'GB'],
+);
+
+void main() {
+  group('Comparar títulos y nombres', () {
+    test('títulos parecidos', () {
+      expect(
+        titulosParecidos('El caballero oscuro', 'El Caballero Oscuro'),
+        isTrue,
+      );
+      expect(titulosParecidos('¡Átame!', 'Atame'), isTrue);
+      expect(titulosParecidos('Rocky II', 'Rocky 2'), isTrue);
+      expect(titulosParecidos('The Matrix', 'Matrix'), isTrue);
+      expect(titulosParecidos('Alien', 'Alien, el octavo pasajero'), isTrue);
+      expect(titulosParecidos('Spider-Man', 'Spiderman'), isTrue);
+      expect(titulosParecidos('Origen', 'Inception'), isFalse);
+      expect(titulosParecidos('Rocky II', 'Rocky III'), isFalse);
+    });
+
+    test('misma persona', () {
+      expect(mismaPersona('J.J. Abrams', 'J. J. Abrams'), isTrue);
+      expect(mismaPersona('Bong Joon-ho', 'Bong Joon Ho'), isTrue);
+      expect(mismaPersona('Andrei Tarkovsky', 'Andrey Tarkovskiy'), isTrue);
+      expect(mismaPersona('Pedro Almodóvar', 'Pedro Almodovar'), isTrue);
+      expect(mismaPersona('Joel Coen', 'Ethan Coen'), isFalse);
+      expect(mismaPersona('Tony Scott', 'Ridley Scott'), isFalse);
+      expect(mismasPersonas('Yoshifumi Kondô', 'Yoshifumi Kondo'), isTrue);
+      expect(
+        mismasPersonas('Joel Coen, Ethan Coen', 'Ethan Coen, Joel Coen'),
+        isTrue,
+      );
+      expect(mismasPersonas('Joel Coen', 'Joel Coen, Ethan Coen'), isFalse);
+    });
+
+    test('nombre de la saga', () {
+      expect(limpiarNombreSaga('Harry Potter - Colección'), 'Harry Potter');
+      expect(limpiarNombreSaga('Colección Toy Story'), 'Toy Story');
+      expect(limpiarNombreSaga('Saga Crepúsculo'), 'Crepúsculo');
+      expect(limpiarNombreSaga('Shrek (Colección)'), 'Shrek');
+      expect(limpiarNombreSaga('Alien'), 'Alien');
+    });
+  });
+
+  test('la identificación de la app no lleva tildes (si no, nada sale)', () {
+    expect(agenteVideoteca.codeUnits.every((c) => c >= 32 && c < 127), isTrue);
+  });
+
+  test('edad: EE. UU. primero y, si no, España', () {
+    expect(fraseEdad(espana: '12', eeuu: 'PG-13'), frasesEdad['13']);
+    expect(fraseEdad(espana: '16', eeuu: 'R'), frasesEdad['18']);
+    expect(fraseEdad(espana: 'TP', eeuu: 'G'), 'Apto para todos los públicos');
+    expect(fraseEdad(espana: '16', eeuu: ''), frasesEdad['16']);
+    expect(fraseEdad(espana: '', eeuu: 'NR'), isNull);
+    expect(reglasEdadParaVer.first.$2, 'EE. UU.: G · España: TP');
+    expect(reglasEdadParaVer.last.$2, 'EE. UU.: R, NC-17 · España: 18, X');
+  });
+
+  test('Rotten Tomatoes → estrellas en tramos de 20 %', () {
+    expect([0, 19, 20, 39, 40, 59, 60, 79, 80, 100].map(estrellasDeRotten), [
+      1,
+      1,
+      2,
+      2,
+      3,
+      3,
+      4,
+      4,
+      5,
+      5,
+    ]);
+  });
+
+  group('Identificación', () {
+    final remake = _pelicula(
+      7,
+      'El caballero oscuro',
+      'The Dark Knight',
+      '1950-01-01',
+      directores: ['Otro Señor'],
+    );
+
+    test('título + año + director → segura', () async {
+      final tmdb = Tmdb('buena', cliente: _servicios([_caballero, remake]));
+      final r = await identificar(tmdb, (
+        titulo: 'El Caballero Oscuro',
+        tituloOriginal: 'The Dark Knight',
+        anio: 2008,
+        direccion: 'Christopher Nolan',
+      ));
+      expect(r.seguridad, Seguridad.segura);
+      expect(r.ficha!.id, 2);
+    });
+
+    test('año distinto en uno sí vale; director distinto, no', () async {
+      final tmdb = Tmdb('buena', cliente: _servicios([_caballero]));
+      final unAnio = await identificar(tmdb, (
+        titulo: 'El caballero oscuro',
+        tituloOriginal: '',
+        anio: 2009,
+        direccion: 'Christopher Nolan',
+      ));
+      expect(unAnio.seguridad, Seguridad.segura);
+
+      final otroDirector = await identificar(tmdb, (
+        titulo: 'El caballero oscuro',
+        tituloOriginal: '',
+        anio: 2008,
+        direccion: 'Tim Burton',
+      ));
+      expect(otroDirector.seguridad, Seguridad.dudosa);
+      expect(otroDirector.candidatos.first.explicacion, contains('director'));
+    });
+
+    test('sin director en la ficha → dudosa', () async {
+      final tmdb = Tmdb('buena', cliente: _servicios([_caballero]));
+      final r = await identificar(tmdb, (
+        titulo: 'El caballero oscuro',
+        tituloOriginal: '',
+        anio: 2008,
+        direccion: '',
+      ));
+      expect(r.seguridad, Seguridad.dudosa);
+      expect(r.ficha, isNull);
+    });
+
+    test('nada parecido → no encontrada', () async {
+      final tmdb = Tmdb('buena', cliente: _servicios([_caballero]));
+      final r = await identificar(tmdb, (
+        titulo: 'Película inexistente',
+        tituloOriginal: '',
+        anio: 2001,
+        direccion: 'Nadie',
+      ));
+      expect(r.seguridad, Seguridad.noEncontrada);
+    });
+
+    test('clave mala', () async {
+      final tmdb = Tmdb('mala', cliente: _servicios([_caballero]));
+      expect(
+        () => tmdb.probar(),
+        throwsA(
+          isA<FuenteException>().having(
+            (e) => e.claveMala,
+            'claveMala',
+            isTrue,
+          ),
+        ),
+      );
+    });
+  });
+
+  test('Datos reunidos de las tres fuentes', () async {
+    final fuentes = FuentesDatos(
+      claveTmdb: 'buena',
+      claveOmdb: 'otra',
+      cliente: _servicios(
+        [_caballero],
+        rotten: {'tt0468569': 94},
+        filmaffinity: {'tt0468569': '867354'},
+      ),
+    );
+    final r = await fuentes.buscar((
+      titulo: 'El caballero oscuro',
+      tituloOriginal: 'The Dark Knight',
+      anio: 2008,
+      direccion: 'Christopher Nolan',
+    ));
+    String? v(Campo c) => r.datos[c]?.valor;
+    expect(v(Campo.guion), 'Jonathan Nolan, Christopher Nolan');
+    expect(v(Campo.fotografia), 'Wally Pfister');
+    expect(v(Campo.pais), 'Estados Unidos, GB');
+    expect(v(Campo.saga), 'El Caballero Oscuro');
+    expect(v(Campo.numeroSaga), '2');
+    expect(v(Campo.enlaceImdb), 'https://www.imdb.com/title/tt0468569/');
+    expect(v(Campo.estrellas), '5');
+    expect(r.datos[Campo.estrellas]!.origen, 'OMDb');
+    expect(r.datos[Campo.estrellas]!.detalle, '94 % en Rotten Tomatoes');
+    expect(
+      v(Campo.enlaceFilmaffinity),
+      'https://www.filmaffinity.com/es/film867354.html',
+    );
+    expect(r.datos[Campo.enlaceFilmaffinity]!.origen, 'Wikidata');
+    expect(v(Campo.clasificacion), 'No recomendado para menores de 13 años');
+  });
+}

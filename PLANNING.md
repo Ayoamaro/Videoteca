@@ -127,12 +127,15 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Hecho:** probándolo con copias descubrimos que el sistema de escritura de Windows **solo guarda textos de hasta 255 letras** (con más, no guarda nada aunque diga que sí; con el reparto largo, lo borró) y que reescribe el archivo entero (~10 s por película en el disco duro). Así que la app escribe ella misma los datos **en el mismo formato que Windows** y después **Windows los vuelve a leer** para comprobarlo. Aprovecha el hueco libre que hay detrás de los datos: tarda unos 0,2 s y **el vídeo ni se mueve**. Tras cada guardado comprueba que los campos cambiados tienen el valor nuevo, que todos los demás y la carátula siguen idénticos y que el vídeo no ha cambiado; si algo no cuadra, deja el archivo **byte a byte** como estaba. **Editar ficha** (botón en la ficha): los datos se leen del propio archivo, cada campo cambiado se marca en dorado con su botón para volver atrás, estrellas con un toque, frases de edad más usadas, y **Cambiar/Quitar carátula** (JPEG o PNG). **Registro de cambios** (Ajustes): cada guardado con antes → después (y miniaturas de las carátulas) y **Deshacer** (también en el aviso tras guardar; si la ficha ha cambiado después, avisa). Probado con copias de 4 películas reales (sinopsis de 685 letras, reparto de 528, carátula nueva y deshacer): el archivo final es **idéntico al original** (misma huella SHA-256). Prueba desde la terminal: `dart run tool/probar_escritura.dart D:\ <carpeta temporal>`.
 **Para el día 13:** como cada película tarda ~0,2 s en escribirse (en vez de 10 s), el lote de las 5.541 será cuestión de minutos de escritura. En la ficha no se puede escribir «;» en reparto, dirección, géneros… (Windows lo toma como separador): se usan comas.
 
-### ☐ Día 10 — Fuentes de datos automáticas
+### ☑ Día 10 — Fuentes de datos automáticas
 - Integración con **TMDB** (país, guion, fotografía, saga, edad en España, IMDb), **OMDb** (Rotten Tomatoes) y **Wikidata** (enlace a FilmAffinity).
 - Identificación segura: el título, el año y el director tienen que coincidir.
 - Reglas de conversión: porcentaje de Rotten Tomatoes → estrellas y calificación de edad → tu frase.
 
 **Necesito de ti:** registrarte en TMDB y OMDb (gratis) para obtener las claves, tus rangos de estrellas y tus frases de edad.
+**Hecho:** las claves se ponen en **Ajustes → Servicios de datos** (la app las comprueba antes de guardarlas y solo quedan en este PC). En **Editar ficha** hay un botón **Buscar datos en internet**: busca la película en TMDB y solo la da por buena si coinciden **título** (el español o el original, con pequeñas diferencias), **año** (±1) y **director**; si no, enseña las parecidas para que elijas («Es esta»). Trae dirección, guion, fotografía, país, saga y su número, frase de edad y enlace a IMDb (TMDB), estrellas (OMDb) y enlace a FilmAffinity (Wikidata), cada dato con su etiqueta de origen. Vienen marcados solo los campos **vacíos**; los que ya tienes distintos se enseñan con «Ahora: …» y solo se cambian si los marcas. Después se guarda como siempre (comprobación, registro y deshacer). Probado con **150 películas tuyas al azar: 148 identificadas sin dudas** y 2 dudosas (una ya arreglada: el director venía en japonés; la otra, *Paranormal Activity*, 2007 en tu ficha y 2009 en TMDB). Los nombres de personas se piden en inglés porque en español TMDB pone algunos en su alfabeto (奥井敦 → Atsushi Okui). Prueba desde la terminal: `dart run tool/probar_fuentes.dart [n | título] [sin-omdb]`.
+**Reglas decididas:** estrellas en tramos de 20 % (0–19 % = 1★ … 80–100 % = 5★). Ojo: con tus estrellas actuales solo coinciden 32 de 127, porque casi no usas 1★ ni 5★; como solo se rellenan los vacíos, afecta sobre todo a las nuevas. Edades: primero la calificación de **EE. UU.** (G → TP, PG → 7, PG-13 → 13, R y NC-17 → 18) y, si no hay, la de **España** (TP, 7, 12, 16, 18). Es la regla que más se parece a tus frases (tus «13» vienen del PG-13), aunque en las de R a veces pusiste 16 y otras 18.
+**Para el día 13:** OMDb gratis = 1.000 consultas al día → las estrellas de toda la colección tardarían ~6 días (o 1 $/mes en Patreon de OMDb para 100.000/día). TMDB y Wikidata no tienen ese límite (~1,2 s por película).
 
 ### ☐ Día 11 — FilmAffinity
 - Navegador integrado (WebView2) que abre la ficha de FilmAffinity y lee: título original, sinopsis, géneros, temas, reparto, guion, música, fotografía, productora, país y premios.
@@ -203,8 +206,8 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 | Decisión | Se resuelve el |
 |---|---|
-| Rangos de Rotten Tomatoes → estrellas | Día 10 |
-| Frases exactas de clasificación por edades | Día 10 |
+| ~~Rangos de Rotten Tomatoes → estrellas~~ | ☑ Día 10: tramos de 20 % |
+| ~~Frases exactas de clasificación por edades~~ | ☑ Día 10: EE. UU. primero, si no España |
 | Temas y premios de FilmAffinity en lote o solo en nuevas | Día 13 |
 | Contraseña común para los usuarios | Día 14 |
 | Publicar la APK en Google Play (25 €, opcional) | Día 19 |

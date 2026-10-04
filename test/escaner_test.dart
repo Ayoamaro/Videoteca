@@ -169,7 +169,10 @@ void main() {
       big.deleteSync();
       r = await escanear();
       expect(r.desaparecidas, 1);
-      expect((await bd.peliculasDesaparecidas()).single.titulo, 'Big');
+      expect(
+        (await bd.peliculasDesaparecidas()).single.ruta,
+        endsWith('Big (1988).mp4'),
+      );
       expect(await bd.todasLasPeliculas(), hasLength(3));
 
       // Si se escanea otra vez, no cuenta de nuevo.

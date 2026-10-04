@@ -13,10 +13,7 @@ void main() {
     expect(esCambioInteresante('D:${sep}Drama', esCarpeta: true), isTrue);
     // Carpeta borrada (Windows ya no puede decir que era carpeta).
     expect(esCambioInteresante('D:${sep}Drama'), isTrue);
-    expect(
-      esCambioInteresante(r'D:\$RECYCLE.BIN\S-1-5\$R1.mp4'),
-      Platform.isWindows ? isFalse : isTrue,
-    );
+    expect(esCambioInteresante(r'D:\$RECYCLE.BIN\S-1-5\$R1.mp4'), isFalse);
   });
 
   test('avisa una sola vez por una ráfaga de cambios', () async {

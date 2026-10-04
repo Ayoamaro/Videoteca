@@ -33,6 +33,7 @@ class CarpetasApp {
   factory CarpetasApp.preparar([String? raiz]) {
     final carpetas = CarpetasApp(raiz ?? carpetaDatosApp());
     Directory(carpetas.miniaturas).createSync(recursive: true);
+    Directory(carpetas.copias).createSync(recursive: true);
     return carpetas;
   }
 
@@ -42,6 +43,15 @@ class CarpetasApp {
   String get baseDatos => '$raiz${_sep}videoteca.sqlite';
   String get miniaturas => '$raiz${_sep}miniaturas';
 
+  /// Carátulas de antes y de después de cada cambio del registro (para
+  /// poder deshacerlo).
+  String get copias => '$raiz${_sep}copias';
+
   /// Miniatura de la carátula de la película con número [id].
   String miniatura(int id) => '$miniaturas$_sep$id.jpg';
+
+  /// Carátula guardada del cambio [cambio] del registro: la que había
+  /// ([antes]) o la que se puso.
+  String copiaCaratula(int cambio, {required bool antes}) =>
+      '$copias$_sep$cambio-${antes ? 'antes' : 'despues'}.img';
 }

@@ -42,10 +42,24 @@ Uint8List? leerCaratulaMp4(String ruta) {
     if (largo <= 0 || largo > 20 * 1024 * 1024) return null;
     archivo.setPositionSync(inicio);
     final bytes = archivo.readSync(largo);
-    return bytes.length == largo ? bytes : null;
+    return bytes.length == largo ? sinRelleno(bytes) : null;
   } finally {
     archivo.closeSync();
   }
+}
+
+/// Cuando Windows guarda una carátula añade unos ceros de relleno detrás de
+/// la imagen. Se quitan para obtener la imagen exacta, pero solo si lo que
+/// queda termina como un JPEG (`FF D9`): un PNG sí puede acabar en cero.
+Uint8List sinRelleno(Uint8List imagen) {
+  var fin = imagen.length;
+  while (fin > 0 && imagen[fin - 1] == 0) {
+    fin--;
+  }
+  final esJpeg = fin >= 2 && imagen[fin - 2] == 0xFF && imagen[fin - 1] == 0xD9;
+  return fin == imagen.length || !esJpeg
+      ? imagen
+      : Uint8List.sublistView(imagen, 0, fin);
 }
 
 /// Busca la caja [tipo] entre [desde] y [hasta]. Devuelve dónde empieza y

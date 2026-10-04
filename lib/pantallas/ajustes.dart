@@ -357,6 +357,11 @@ class _SeccionColeccion extends ConsumerWidget {
               icon: const Icon(Icons.manage_search_rounded, size: 18),
               label: const Text('Leer un archivo .mp4'),
             ),
+            OutlinedButton.icon(
+              onPressed: () => context.push('/registro'),
+              icon: const Icon(Icons.history_rounded, size: 18),
+              label: const Text('Registro de cambios'),
+            ),
           ],
         ),
       ],

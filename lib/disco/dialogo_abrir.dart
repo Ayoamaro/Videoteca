@@ -11,7 +11,25 @@ import 'package:ffi/ffi.dart';
 
 /// Abre el diálogo "Abrir" de Windows para elegir un `.mp4`.
 /// Devuelve la ruta elegida o `null` si se cancela.
-String? elegirMp4({String? carpetaInicial}) {
+String? elegirMp4({String? carpetaInicial}) => _elegirArchivo(
+  filtro: 'Películas MP4 (*.mp4)\u0000*.mp4\u0000',
+  titulo: 'Elige una película',
+  carpetaInicial: carpetaInicial,
+);
+
+/// Abre el diálogo "Abrir" de Windows para elegir una imagen JPEG o PNG
+/// (una carátula). Devuelve la ruta elegida o `null` si se cancela.
+String? elegirImagen({String? carpetaInicial}) => _elegirArchivo(
+  filtro: 'Imágenes (*.jpg, *.jpeg, *.png)\u0000*.jpg;*.jpeg;*.png\u0000',
+  titulo: 'Elige la carátula',
+  carpetaInicial: carpetaInicial,
+);
+
+String? _elegirArchivo({
+  required String filtro,
+  required String titulo,
+  String? carpetaInicial,
+}) {
   final memoria = Arena();
   try {
     const largoMaximo = 1024;
@@ -20,11 +38,10 @@ String? elegirMp4({String? carpetaInicial}) {
     datos.ref
       ..lStructSize = sizeOf<_OPENFILENAMEW>()
       ..hwndOwner = _ventanaApp()
-      ..lpstrFilter = 'Películas MP4 (*.mp4)\u0000*.mp4\u0000\u0000'
-          .toNativeUtf16(allocator: memoria)
+      ..lpstrFilter = '$filtro\u0000'.toNativeUtf16(allocator: memoria)
       ..lpstrFile = ruta
       ..nMaxFile = largoMaximo
-      ..lpstrTitle = 'Elige una película'.toNativeUtf16(allocator: memoria)
+      ..lpstrTitle = titulo.toNativeUtf16(allocator: memoria)
       ..lpstrInitialDir = carpetaInicial == null
           ? nullptr
           : carpetaInicial.toNativeUtf16(allocator: memoria)

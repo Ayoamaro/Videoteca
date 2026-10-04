@@ -143,7 +143,15 @@ String? _primerMp4(String raiz) {
   }
 
   if (!Directory(raiz).existsSync()) return null;
-  for (final grupo in listar(Directory(raiz)).whereType<Directory>()) {
+  // Sin la papelera ($RECYCLE.BIN) ni otras carpetas de sistema.
+  bool deSistema(Directory d) {
+    final nombre = d.path.split(Platform.pathSeparator).last;
+    return nombre.startsWith(r'$') || nombre == 'System Volume Information';
+  }
+
+  for (final grupo in listar(
+    Directory(raiz),
+  ).whereType<Directory>().where((d) => !deSistema(d))) {
     for (final genero in listar(grupo).whereType<Directory>()) {
       for (final f in listar(genero).whereType<File>()) {
         if (f.path.toLowerCase().endsWith('.mp4')) return f.path;

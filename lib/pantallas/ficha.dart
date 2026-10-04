@@ -319,10 +319,11 @@ class _Detalles extends ConsumerWidget {
                     ? p.enlaceImdb
                     : 'https://www.imdb.com/find/?q=${Uri.encodeQueryComponent('${p.tituloOriginal.isNotEmpty ? p.tituloOriginal : p.titulo} ${p.anio}')}',
               ),
-              if (esAdministrador)
+              // Solo las películas del catálogo (no un archivo suelto abierto
+              // desde Ajustes → Leer un archivo).
+              if (esAdministrador && p.id > 0)
                 OutlinedButton.icon(
-                  onPressed: () =>
-                      avisoProximamente(context, 'Editar la ficha', 9),
+                  onPressed: () => context.push('/pelicula/${p.id}/editar'),
                   icon: const Icon(Icons.edit_outlined, size: 16),
                   label: const Text('Editar ficha'),
                 ),

@@ -117,12 +117,15 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 ## Fase 2 · Escritura y datos automáticos
 
-### ☐ Día 9 — Escribir en los `.mp4`
+### ☑ Día 9 — Escribir en los `.mp4`
 - Escribir campos y **carátula** dentro del archivo con el mismo sistema que usa Windows.
 - Verificación tras cada escritura: la carátula y los datos existentes quedan intactos.
 - **Registro de cambios con deshacer.**
 - "Editar ficha" a mano desde la app.
 - Todo probado primero con **copias**, nunca con los originales.
+
+**Hecho:** probándolo con copias descubrimos que el sistema de escritura de Windows **solo guarda textos de hasta 255 letras** (con más, no guarda nada aunque diga que sí; con el reparto largo, lo borró) y que reescribe el archivo entero (~10 s por película en el disco duro). Así que la app escribe ella misma los datos **en el mismo formato que Windows** y después **Windows los vuelve a leer** para comprobarlo. Aprovecha el hueco libre que hay detrás de los datos: tarda unos 0,2 s y **el vídeo ni se mueve**. Tras cada guardado comprueba que los campos cambiados tienen el valor nuevo, que todos los demás y la carátula siguen idénticos y que el vídeo no ha cambiado; si algo no cuadra, deja el archivo **byte a byte** como estaba. **Editar ficha** (botón en la ficha): los datos se leen del propio archivo, cada campo cambiado se marca en dorado con su botón para volver atrás, estrellas con un toque, frases de edad más usadas, y **Cambiar/Quitar carátula** (JPEG o PNG). **Registro de cambios** (Ajustes): cada guardado con antes → después (y miniaturas de las carátulas) y **Deshacer** (también en el aviso tras guardar; si la ficha ha cambiado después, avisa). Probado con copias de 4 películas reales (sinopsis de 685 letras, reparto de 528, carátula nueva y deshacer): el archivo final es **idéntico al original** (misma huella SHA-256). Prueba desde la terminal: `dart run tool/probar_escritura.dart D:\ <carpeta temporal>`.
+**Para el día 13:** como cada película tarda ~0,2 s en escribirse (en vez de 10 s), el lote de las 5.541 será cuestión de minutos de escritura. En la ficha no se puede escribir «;» en reparto, dirección, géneros… (Windows lo toma como separador): se usan comas.
 
 ### ☐ Día 10 — Fuentes de datos automáticas
 - Integración con **TMDB** (país, guion, fotografía, saga, edad en España, IMDb), **OMDb** (Rotten Tomatoes) y **Wikidata** (enlace a FilmAffinity).

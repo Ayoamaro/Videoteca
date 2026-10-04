@@ -9,6 +9,7 @@ import '../pantallas/ajustes.dart';
 import '../pantallas/bienvenida.dart';
 import '../pantallas/catalogo.dart';
 import '../pantallas/completar_coleccion.dart';
+import '../pantallas/editar_ficha.dart';
 import '../pantallas/estadisticas.dart';
 import '../pantallas/ficha.dart';
 import '../pantallas/generos.dart';
@@ -18,6 +19,7 @@ import '../pantallas/lectura.dart';
 import '../pantallas/mas.dart';
 import '../pantallas/nuevas.dart';
 import '../pantallas/pendientes.dart';
+import '../pantallas/registro.dart';
 import '../utilidades.dart';
 import 'marco.dart';
 
@@ -91,6 +93,19 @@ final rutasProvider = Provider<GoRouter>((ref) {
                 id: int.tryParse(e.pathParameters['id'] ?? '') ?? 0,
               ),
             ),
+          ),
+          GoRoute(
+            path: '/pelicula/:id/editar',
+            pageBuilder: (c, e) => sinAnimacion(
+              e,
+              PantallaEditarFicha(
+                id: int.tryParse(e.pathParameters['id'] ?? '') ?? 0,
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/registro',
+            pageBuilder: (c, e) => sinAnimacion(e, const PantallaRegistro()),
           ),
           GoRoute(
             path: '/archivo',

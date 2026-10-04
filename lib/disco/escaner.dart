@@ -408,7 +408,7 @@ class Escaner {
         final cola = porLeer.reversed.toList();
         final buzones = <SendPort>[];
         var ocupados = 0;
-        final lote = <_Lectura>[];
+        final lote = <LecturaCatalogo>[];
         var guardando = Future<void>.value();
 
         void repartir(SendPort buzon) {
@@ -428,7 +428,7 @@ class Escaner {
           if (mensaje is SendPort) {
             buzones.add(mensaje);
             repartir(mensaje);
-          } else if (mensaje is (SendPort, _Lectura)) {
+          } else if (mensaje is (SendPort, LecturaCatalogo)) {
             final (buzon, lectura) = mensaje;
             ocupados--;
             lote.add(lectura);
@@ -485,7 +485,7 @@ class Escaner {
   final _idsNuevos = <int>[];
 
   /// Guarda un lote de películas leídas, con sus miniaturas.
-  Future<void> _guardar(List<_Lectura> lote) async {
+  Future<void> _guardar(List<LecturaCatalogo> lote) async {
     if (lote.isEmpty) return;
     await bd.transaction(() async {
       for (final l in lote) {
@@ -515,8 +515,8 @@ class _ErrorEscaneo implements Exception {
 }
 
 /// Lo que un trabajador devuelve de cada archivo.
-class _Lectura {
-  _Lectura(this.fila, this.miniatura, this.error);
+class LecturaCatalogo {
+  LecturaCatalogo(this.fila, this.miniatura, this.error);
   final PeliculasCompanion fila;
   final Uint8List? miniatura;
   final String? error;
@@ -528,12 +528,12 @@ void _trabajador((SendPort, String) inicio) {
   final buzon = ReceivePort();
   respuestas.send(buzon.sendPort);
   buzon.listen((archivo) {
-    respuestas.send((buzon.sendPort, _leerParaCatalogo(raiz, archivo)));
+    respuestas.send((buzon.sendPort, leerParaCatalogo(raiz, archivo)));
   });
 }
 
 /// Lee un archivo y prepara su fila de la base de datos y su miniatura.
-_Lectura _leerParaCatalogo(String raiz, ArchivoEncontrado archivo) {
+LecturaCatalogo leerParaCatalogo(String raiz, ArchivoEncontrado archivo) {
   DatosArchivo datos;
   String? error;
   try {
@@ -557,7 +557,7 @@ _Lectura _leerParaCatalogo(String raiz, ArchivoEncontrado archivo) {
     }
   }
   final u = ubicacionEnColeccion(raiz, archivo.ruta);
-  return _Lectura(
+  return LecturaCatalogo(
     PeliculasCompanion.insert(
       ruta: archivo.ruta,
       grupo: Value(u.grupo),

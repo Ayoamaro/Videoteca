@@ -94,6 +94,33 @@ class Ajustes extends Table {
   Set<Column> get primaryKey => {clave};
 }
 
+/// Registro de cambios: una fila por cada vez que la app escribe en un
+/// `.mp4`, con lo que había antes y lo que se puso, para poder deshacerlo.
+@DataClassName('FilaCambio')
+class Cambios extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Película (id) y dónde estaba el archivo al escribir.
+  IntColumn get pelicula => integer()();
+  TextColumn get ruta => text()();
+  TextColumn get titulo => text()();
+  DateTimeColumn get fecha => dateTime()();
+
+  /// Quién lo hizo: «Editar ficha», «Deshacer»…
+  TextColumn get origen => text()();
+
+  /// Campos cambiados (nombre del campo → texto), en JSON.
+  TextColumn get antes => text()();
+  TextColumn get despues => text()();
+
+  /// Si cambió la carátula. Las dos imágenes (la de antes, si había, y la
+  /// nueva) se guardan en la carpeta `copias` de la app.
+  BoolColumn get caratula => boolean().withDefault(const Constant(false))();
+
+  /// Cuándo se deshizo (`null` = sigue aplicado).
+  DateTimeColumn get deshecho => dateTime().nullable()();
+}
+
 /// Lo que se sabe de un archivo ya escaneado, para saber si ha cambiado.
 typedef ArchivoConocido = ({
   int id,
@@ -103,7 +130,7 @@ typedef ArchivoConocido = ({
   bool desaparecida,
 });
 
-@DriftDatabase(tables: [Peliculas, Ajustes])
+@DriftDatabase(tables: [Peliculas, Ajustes, Cambios])
 class BaseDatos extends _$BaseDatos {
   BaseDatos(super.conexion);
 
@@ -117,7 +144,7 @@ class BaseDatos extends _$BaseDatos {
   );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -127,6 +154,8 @@ class BaseDatos extends _$BaseDatos {
         await m.addColumn(peliculas, peliculas.nueva);
         await m.addColumn(peliculas, peliculas.desaparecida);
       }
+      // Versión 3 (día 9): registro de cambios.
+      if (desde < 3) await m.createTable(cambios);
     },
   );
 
@@ -224,6 +253,26 @@ class BaseDatos extends _$BaseDatos {
     if (ids.isEmpty) return;
     await (delete(peliculas)..where((p) => p.id.isIn(ids))).go();
   }
+
+  // ── Registro de cambios ────────────────────────────────────────────────
+
+  Future<int> anotarCambio(CambiosCompanion cambio) =>
+      into(cambios).insert(cambio);
+
+  /// Los últimos cambios, del más reciente al más antiguo.
+  Future<List<FilaCambio>> ultimosCambios({int limite = 200}) =>
+      (select(cambios)
+            ..orderBy([(c) => OrderingTerm.desc(c.id)])
+            ..limit(limite))
+          .get();
+
+  Future<FilaCambio?> cambio(int id) =>
+      (select(cambios)..where((c) => c.id.equals(id))).getSingleOrNull();
+
+  Future<void> marcarDeshecho(int id, DateTime cuando) =>
+      (update(cambios)..where((c) => c.id.equals(id))).write(
+        CambiosCompanion(deshecho: Value(cuando)),
+      );
 
   // ── Ajustes ────────────────────────────────────────────────────────────
 

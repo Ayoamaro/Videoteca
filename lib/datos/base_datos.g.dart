@@ -2034,16 +2034,621 @@ class AjustesCompanion extends UpdateCompanion<Ajuste> {
   }
 }
 
+class $CambiosTable extends Cambios with TableInfo<$CambiosTable, FilaCambio> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CambiosTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _peliculaMeta = const VerificationMeta(
+    'pelicula',
+  );
+  @override
+  late final GeneratedColumn<int> pelicula = GeneratedColumn<int>(
+    'pelicula',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rutaMeta = const VerificationMeta('ruta');
+  @override
+  late final GeneratedColumn<String> ruta = GeneratedColumn<String>(
+    'ruta',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tituloMeta = const VerificationMeta('titulo');
+  @override
+  late final GeneratedColumn<String> titulo = GeneratedColumn<String>(
+    'titulo',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fechaMeta = const VerificationMeta('fecha');
+  @override
+  late final GeneratedColumn<DateTime> fecha = GeneratedColumn<DateTime>(
+    'fecha',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _origenMeta = const VerificationMeta('origen');
+  @override
+  late final GeneratedColumn<String> origen = GeneratedColumn<String>(
+    'origen',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _antesMeta = const VerificationMeta('antes');
+  @override
+  late final GeneratedColumn<String> antes = GeneratedColumn<String>(
+    'antes',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _despuesMeta = const VerificationMeta(
+    'despues',
+  );
+  @override
+  late final GeneratedColumn<String> despues = GeneratedColumn<String>(
+    'despues',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _caratulaMeta = const VerificationMeta(
+    'caratula',
+  );
+  @override
+  late final GeneratedColumn<bool> caratula = GeneratedColumn<bool>(
+    'caratula',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("caratula" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _deshechoMeta = const VerificationMeta(
+    'deshecho',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deshecho = GeneratedColumn<DateTime>(
+    'deshecho',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    pelicula,
+    ruta,
+    titulo,
+    fecha,
+    origen,
+    antes,
+    despues,
+    caratula,
+    deshecho,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cambios';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FilaCambio> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('pelicula')) {
+      context.handle(
+        _peliculaMeta,
+        pelicula.isAcceptableOrUnknown(data['pelicula']!, _peliculaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_peliculaMeta);
+    }
+    if (data.containsKey('ruta')) {
+      context.handle(
+        _rutaMeta,
+        ruta.isAcceptableOrUnknown(data['ruta']!, _rutaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rutaMeta);
+    }
+    if (data.containsKey('titulo')) {
+      context.handle(
+        _tituloMeta,
+        titulo.isAcceptableOrUnknown(data['titulo']!, _tituloMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tituloMeta);
+    }
+    if (data.containsKey('fecha')) {
+      context.handle(
+        _fechaMeta,
+        fecha.isAcceptableOrUnknown(data['fecha']!, _fechaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fechaMeta);
+    }
+    if (data.containsKey('origen')) {
+      context.handle(
+        _origenMeta,
+        origen.isAcceptableOrUnknown(data['origen']!, _origenMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_origenMeta);
+    }
+    if (data.containsKey('antes')) {
+      context.handle(
+        _antesMeta,
+        antes.isAcceptableOrUnknown(data['antes']!, _antesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_antesMeta);
+    }
+    if (data.containsKey('despues')) {
+      context.handle(
+        _despuesMeta,
+        despues.isAcceptableOrUnknown(data['despues']!, _despuesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_despuesMeta);
+    }
+    if (data.containsKey('caratula')) {
+      context.handle(
+        _caratulaMeta,
+        caratula.isAcceptableOrUnknown(data['caratula']!, _caratulaMeta),
+      );
+    }
+    if (data.containsKey('deshecho')) {
+      context.handle(
+        _deshechoMeta,
+        deshecho.isAcceptableOrUnknown(data['deshecho']!, _deshechoMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  FilaCambio map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FilaCambio(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      pelicula: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pelicula'],
+      )!,
+      ruta: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ruta'],
+      )!,
+      titulo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}titulo'],
+      )!,
+      fecha: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}fecha'],
+      )!,
+      origen: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origen'],
+      )!,
+      antes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}antes'],
+      )!,
+      despues: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}despues'],
+      )!,
+      caratula: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}caratula'],
+      )!,
+      deshecho: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deshecho'],
+      ),
+    );
+  }
+
+  @override
+  $CambiosTable createAlias(String alias) {
+    return $CambiosTable(attachedDatabase, alias);
+  }
+}
+
+class FilaCambio extends DataClass implements Insertable<FilaCambio> {
+  final int id;
+
+  /// Película (id) y dónde estaba el archivo al escribir.
+  final int pelicula;
+  final String ruta;
+  final String titulo;
+  final DateTime fecha;
+
+  /// Quién lo hizo: «Editar ficha», «Deshacer»…
+  final String origen;
+
+  /// Campos cambiados (nombre del campo → texto), en JSON.
+  final String antes;
+  final String despues;
+
+  /// Si cambió la carátula. Las dos imágenes (la de antes, si había, y la
+  /// nueva) se guardan en la carpeta `copias` de la app.
+  final bool caratula;
+
+  /// Cuándo se deshizo (`null` = sigue aplicado).
+  final DateTime? deshecho;
+  const FilaCambio({
+    required this.id,
+    required this.pelicula,
+    required this.ruta,
+    required this.titulo,
+    required this.fecha,
+    required this.origen,
+    required this.antes,
+    required this.despues,
+    required this.caratula,
+    this.deshecho,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['pelicula'] = Variable<int>(pelicula);
+    map['ruta'] = Variable<String>(ruta);
+    map['titulo'] = Variable<String>(titulo);
+    map['fecha'] = Variable<DateTime>(fecha);
+    map['origen'] = Variable<String>(origen);
+    map['antes'] = Variable<String>(antes);
+    map['despues'] = Variable<String>(despues);
+    map['caratula'] = Variable<bool>(caratula);
+    if (!nullToAbsent || deshecho != null) {
+      map['deshecho'] = Variable<DateTime>(deshecho);
+    }
+    return map;
+  }
+
+  CambiosCompanion toCompanion(bool nullToAbsent) {
+    return CambiosCompanion(
+      id: Value(id),
+      pelicula: Value(pelicula),
+      ruta: Value(ruta),
+      titulo: Value(titulo),
+      fecha: Value(fecha),
+      origen: Value(origen),
+      antes: Value(antes),
+      despues: Value(despues),
+      caratula: Value(caratula),
+      deshecho: deshecho == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deshecho),
+    );
+  }
+
+  factory FilaCambio.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FilaCambio(
+      id: serializer.fromJson<int>(json['id']),
+      pelicula: serializer.fromJson<int>(json['pelicula']),
+      ruta: serializer.fromJson<String>(json['ruta']),
+      titulo: serializer.fromJson<String>(json['titulo']),
+      fecha: serializer.fromJson<DateTime>(json['fecha']),
+      origen: serializer.fromJson<String>(json['origen']),
+      antes: serializer.fromJson<String>(json['antes']),
+      despues: serializer.fromJson<String>(json['despues']),
+      caratula: serializer.fromJson<bool>(json['caratula']),
+      deshecho: serializer.fromJson<DateTime?>(json['deshecho']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'pelicula': serializer.toJson<int>(pelicula),
+      'ruta': serializer.toJson<String>(ruta),
+      'titulo': serializer.toJson<String>(titulo),
+      'fecha': serializer.toJson<DateTime>(fecha),
+      'origen': serializer.toJson<String>(origen),
+      'antes': serializer.toJson<String>(antes),
+      'despues': serializer.toJson<String>(despues),
+      'caratula': serializer.toJson<bool>(caratula),
+      'deshecho': serializer.toJson<DateTime?>(deshecho),
+    };
+  }
+
+  FilaCambio copyWith({
+    int? id,
+    int? pelicula,
+    String? ruta,
+    String? titulo,
+    DateTime? fecha,
+    String? origen,
+    String? antes,
+    String? despues,
+    bool? caratula,
+    Value<DateTime?> deshecho = const Value.absent(),
+  }) => FilaCambio(
+    id: id ?? this.id,
+    pelicula: pelicula ?? this.pelicula,
+    ruta: ruta ?? this.ruta,
+    titulo: titulo ?? this.titulo,
+    fecha: fecha ?? this.fecha,
+    origen: origen ?? this.origen,
+    antes: antes ?? this.antes,
+    despues: despues ?? this.despues,
+    caratula: caratula ?? this.caratula,
+    deshecho: deshecho.present ? deshecho.value : this.deshecho,
+  );
+  FilaCambio copyWithCompanion(CambiosCompanion data) {
+    return FilaCambio(
+      id: data.id.present ? data.id.value : this.id,
+      pelicula: data.pelicula.present ? data.pelicula.value : this.pelicula,
+      ruta: data.ruta.present ? data.ruta.value : this.ruta,
+      titulo: data.titulo.present ? data.titulo.value : this.titulo,
+      fecha: data.fecha.present ? data.fecha.value : this.fecha,
+      origen: data.origen.present ? data.origen.value : this.origen,
+      antes: data.antes.present ? data.antes.value : this.antes,
+      despues: data.despues.present ? data.despues.value : this.despues,
+      caratula: data.caratula.present ? data.caratula.value : this.caratula,
+      deshecho: data.deshecho.present ? data.deshecho.value : this.deshecho,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FilaCambio(')
+          ..write('id: $id, ')
+          ..write('pelicula: $pelicula, ')
+          ..write('ruta: $ruta, ')
+          ..write('titulo: $titulo, ')
+          ..write('fecha: $fecha, ')
+          ..write('origen: $origen, ')
+          ..write('antes: $antes, ')
+          ..write('despues: $despues, ')
+          ..write('caratula: $caratula, ')
+          ..write('deshecho: $deshecho')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    pelicula,
+    ruta,
+    titulo,
+    fecha,
+    origen,
+    antes,
+    despues,
+    caratula,
+    deshecho,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FilaCambio &&
+          other.id == this.id &&
+          other.pelicula == this.pelicula &&
+          other.ruta == this.ruta &&
+          other.titulo == this.titulo &&
+          other.fecha == this.fecha &&
+          other.origen == this.origen &&
+          other.antes == this.antes &&
+          other.despues == this.despues &&
+          other.caratula == this.caratula &&
+          other.deshecho == this.deshecho);
+}
+
+class CambiosCompanion extends UpdateCompanion<FilaCambio> {
+  final Value<int> id;
+  final Value<int> pelicula;
+  final Value<String> ruta;
+  final Value<String> titulo;
+  final Value<DateTime> fecha;
+  final Value<String> origen;
+  final Value<String> antes;
+  final Value<String> despues;
+  final Value<bool> caratula;
+  final Value<DateTime?> deshecho;
+  const CambiosCompanion({
+    this.id = const Value.absent(),
+    this.pelicula = const Value.absent(),
+    this.ruta = const Value.absent(),
+    this.titulo = const Value.absent(),
+    this.fecha = const Value.absent(),
+    this.origen = const Value.absent(),
+    this.antes = const Value.absent(),
+    this.despues = const Value.absent(),
+    this.caratula = const Value.absent(),
+    this.deshecho = const Value.absent(),
+  });
+  CambiosCompanion.insert({
+    this.id = const Value.absent(),
+    required int pelicula,
+    required String ruta,
+    required String titulo,
+    required DateTime fecha,
+    required String origen,
+    required String antes,
+    required String despues,
+    this.caratula = const Value.absent(),
+    this.deshecho = const Value.absent(),
+  }) : pelicula = Value(pelicula),
+       ruta = Value(ruta),
+       titulo = Value(titulo),
+       fecha = Value(fecha),
+       origen = Value(origen),
+       antes = Value(antes),
+       despues = Value(despues);
+  static Insertable<FilaCambio> custom({
+    Expression<int>? id,
+    Expression<int>? pelicula,
+    Expression<String>? ruta,
+    Expression<String>? titulo,
+    Expression<DateTime>? fecha,
+    Expression<String>? origen,
+    Expression<String>? antes,
+    Expression<String>? despues,
+    Expression<bool>? caratula,
+    Expression<DateTime>? deshecho,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (pelicula != null) 'pelicula': pelicula,
+      if (ruta != null) 'ruta': ruta,
+      if (titulo != null) 'titulo': titulo,
+      if (fecha != null) 'fecha': fecha,
+      if (origen != null) 'origen': origen,
+      if (antes != null) 'antes': antes,
+      if (despues != null) 'despues': despues,
+      if (caratula != null) 'caratula': caratula,
+      if (deshecho != null) 'deshecho': deshecho,
+    });
+  }
+
+  CambiosCompanion copyWith({
+    Value<int>? id,
+    Value<int>? pelicula,
+    Value<String>? ruta,
+    Value<String>? titulo,
+    Value<DateTime>? fecha,
+    Value<String>? origen,
+    Value<String>? antes,
+    Value<String>? despues,
+    Value<bool>? caratula,
+    Value<DateTime?>? deshecho,
+  }) {
+    return CambiosCompanion(
+      id: id ?? this.id,
+      pelicula: pelicula ?? this.pelicula,
+      ruta: ruta ?? this.ruta,
+      titulo: titulo ?? this.titulo,
+      fecha: fecha ?? this.fecha,
+      origen: origen ?? this.origen,
+      antes: antes ?? this.antes,
+      despues: despues ?? this.despues,
+      caratula: caratula ?? this.caratula,
+      deshecho: deshecho ?? this.deshecho,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (pelicula.present) {
+      map['pelicula'] = Variable<int>(pelicula.value);
+    }
+    if (ruta.present) {
+      map['ruta'] = Variable<String>(ruta.value);
+    }
+    if (titulo.present) {
+      map['titulo'] = Variable<String>(titulo.value);
+    }
+    if (fecha.present) {
+      map['fecha'] = Variable<DateTime>(fecha.value);
+    }
+    if (origen.present) {
+      map['origen'] = Variable<String>(origen.value);
+    }
+    if (antes.present) {
+      map['antes'] = Variable<String>(antes.value);
+    }
+    if (despues.present) {
+      map['despues'] = Variable<String>(despues.value);
+    }
+    if (caratula.present) {
+      map['caratula'] = Variable<bool>(caratula.value);
+    }
+    if (deshecho.present) {
+      map['deshecho'] = Variable<DateTime>(deshecho.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CambiosCompanion(')
+          ..write('id: $id, ')
+          ..write('pelicula: $pelicula, ')
+          ..write('ruta: $ruta, ')
+          ..write('titulo: $titulo, ')
+          ..write('fecha: $fecha, ')
+          ..write('origen: $origen, ')
+          ..write('antes: $antes, ')
+          ..write('despues: $despues, ')
+          ..write('caratula: $caratula, ')
+          ..write('deshecho: $deshecho')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BaseDatos extends GeneratedDatabase {
   _$BaseDatos(QueryExecutor e) : super(e);
   $BaseDatosManager get managers => $BaseDatosManager(this);
   late final $PeliculasTable peliculas = $PeliculasTable(this);
   late final $AjustesTable ajustes = $AjustesTable(this);
+  late final $CambiosTable cambios = $CambiosTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [peliculas, ajustes];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    peliculas,
+    ajustes,
+    cambios,
+  ];
 }
 
 typedef $$PeliculasTableCreateCompanionBuilder = PeliculasCompanion Function({
@@ -2988,6 +3593,296 @@ typedef $$AjustesTableProcessedTableManager =
       Ajuste,
       PrefetchHooks Function()
     >;
+typedef $$CambiosTableCreateCompanionBuilder = CambiosCompanion Function({
+  Value<int> id,
+  required int pelicula,
+  required String ruta,
+  required String titulo,
+  required DateTime fecha,
+  required String origen,
+  required String antes,
+  required String despues,
+  Value<bool> caratula,
+  Value<DateTime?> deshecho,
+});
+typedef $$CambiosTableUpdateCompanionBuilder = CambiosCompanion Function({
+  Value<int> id,
+  Value<int> pelicula,
+  Value<String> ruta,
+  Value<String> titulo,
+  Value<DateTime> fecha,
+  Value<String> origen,
+  Value<String> antes,
+  Value<String> despues,
+  Value<bool> caratula,
+  Value<DateTime?> deshecho,
+});
+
+class $$CambiosTableFilterComposer
+    extends Composer<_$BaseDatos, $CambiosTable> {
+  $$CambiosTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pelicula => $composableBuilder(
+    column: $table.pelicula,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ruta => $composableBuilder(
+    column: $table.ruta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titulo => $composableBuilder(
+    column: $table.titulo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get fecha => $composableBuilder(
+    column: $table.fecha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origen => $composableBuilder(
+    column: $table.origen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get antes => $composableBuilder(
+    column: $table.antes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get despues => $composableBuilder(
+    column: $table.despues,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get caratula => $composableBuilder(
+    column: $table.caratula,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deshecho => $composableBuilder(
+    column: $table.deshecho,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CambiosTableOrderingComposer
+    extends Composer<_$BaseDatos, $CambiosTable> {
+  $$CambiosTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pelicula => $composableBuilder(
+    column: $table.pelicula,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ruta => $composableBuilder(
+    column: $table.ruta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titulo => $composableBuilder(
+    column: $table.titulo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get fecha => $composableBuilder(
+    column: $table.fecha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origen => $composableBuilder(
+    column: $table.origen,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get antes => $composableBuilder(
+    column: $table.antes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get despues => $composableBuilder(
+    column: $table.despues,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get caratula => $composableBuilder(
+    column: $table.caratula,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deshecho => $composableBuilder(
+    column: $table.deshecho,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CambiosTableAnnotationComposer
+    extends Composer<_$BaseDatos, $CambiosTable> {
+  $$CambiosTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get pelicula =>
+      $composableBuilder(column: $table.pelicula, builder: (column) => column);
+
+  GeneratedColumn<String> get ruta =>
+      $composableBuilder(column: $table.ruta, builder: (column) => column);
+
+  GeneratedColumn<String> get titulo =>
+      $composableBuilder(column: $table.titulo, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get fecha =>
+      $composableBuilder(column: $table.fecha, builder: (column) => column);
+
+  GeneratedColumn<String> get origen =>
+      $composableBuilder(column: $table.origen, builder: (column) => column);
+
+  GeneratedColumn<String> get antes =>
+      $composableBuilder(column: $table.antes, builder: (column) => column);
+
+  GeneratedColumn<String> get despues =>
+      $composableBuilder(column: $table.despues, builder: (column) => column);
+
+  GeneratedColumn<bool> get caratula =>
+      $composableBuilder(column: $table.caratula, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deshecho =>
+      $composableBuilder(column: $table.deshecho, builder: (column) => column);
+}
+
+class $$CambiosTableTableManager
+    extends
+        RootTableManager<
+          _$BaseDatos,
+          $CambiosTable,
+          FilaCambio,
+          $$CambiosTableFilterComposer,
+          $$CambiosTableOrderingComposer,
+          $$CambiosTableAnnotationComposer,
+          $$CambiosTableCreateCompanionBuilder,
+          $$CambiosTableUpdateCompanionBuilder,
+          (FilaCambio, BaseReferences<_$BaseDatos, $CambiosTable, FilaCambio>),
+          FilaCambio,
+          PrefetchHooks Function()
+        > {
+  $$CambiosTableTableManager(_$BaseDatos db, $CambiosTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CambiosTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CambiosTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CambiosTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> pelicula = const Value.absent(),
+                Value<String> ruta = const Value.absent(),
+                Value<String> titulo = const Value.absent(),
+                Value<DateTime> fecha = const Value.absent(),
+                Value<String> origen = const Value.absent(),
+                Value<String> antes = const Value.absent(),
+                Value<String> despues = const Value.absent(),
+                Value<bool> caratula = const Value.absent(),
+                Value<DateTime?> deshecho = const Value.absent(),
+              }) => CambiosCompanion(
+                id: id,
+                pelicula: pelicula,
+                ruta: ruta,
+                titulo: titulo,
+                fecha: fecha,
+                origen: origen,
+                antes: antes,
+                despues: despues,
+                caratula: caratula,
+                deshecho: deshecho,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int pelicula,
+                required String ruta,
+                required String titulo,
+                required DateTime fecha,
+                required String origen,
+                required String antes,
+                required String despues,
+                Value<bool> caratula = const Value.absent(),
+                Value<DateTime?> deshecho = const Value.absent(),
+              }) => CambiosCompanion.insert(
+                id: id,
+                pelicula: pelicula,
+                ruta: ruta,
+                titulo: titulo,
+                fecha: fecha,
+                origen: origen,
+                antes: antes,
+                despues: despues,
+                caratula: caratula,
+                deshecho: deshecho,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$CambiosTable, FilaCambio>(table),
+                  BaseReferences<_$BaseDatos, $CambiosTable, FilaCambio>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CambiosTableProcessedTableManager =
+    ProcessedTableManager<
+      _$BaseDatos,
+      $CambiosTable,
+      FilaCambio,
+      $$CambiosTableFilterComposer,
+      $$CambiosTableOrderingComposer,
+      $$CambiosTableAnnotationComposer,
+      $$CambiosTableCreateCompanionBuilder,
+      $$CambiosTableUpdateCompanionBuilder,
+      (FilaCambio, BaseReferences<_$BaseDatos, $CambiosTable, FilaCambio>),
+      FilaCambio,
+      PrefetchHooks Function()
+    >;
 
 class $BaseDatosManager {
   final _$BaseDatos _db;
@@ -2996,4 +3891,6 @@ class $BaseDatosManager {
       $$PeliculasTableTableManager(_db, _db.peliculas);
   $$AjustesTableTableManager get ajustes =>
       $$AjustesTableTableManager(_db, _db.ajustes);
+  $$CambiosTableTableManager get cambios =>
+      $$CambiosTableTableManager(_db, _db.cambios);
 }

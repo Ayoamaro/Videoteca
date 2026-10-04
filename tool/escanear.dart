@@ -41,6 +41,10 @@ Future<void> main(List<String> argumentos) async {
       );
     }
   }
+  // Así la carpeta de datos sirve para abrir la app directamente
+  // (con LOCALAPPDATA apuntando a ella), sin pasar por el asistente.
+  await bd.guardarAjuste('carpetaRaiz', raiz);
+  await bd.guardarAjuste('ultimoEscaneo', DateTime.now().toIso8601String());
   print('');
   print('Resultado: ${fin.fase.name} ${fin.mensaje}');
   print(

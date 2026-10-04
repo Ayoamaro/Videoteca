@@ -427,16 +427,20 @@ class Coleccion extends Notifier<EstadoColeccion> {
 
   /// Vuelve a dejar pendientes las películas con error (para intentarlo
   /// otra vez).
-  Future<void> reintentarErrores() async {
-    if (state.trabajando) return;
+  /// Vuelve a intentar las películas que quedaron con el [estado] dado (las
+  /// de error, o las dudosas después de mejorar la identificación) en una
+  /// tanda nueva.
+  Future<void> reintentar(EstadoLote estado) async {
+    if (state.marcha != Marcha.parado) return;
     final ids = [
       for (final f in state.filas.values)
-        if (f.estado == EstadoLote.error.name) f.pelicula,
+        if (f.estado == estado.name) f.pelicula,
     ];
     await _bd.olvidarLote(ids);
     state = state.copyWith(
       filas: {...state.filas}..removeWhere((id, _) => ids.contains(id)),
     );
+    await empezar(null);
   }
 
   /// Deshace todo lo escrito en la tanda [numero] y la olvida (sus películas
@@ -506,10 +510,15 @@ class Coleccion extends Notifier<EstadoColeccion> {
   }
 
   /// Anota que la película [id] se ha revisado a mano (p. ej. una dudosa
-  /// resuelta en Editar ficha): sale de su lista.
+  /// resuelta en Editar ficha): sale de su lista. Las que el lote completó
+  /// no cambian.
   Future<void> marcarRevisada(int id) async {
     final f = state.filas[id];
-    if (f == null) return;
+    if (f == null ||
+        f.estado == EstadoLote.completada.name ||
+        f.estado == EstadoLote.sinDatos.name) {
+      return;
+    }
     final nueva = f.copyWith(
       estado: EstadoLote.completada.name,
       mensaje:

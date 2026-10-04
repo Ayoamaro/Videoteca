@@ -189,14 +189,18 @@ class _PantallaCompletarColeccionState
                 child: Text('Todas (${formatoNumero(pendientes.length)})'),
               ),
           ],
-          if (cuenta[EstadoLote.error]! > 0)
-            OutlinedButton.icon(
-              onPressed: _lote.reintentarErrores,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(
-                'Volver a intentar las de error (${cuenta[EstadoLote.error]})',
+          for (final (e, texto) in [
+            (EstadoLote.dudosa, 'las dudosas'),
+            (EstadoLote.error, 'las de error'),
+          ])
+            if (cuenta[e]! > 0)
+              OutlinedButton.icon(
+                onPressed: hayClave ? () => _lote.reintentar(e) : null,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(
+                  'Volver a intentar $texto (${formatoNumero(cuenta[e]!)})',
+                ),
               ),
-            ),
         ],
         Marcha.enMarcha => [
           FilledButton.icon(

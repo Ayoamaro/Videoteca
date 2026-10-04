@@ -347,7 +347,27 @@ bool mismaPersona(String a, String b) {
       x.first[0] == y.first[0]) {
     return true;
   }
+  if (_conPalabrasDeMas(x, y)) return true;
   return _casiIgual(x.join(), y.join());
+}
+
+/// Uno de los nombres es el otro con una o dos palabras más justo al
+/// principio o al final: «Kirk Wong» / «Kirk Wong Chi-Keung» (TMDB pone el
+/// nombre chino completo), «Martín Cuervo» / «Hugo Martín Cuervo», «Ángel
+/// Alonso» / «Ángel Alonso García». No vale si lo que sobra es «Jr.» (padre
+/// e hijo) ni si uno es una sola palabra.
+bool _conPalabrasDeMas(List<String> x, List<String> y) {
+  final (corto, largo) = x.length <= y.length ? (x, y) : (y, x);
+  final sobran = largo.length - corto.length;
+  if (corto.length < 2 || sobran < 1 || sobran > 2) return false;
+  const familia = {'jr', 'sr', 'junior', 'senior', 'ii', 'iii'};
+  bool igual(List<String> a) => a.join(' ') == corto.join(' ');
+  if (igual(largo.sublist(0, corto.length)) &&
+      !largo.sublist(corto.length).any(familia.contains)) {
+    return true;
+  }
+  return igual(largo.sublist(sobran)) &&
+      !largo.sublist(0, sobran).any(familia.contains);
 }
 
 /// Las dos listas de nombres («A, B») son las mismas personas, aunque se

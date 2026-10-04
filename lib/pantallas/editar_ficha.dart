@@ -398,6 +398,8 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
       if (repaso != null) {
         await ref.read(repasadasProvider.notifier).marcar(p.id);
       }
+      // Si era una dudosa (o no encontrada) del lote, ya está resuelta.
+      await ref.read(coleccionProvider.notifier).marcarRevisada(p.id);
       navegador.pop();
       if (!mounted) return;
       // Ya no hay cambios pendientes: se puede salir sin preguntar.

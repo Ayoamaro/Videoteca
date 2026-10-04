@@ -194,6 +194,16 @@ void main() {
       expect(mismaPersona('Pedro Almodóvar', 'Pedro Almodovar'), isTrue);
       expect(mismaPersona('Joel Coen', 'Ethan Coen'), isFalse);
       expect(mismaPersona('Tony Scott', 'Ridley Scott'), isFalse);
+      // Nombre más largo por delante o por detrás.
+      expect(mismaPersona('Kirk Wong', 'Kirk Wong Chi-Keung'), isTrue);
+      expect(mismaPersona('Stanley Tong Gwai-Lai', 'Stanley Tong'), isTrue);
+      expect(mismaPersona('Martín Cuervo', 'Hugo Martín Cuervo'), isTrue);
+      expect(mismaPersona('Jennifer Yuh', 'Jennifer Yuh Nelson'), isTrue);
+      expect(mismaPersona('Dennis Dimster-Denk', 'Dennis Dimster'), isTrue);
+      // …pero no padre e hijo, ni con una sola palabra.
+      expect(mismaPersona('Lon Chaney', 'Lon Chaney Jr.'), isFalse);
+      expect(mismaPersona('Upi', 'Upi Avianto'), isFalse);
+      expect(mismaPersona('Ron Howard', 'Bryce Dallas Howard'), isFalse);
       expect(mismasPersonas('Yoshifumi Kondô', 'Yoshifumi Kondo'), isTrue);
       expect(
         mismasPersonas('Joel Coen, Ethan Coen', 'Ethan Coen, Joel Coen'),

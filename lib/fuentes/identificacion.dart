@@ -48,26 +48,60 @@ class Candidato {
   bool get todo => aciertos == 3;
 
   /// «Coinciden título y año; el director no (TMDB: Fulano)».
-  String get explicacion {
-    final si = [
-      if (titulo) 'título',
-      if (anio) 'año',
-      if (director) 'director',
-    ];
-    final no = [
-      if (!titulo) 'título',
-      if (!anio) 'año (${ficha.anio})',
-      if (!director)
-        'director${ficha.directores.isEmpty ? '' : ' (${ficha.directores.join(', ')})'}',
-    ];
-    String lista(List<String> l) => l.length == 1
-        ? l.first
-        : '${l.sublist(0, l.length - 1).join(', ')} y ${l.last}';
-    if (no.isEmpty) return 'Coinciden título, año y director.';
-    if (si.isEmpty) return 'No coincide nada: ${lista(no)}.';
-    return 'Coincide${si.length > 1 ? 'n' : ''} ${lista(si)}; '
-        'no coincide${no.length > 1 ? 'n' : ''} ${lista(no)}.';
-  }
+  String get explicacion => explicarCoincidencias(
+    titulo: titulo,
+    anio: anio,
+    director: director,
+    suAnio: ficha.anio,
+    susDirectores: ficha.directores,
+  );
+}
+
+/// Explica qué coincide entre nuestra película y la de una fuente («Coinciden
+/// título y año; no coincide director (Fulano)»).
+String explicarCoincidencias({
+  required bool titulo,
+  required bool anio,
+  required bool director,
+  required int suAnio,
+  required List<String> susDirectores,
+}) {
+  final si = [if (titulo) 'título', if (anio) 'año', if (director) 'director'];
+  final no = [
+    if (!titulo) 'título',
+    if (!anio) 'año ($suAnio)',
+    if (!director)
+      'director${susDirectores.isEmpty ? '' : ' (${susDirectores.join(', ')})'}',
+  ];
+  String lista(List<String> l) => l.length == 1
+      ? l.first
+      : '${l.sublist(0, l.length - 1).join(', ')} y ${l.last}';
+  if (no.isEmpty) return 'Coinciden título, año y director.';
+  if (si.isEmpty) return 'No coincide nada: ${lista(no)}.';
+  return 'Coincide${si.length > 1 ? 'n' : ''} ${lista(si)}; '
+      'no coincide${no.length > 1 ? 'n' : ''} ${lista(no)}.';
+}
+
+/// Qué coincide entre nuestra película [p] y una de otra fuente.
+({bool titulo, bool anio, bool director}) coincidencias(
+  DatosIdentificacion p, {
+  required Iterable<String> titulos,
+  required int anio,
+  required Iterable<String> directores,
+}) {
+  final nuestros = {p.titulo, p.tituloOriginal}
+    ..removeWhere((t) => t.trim().isEmpty);
+  final titulo = nuestros.any(
+    (a) => titulos.any((b) => titulosParecidos(a, b)),
+  );
+  final mismoAnio = p.anio > 0 && anio > 0 && (anio - p.anio).abs() <= 1;
+  final nuestrosDirectores = separarNombres(
+    p.direccion.replaceAll(' y ', ', '),
+  );
+  final director = nuestrosDirectores.any(
+    (a) => directores.any((b) => mismaPersona(a, b)),
+  );
+  return (titulo: titulo, anio: mismoAnio, director: director);
 }
 
 class Identificacion {
@@ -178,19 +212,13 @@ Future<Identificacion> identificar(Tmdb tmdb, DatosIdentificacion p) async {
 }
 
 Candidato _comparar(FichaTmdb f, DatosIdentificacion p) {
-  final nuestros = {p.titulo, p.tituloOriginal}
-    ..removeWhere((t) => t.trim().isEmpty);
-  final suyos = {f.titulo, f.tituloOriginal, ...f.otrosTitulos};
-  final titulo = nuestros.any((a) => suyos.any((b) => titulosParecidos(a, b)));
-  final anio = p.anio > 0 && f.anio > 0 && (f.anio - p.anio).abs() <= 1;
-  final directores = separarNombres(p.direccion.replaceAll(' y ', ', '));
-  final director = directores.any(
-    (a) => {
-      ...f.directores,
-      ...f.nombresDirectores,
-    }.any((b) => mismaPersona(a, b)),
+  final c = coincidencias(
+    p,
+    titulos: {f.titulo, f.tituloOriginal, ...f.otrosTitulos},
+    anio: f.anio,
+    directores: {...f.directores, ...f.nombresDirectores},
   );
-  return Candidato(f, titulo: titulo, anio: anio, director: director);
+  return Candidato(f, titulo: c.titulo, anio: c.anio, director: c.director);
 }
 
 /// Para ordenar los resultados de la búsqueda antes de pedir sus fichas.

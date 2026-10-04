@@ -47,6 +47,9 @@ class CarpetasApp {
   /// poder deshacerlo).
   String get copias => '$raiz${_sep}copias';
 
+  /// Perfil propio de la ventana de Edge con la que se lee FilmAffinity.
+  String get navegador => '$raiz${_sep}navegador';
+
   /// Miniatura de la carátula de la película con número [id].
   String miniatura(int id) => '$miniaturas$_sep$id.jpg';
 

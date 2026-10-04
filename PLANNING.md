@@ -137,8 +137,12 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Reglas decididas:** estrellas en tramos de 20 % (0–19 % = 1★ … 80–100 % = 5★). Ojo: con tus estrellas actuales solo coinciden 32 de 127, porque casi no usas 1★ ni 5★; como solo se rellenan los vacíos, afecta sobre todo a las nuevas. Edades: primero la calificación de **EE. UU.** (G → TP, PG → 7, PG-13 → 13, R y NC-17 → 18) y, si no hay, la de **España** (TP, 7, 12, 16, 18). Es la regla que más se parece a tus frases (tus «13» vienen del PG-13), aunque en las de R a veces pusiste 16 y otras 18.
 **Para el día 13:** OMDb gratis = 1.000 consultas al día → las estrellas de toda la colección tardarían ~6 días (o 1 $/mes en Patreon de OMDb para 100.000/día). TMDB y Wikidata no tienen ese límite (~1,2 s por película).
 
-### ☐ Día 11 — FilmAffinity
+### ☑ Día 11 — FilmAffinity
 - Navegador integrado (WebView2) que abre la ficha de FilmAffinity y lee: título original, sinopsis, géneros, temas, reparto, guion, música, fotografía, productora, país y premios.
+
+**Hecho:** en vez de WebView2 (que exigiría plugins y el *Modo de desarrollador*), la app usa **Microsoft Edge**, que ya viene con Windows: abre una ventana de Edge propia de la app (con su perfil aparte, sin tocar el tuyo) y lee la página que tienes abierta. En **Editar ficha** hay un botón nuevo, **Leer de FilmAffinity**: va directo a la ficha si ya se conoce su enlace (el guardado o el de Wikidata) y, si no, abre la búsqueda de FilmAffinity para que entres tú en la película. En cuanto la ventana está en la ficha de una película, la app la lee sola, **comprueba título, año (±1) y director** y aparta la ventana. Trae título original, géneros (con tu formato «Drama. Comedia»), sinopsis completa (sin el «(FILMAFFINITY)» final), dirección, reparto, guion, música, fotografía, productora, país, temas, premios y el enlace. Como el día 10: vienen marcados solo los campos vacíos (y la sinopsis si la tuya está cortada), los distintos se enseñan con «Ahora: …», y si no coincide la película no se marca nada. Probado con copias: *Hipnótico* leída e identificada, 5 datos guardados y comprobados. Prueba desde la terminal: `dart run tool/probar_filmaffinity.dart [n | título]`.
+**Importante — Cloudflare:** FilmAffinity está protegido por Cloudflare y a veces enseña «Un momento… Verifique que es un ser humano». La app lo detecta y te pide que marques la casilla en la ventana de Edge; después sigue sola. **No se intenta saltar esa comprobación**. En las pruebas saltó a la segunda película abierta seguida y, una vez que salta, se repite hasta que una persona la resuelve.
+**Para el día 13:** 679 de tus sinopsis están cortadas justo a las 255 letras (editadas en el Explorador) y 3.624 tienen más de 255 (de otro programa). Las cortadas se pueden completar con FilmAffinity película a película (el botón las marca solas).
 
 ### ☐ Día 12 — Películas nuevas y Completar ficha
 - Bandeja de **Películas nuevas** con estados.
@@ -153,7 +157,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 - Pausar y reanudar, contadores, dudosas sin tocar, registro y deshacer.
 - Ejecución por etapas: **primero 50 películas**, revisamos juntos el resultado y después el resto.
 
-**Necesito de ti:** decidir si los temas y premios de FilmAffinity se intentan también en lote (una pasada lenta de 25–30 horas) o solo para películas nuevas.
+**Necesito de ti:** decidir si los temas y premios de FilmAffinity se intentan también en lote o solo para películas nuevas. Visto el día 11: un lote desatendido **no es viable** (Cloudflare pide marcar la casilla a mano y no se va a saltar); como mucho, una pasada «contigo delante» por tandas.
 
 ---
 
@@ -208,7 +212,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 |---|---|
 | ~~Rangos de Rotten Tomatoes → estrellas~~ | ☑ Día 10: tramos de 20 % |
 | ~~Frases exactas de clasificación por edades~~ | ☑ Día 10: EE. UU. primero, si no España |
-| Temas y premios de FilmAffinity en lote o solo en nuevas | Día 13 |
+| Temas y premios de FilmAffinity en lote o solo en nuevas (día 11: el lote desatendido no es viable por Cloudflare) | Día 13 |
 | Contraseña común para los usuarios | Día 14 |
 | Publicar la APK en Google Play (25 €, opcional) | Día 19 |
 

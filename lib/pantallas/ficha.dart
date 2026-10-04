@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../fuentes/filmaffinity.dart' show busquedaFilmaffinity;
 import '../datos/buscador.dart';
 import '../datos/catalogo.dart';
 import '../disco/acciones_windows.dart';
@@ -302,16 +303,15 @@ class _Detalles extends ConsumerWidget {
             spacing: 10,
             runSpacing: 10,
             children: [
-              // Con enlace guardado se abre la ficha; si no (hasta que se
-              // rellenen el día 10), se busca la película por el título.
+              // Con enlace guardado se abre la ficha; si no, se busca la
+              // película por el título.
               _BotonWeb(
                 p.enlaceFilmaffinity.isNotEmpty
                     ? 'FilmAffinity'
                     : 'Buscar en FilmAffinity',
                 p.enlaceFilmaffinity.isNotEmpty
                     ? p.enlaceFilmaffinity
-                    : 'https://www.filmaffinity.com/es/search.php?stext='
-                          '${Uri.encodeQueryComponent(p.titulo)}',
+                    : busquedaFilmaffinity(p.titulo),
               ),
               _BotonWeb(
                 p.enlaceImdb.isNotEmpty ? 'IMDb' : 'Buscar en IMDb',

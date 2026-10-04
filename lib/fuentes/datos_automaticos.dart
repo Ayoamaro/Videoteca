@@ -68,6 +68,16 @@ class FuentesDatos {
     return completar(identificacion, ficha);
   }
 
+  /// El enlace a la ficha de FilmAffinity de [p] (TMDB → IMDb → Wikidata),
+  /// o `null` si la película no se identifica sin dudas o Wikidata no lo
+  /// tiene.
+  Future<String?> buscarEnlaceFilmaffinity(DatosIdentificacion p) async {
+    final imdb = (await identificar(tmdb, p)).ficha?.imdb ?? '';
+    if (imdb.isEmpty) return null;
+    final fa = await wikidata.idFilmaffinity(imdb);
+    return fa == null ? null : enlaceFilmaffinity(fa);
+  }
+
   /// Reúne los datos de [ficha] (la identificada, o la que has elegido tú
   /// entre las dudosas).
   Future<ResultadoDatos> completar(

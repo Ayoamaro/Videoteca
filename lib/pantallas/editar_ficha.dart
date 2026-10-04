@@ -14,12 +14,14 @@ import '../disco/dialogo_abrir.dart';
 import '../disco/escritor.dart';
 import '../disco/lector_archivo.dart';
 import '../fuentes/datos_automaticos.dart';
+import '../fuentes/identificacion.dart' show DatosIdentificacion;
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../utilidades.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
 import '../widgets/dialogo_datos.dart';
+import '../widgets/dialogo_filmaffinity.dart';
 import 'registro.dart';
 
 /// "Editar ficha": cambiar a mano los datos y la carátula de una película y
@@ -192,14 +194,33 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     final elegidos = await mostrarDatosAutomaticos(
       context,
       fuentes: fuentes,
-      datos: (
-        titulo: _actual(Campo.titulo),
-        tituloOriginal: _actual(Campo.tituloOriginal),
-        anio: int.tryParse(_actual(Campo.anio)) ?? 0,
-        direccion: _actual(Campo.direccion),
-      ),
+      datos: _datosIdentificacion,
       actuales: {for (final c in Campo.values) c: _actual(c)},
     );
+    _pasarDatos(elegidos);
+  }
+
+  /// Lee los datos de la ficha de FilmAffinity (en una ventana de Edge) y
+  /// pasa al formulario los que se elijan.
+  Future<void> _leerFilmaffinity() async {
+    final elegidos = await mostrarDatosFilmaffinity(
+      context,
+      perfil: ref.read(carpetasAppProvider).navegador,
+      fuentes: ref.read(fuentesDatosProvider),
+      datos: _datosIdentificacion,
+      actuales: {for (final c in Campo.values) c: _actual(c)},
+    );
+    _pasarDatos(elegidos);
+  }
+
+  DatosIdentificacion get _datosIdentificacion => (
+    titulo: _actual(Campo.titulo),
+    tituloOriginal: _actual(Campo.tituloOriginal),
+    anio: int.tryParse(_actual(Campo.anio)) ?? 0,
+    direccion: _actual(Campo.direccion),
+  );
+
+  void _pasarDatos(Map<Campo, DatoEncontrado>? elegidos) {
     if (elegidos == null || !mounted) return;
     setState(() {
       for (final MapEntry(key: c, value: dato) in elegidos.entries) {
@@ -364,13 +385,24 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                       'de cambios para poder deshacerlo.',
                 ),
                 if (cargado && esAdministrador)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.tonalIcon(
-                      onPressed: _buscarDatos,
-                      icon: const Icon(Icons.travel_explore_rounded, size: 18),
-                      label: const Text('Buscar datos en internet'),
-                    ),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: _buscarDatos,
+                        icon: const Icon(
+                          Icons.travel_explore_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Buscar datos en internet'),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: _leerFilmaffinity,
+                        icon: const Icon(Icons.movie_filter_rounded, size: 18),
+                        label: const Text('Leer de FilmAffinity'),
+                      ),
+                    ],
                   ),
                 if (problema != null) _Aviso(problema),
                 if (!cargado && problema == null)

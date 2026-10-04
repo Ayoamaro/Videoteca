@@ -116,7 +116,7 @@ class _EstadoDialogoDatos extends State<_DialogoDatos> {
         ),
       );
     } else if (_error != null) {
-      contenido = _Mensaje(
+      contenido = MensajeDialogo(
         icono: Icons.cloud_off_rounded,
         color: c.rojo,
         texto: _error!,
@@ -124,7 +124,7 @@ class _EstadoDialogoDatos extends State<_DialogoDatos> {
     } else if (pelicula != null) {
       contenido = _datos(pelicula, r!);
     } else if (r!.identificacion.seguridad == Seguridad.noEncontrada) {
-      contenido = _Mensaje(
+      contenido = MensajeDialogo(
         icono: Icons.search_off_rounded,
         color: c.naranja,
         texto:
@@ -166,7 +166,7 @@ class _EstadoDialogoDatos extends State<_DialogoDatos> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Mensaje(
+        MensajeDialogo(
           icono: Icons.help_outline_rounded,
           color: c.naranja,
           texto:
@@ -278,7 +278,7 @@ class _EstadoDialogoDatos extends State<_DialogoDatos> {
           const Text('TMDB no tiene más datos de esta película.'),
         for (final campo in Campo.values)
           if (r.datos[campo] case final dato?)
-            _FilaDato(
+            FilaDato(
               campo: campo,
               dato: dato,
               actual: widget.actuales[campo] ?? '',
@@ -308,8 +308,27 @@ class _EstadoDialogoDatos extends State<_DialogoDatos> {
   }
 }
 
-class _FilaDato extends StatelessWidget {
-  const _FilaDato({
+/// [actual] y [nuevo] dicen lo mismo para el campo [campo]: el mismo
+/// texto, las mismas personas escritas un poco distinto, o solo cambia un
+/// punto final («Miramax, STX Entertainment.»).
+bool mismoDato(Campo campo, String actual, String nuevo) {
+  if (actual == nuevo) return true;
+  String sinPunto(String t) => t.trim().replaceAll(RegExp(r'[.\s]+$'), '');
+  if (sinPunto(actual) == sinPunto(nuevo)) return true;
+  return FilaDato._personas.contains(campo) && mismasPersonas(actual, nuevo);
+}
+
+/// La sinopsis [actual] es el principio de [nueva], cortada (las editadas en
+/// el Explorador de Windows se quedan en 255 letras).
+bool sinopsisCortada(String actual, String nueva) {
+  final a = actual.trim();
+  return a.length >= 40 && nueva.length > a.length && nueva.startsWith(a);
+}
+
+/// Un dato encontrado, con su casilla para pasarlo a la ficha.
+class FilaDato extends StatelessWidget {
+  const FilaDato({
+    super.key,
     required this.campo,
     required this.dato,
     required this.actual,
@@ -323,7 +342,12 @@ class _FilaDato extends StatelessWidget {
   final bool marcado;
   final ValueChanged<bool> alCambiar;
 
-  static const _personas = {Campo.direccion, Campo.guion, Campo.fotografia};
+  static const _personas = {
+    Campo.direccion,
+    Campo.guion,
+    Campo.fotografia,
+    Campo.musica,
+  };
 
   String _ver(String valor) =>
       campo == Campo.estrellas && valor.isNotEmpty ? '$valor ★' : valor;
@@ -331,10 +355,9 @@ class _FilaDato extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colores;
-    // Mismo texto, o las mismas personas escritas un poco distinto.
-    final igual =
-        actual == dato.valor ||
-        (_personas.contains(campo) && mismasPersonas(actual, dato.valor));
+    final igual = mismoDato(campo, actual, dato.valor);
+    final cortada =
+        campo == Campo.sinopsis && sinopsisCortada(actual, dato.valor);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -382,7 +405,13 @@ class _FilaDato extends StatelessWidget {
                       dato.detalle,
                       style: TextStyle(fontSize: 12, color: c.textoSecundario),
                     ),
-                  if (actual.isNotEmpty && !igual)
+                  if (cortada)
+                    Text(
+                      'La tuya está cortada a las ${actual.length} letras: '
+                      'esta es la completa.',
+                      style: TextStyle(fontSize: 12, color: c.naranja),
+                    )
+                  else if (actual.isNotEmpty && !igual)
                     Text(
                       'Ahora: ${_ver(actual)}',
                       maxLines: 2,
@@ -426,8 +455,10 @@ class EtiquetaOrigen extends StatelessWidget {
   }
 }
 
-class _Mensaje extends StatelessWidget {
-  const _Mensaje({
+/// Un mensaje con icono dentro de un diálogo.
+class MensajeDialogo extends StatelessWidget {
+  const MensajeDialogo({
+    super.key,
     required this.icono,
     required this.color,
     required this.texto,

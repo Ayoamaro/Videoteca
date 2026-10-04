@@ -105,12 +105,13 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Hecho:** **Reproducir** abre la película con tu reproductor de Windows (VLC) y **Abrir carpeta** abre el Explorador con el archivo ya seleccionado (también con nombres que llevan `꞉`). Cada nombre de Dirección y Reparto se puede pulsar: lleva al lado el número de películas suyas que tienes y abre una ventana con todas ellas (y «Ver en el Catálogo» para filtrarlas). Debajo, **«Más de *director*»** con hasta 6 carátulas; si una es otra copia de la misma película, lo indica. Botones *Buscar en FilmAffinity / IMDb* (abren la ficha directa cuando el enlace esté guardado, día 10). El disco se comprueba cada 5 s: si no está, sale una franja de aviso, el punto del menú se pone rojo y Reproducir/Abrir carpeta se desactivan; si el disco está pero el archivo ya no, la ficha lo dice.
 **Más datos raros (para Pendientes):** el archivo *El Caballero Oscuro 3꞉ La Leyenda Renace (2008).mp4* tiene el año 2008 en el nombre y 2012 en los datos, y su sinopsis está cortada a media palabra.
 
-### ☐ Día 8 — Cambios en el disco y Pendientes · 🏷 v0.1
+### ☑ Día 8 — Cambios en el disco y Pendientes · 🏷 v0.1
 - Vigilancia de carpetas: detectar al momento las películas **nuevas**, **movidas** y **desaparecidas**.
 - Pantalla **Pendientes**: duplicadas, sin carátula, incompletas y nombre fuera de formato.
 - Primer instalador de Windows.
 
 **Al terminar:** 🎉 **v0.1** — ya puedes usar la app a diario para buscar tus películas.
+**Hecho:** Windows avisa a la app de cualquier cambio dentro de la carpeta raíz; tras 3 s de calma hace una revisión rápida (las 5.541 en menos de 1 s si no hay nada que leer). También revisa al abrir la app y al reconectar el disco. Las **nuevas** van a la bandeja de *Películas nuevas* (insignia en el menú y aviso abajo: «Película nueva: …», con *Ver*); un archivo que todavía se está copiando se espera a que termine. Las **movidas o renombradas** se reconocen por tamaño + fecha y conservan su ficha. Las **desaparecidas** ya no se borran solas: salen en Pendientes con *Quitar del catálogo* (y si vuelven, se recuperan). **Pendientes** con tus datos: 15 duplicadas (también *Predator* / *Depredador 4*, *Project X* / *Proyecto X*…, con calidad y tamaño de cada copia), 138 incompletas (dice qué falta), 69 *datos que revisar* (año imposible o distinto al del nombre, frases de edad mal escritas), 1 nombre fuera de formato y 0 sin carátula; cada una se puede ignorar/marcar como revisada (se recuerda). La base de datos pasa a la versión 2 sola. **Instalador:** al subir la etiqueta `v0.1`, GitHub Actions compila la app, crea `Videoteca-0.1.0-instalador.exe` (Inno Setup, sin pedir administrador, se instala en `%LOCALAPPDATA%\Programs\Videoteca`) y lo publica en *Releases*.
 
 ---
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../datos/catalogo.dart';
+import '../datos/vigilancia.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../tema/tema.dart';
@@ -25,7 +26,7 @@ class PantallaInicio extends ConsumerWidget {
     final antiguo = DateTime(1900);
     final recientes = [...todas]
       ..sort((a, b) => (b.anadida ?? antiguo).compareTo(a.anadida ?? antiguo));
-    final nuevas = todas.where((p) => p.nueva).take(3).toList();
+    final nuevas = ref.watch(nuevasProvider);
 
     return LayoutBuilder(
       builder: (context, medidas) {
@@ -68,7 +69,11 @@ class PantallaInicio extends ConsumerWidget {
                           color: c.texto,
                         ),
                       ),
-                      const TextSpan(text: '  películas en la colección'),
+                      TextSpan(
+                        text: todas.length == 1
+                            ? '  película en la colección'
+                            : '  películas en la colección',
+                      ),
                     ],
                   ),
                   style: TextStyle(fontSize: 15, color: c.textoSecundario),
@@ -209,13 +214,15 @@ class BotonGenero extends StatelessWidget {
 
 /// Banda dorada "3 películas nuevas detectadas".
 class _AvisoNuevas extends StatelessWidget {
-  const _AvisoNuevas(this.nuevas);
+  const _AvisoNuevas(this.todas);
 
-  final List<Pelicula> nuevas;
+  /// Todas las nuevas (se enseñan las 3 más recientes).
+  final List<Pelicula> todas;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colores;
+    final nuevas = todas.take(3).toList();
     return Material(
       color: c.doradoFondo,
       shape: RoundedRectangleBorder(
@@ -247,7 +254,10 @@ class _AvisoNuevas extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${nuevas.length} películas nuevas detectadas en el disco',
+                      todas.length == 1
+                          ? '1 película nueva detectada en el disco'
+                          : '${formatoNumero(todas.length)} películas nuevas '
+                                'detectadas en el disco',
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -256,7 +266,8 @@ class _AvisoNuevas extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Sin datos todavía · '
-                      '${nuevas.map((p) => '${p.titulo} (${p.anio})').join(', ')}',
+                      '${nuevas.map((p) => '${p.titulo} (${p.anio})').join(', ')}'
+                      '${todas.length > 3 ? '…' : ''}',
                       style: TextStyle(fontSize: 14, color: c.textoSecundario),
                     ),
                   ],
@@ -276,7 +287,7 @@ class _AvisoNuevas extends StatelessWidget {
                   const SizedBox(width: 10),
                   FilledButton(
                     onPressed: () => context.go('/nuevas'),
-                    child: const Text('Completar fichas'),
+                    child: const Text('Ver nuevas'),
                   ),
                 ],
               ),

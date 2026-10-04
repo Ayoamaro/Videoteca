@@ -6,6 +6,12 @@ La app recorre una carpeta de películas `.mp4` organizadas por grupo y género,
 
 > 🚧 En desarrollo. El plan completo está en [PLANNING.md](PLANNING.md).
 
+## Instalar
+
+Descarga `Videoteca-<versión>-instalador.exe` de la última versión en [Releases](https://github.com/Ayoamaro/videoteca/releases) y ábrelo. Se instala solo para tu usuario (no pide permisos de administrador). Para actualizar, instala la versión nueva encima: el catálogo se conserva.
+
+> Windows puede avisar de que el instalador es de un editor desconocido (no está firmado): pulsa *Más información → Ejecutar de todas formas*.
+
 ## Estructura de carpetas esperada
 
 ```

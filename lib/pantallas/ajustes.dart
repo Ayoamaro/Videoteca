@@ -303,9 +303,7 @@ class _SeccionColeccion extends ConsumerWidget {
     };
     final escaneo = ref.watch(escaneoProvider);
     final enMarcha = escaneo?.enMarcha ?? false;
-    final ultimo = DateTime.tryParse(
-      ref.watch(ajustesInicialesProvider)['ultimoEscaneo'] ?? '',
-    );
+    final ultimo = ref.watch(ultimoEscaneoProvider);
     final notificador = ref.read(escaneoProvider.notifier);
 
     return _Seccion(

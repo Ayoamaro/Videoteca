@@ -42,6 +42,8 @@ class Pelicula {
     this.grupo = '',
     this.enlaceFilmaffinity = '',
     this.enlaceImdb = '',
+    this.errorLectura,
+    this.desaparecida,
   });
 
   /// Película a partir de lo leído en su `.mp4`.
@@ -132,6 +134,12 @@ class Pelicula {
 
   final String enlaceFilmaffinity;
   final String enlaceImdb;
+
+  /// Si Windows no pudo leer el archivo, el motivo.
+  final String? errorLectura;
+
+  /// Cuándo se vio que el archivo ya no estaba en el disco.
+  final DateTime? desaparecida;
 
   /// Carpeta donde está el archivo (sin el nombre).
   String get carpeta {

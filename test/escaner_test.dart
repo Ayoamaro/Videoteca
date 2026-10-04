@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
 import 'package:videoteca/datos/base_datos.dart';
+import 'package:videoteca/datos/carpetas_app.dart';
 import 'package:videoteca/disco/escaner.dart';
 
 void main() {
@@ -95,6 +96,145 @@ void main() {
     expect(p.restante, const Duration(seconds: 30));
   });
 
+  group('Cambios en el disco', () {
+    late Directory raiz;
+    late Directory datos;
+    late BaseDatos bd;
+
+    setUp(() {
+      raiz = Directory.systemTemp.createTempSync('videoteca_raiz_');
+      datos = Directory.systemTemp.createTempSync('videoteca_datos_');
+      bd = BaseDatos(NativeDatabase.memory());
+    });
+    tearDown(() async {
+      await bd.close();
+      raiz.deleteSync(recursive: true);
+      datos.deleteSync(recursive: true);
+    });
+
+    File crear(String ruta, int tamano) {
+      final f = File('${raiz.path}$sep$ruta')..createSync(recursive: true);
+      f.writeAsBytesSync(List.filled(tamano, 7));
+      f.setLastModifiedSync(DateTime(2020, 1, 1, 12));
+      return f;
+    }
+
+    Future<ProgresoEscaneo> escanear({bool marcarNuevas = true}) => Escaner(
+      bd: bd,
+      raiz: raiz.path,
+      carpetas: CarpetasApp.preparar(datos.path),
+      trabajadores: 1,
+      marcarNuevas: marcarNuevas,
+    ).ejecutar().last;
+
+    Future<FilaPelicula> fila(String nombre) async =>
+        (await bd.todasLasPeliculas()).singleWhere(
+          (f) => f.ruta.endsWith('$sep$nombre'),
+        );
+
+    test('nuevas, movidas, desaparecidas y de vuelta', () async {
+      crear('Comedias${sep}Comedia${sep}Joy (2015).mp4', 100);
+      final big = crear('Comedias${sep}Comedia${sep}Big (1988).mp4', 200);
+      crear('Drama${sep}Drama${sep}Gump (1994).mp4', 300);
+
+      // Primer escaneo: nada es «nuevo».
+      var r = await escanear(marcarNuevas: false);
+      expect(r.fase, FaseEscaneo.terminado);
+      expect(r.leidas, 3);
+      expect((await bd.todasLasPeliculas()).where((f) => f.nueva), isEmpty);
+      final idJoy = (await fila('Joy (2015).mp4')).id;
+
+      // Mover Joy a otra carpeta: conserva su número y no se vuelve a leer.
+      Directory('${raiz.path}${sep}Romance').createSync();
+      File('${raiz.path}${sep}Comedias${sep}Comedia${sep}Joy (2015).mp4')
+          .renameSync('${raiz.path}${sep}Romance${sep}Joy (2015).mp4');
+      r = await escanear();
+      expect(r.movidas, 1);
+      expect(r.nuevas, 0);
+      expect(r.actualizadas, 0);
+      final joy = await fila('Joy (2015).mp4');
+      expect(joy.id, idJoy);
+      expect(joy.generoCarpeta, 'Romance');
+      expect(joy.grupo, '');
+
+      // Una película nueva.
+      crear('Drama${sep}Drama${sep}Wonka (2023).m4v', 400);
+      r = await escanear();
+      expect(r.nuevas, 1);
+      final wonka = await fila('Wonka (2023).m4v');
+      expect(wonka.nueva, isTrue);
+      expect(r.idsNuevos, [wonka.id]);
+
+      // Big desaparece: no se borra, se marca.
+      big.deleteSync();
+      r = await escanear();
+      expect(r.desaparecidas, 1);
+      expect((await bd.peliculasDesaparecidas()).single.titulo, 'Big');
+      expect(await bd.todasLasPeliculas(), hasLength(3));
+
+      // Si se escanea otra vez, no cuenta de nuevo.
+      r = await escanear();
+      expect(r.desaparecidas, 0);
+      expect(r.hayCambios, isFalse);
+
+      // Y vuelve igual que estaba.
+      crear('Comedias${sep}Comedia${sep}Big (1988).mp4', 200);
+      r = await escanear();
+      expect(r.recuperadas, 1);
+      expect(r.nuevas, 0);
+      expect(await bd.peliculasDesaparecidas(), isEmpty);
+    });
+
+    test('no lee un archivo que se está copiando', () async {
+      crear('Drama${sep}Drama${sep}Gump (1994).mp4', 300);
+      await escanear(marcarNuevas: false);
+      final copiando = crear('Drama${sep}Drama${sep}Nueva (2025).mp4', 50);
+      final abierto = copiando.openSync(mode: FileMode.append);
+      try {
+        expect(archivoEnUso(copiando.path), isTrue);
+        final r = await escanear();
+        expect(r.enUso, 1);
+        expect(r.nuevas, 0);
+      } finally {
+        abierto.closeSync();
+      }
+      expect(archivoEnUso(copiando.path), isFalse);
+      expect((await escanear()).nuevas, 1);
+    }, skip: Platform.isWindows ? false : 'Solo en Windows');
+
+    test('empareja copias idénticas por el nombre', () {
+      final fecha = DateTime(2020);
+      ArchivoConocido c(int id) => (
+        id: id,
+        tamano: 10,
+        modificado: fecha,
+        conError: false,
+        desaparecida: false,
+      );
+      ArchivoEncontrado a(String ruta) =>
+          (ruta: ruta, tamano: 10, modificado: fecha, creado: fecha);
+      final parejas = emparejarMovidas(
+        {'A${sep}Uno.mp4': c(1), 'B${sep}Uno.mp4': c(2)},
+        [a('C${sep}Uno.mp4'), a('D${sep}Uno.mp4')],
+      );
+      // Mismo nombre en las dos: hay dudas y no se empareja nada.
+      expect(parejas, isEmpty);
+
+      final otra = emparejarMovidas(
+        {'A${sep}Uno.mp4': c(1), 'B${sep}Dos.mp4': c(2)},
+        [a('C${sep}Dos.mp4'), a('D${sep}Uno.mp4')],
+      );
+      expect(otra, hasLength(2));
+      expect(
+        {for (final (de, a) in otra) de: a.ruta},
+        {
+          'A${sep}Uno.mp4': 'D${sep}Uno.mp4',
+          'B${sep}Dos.mp4': 'C${sep}Dos.mp4',
+        },
+      );
+    });
+  });
+
   group('Base de datos', () {
     late BaseDatos bd;
 
@@ -122,12 +262,21 @@ void main() {
       },
     );
 
-    test('borrar rutas y ajustes', () async {
-      final id = await bd.guardarPelicula(fila('Joy'));
-      expect(await bd.borrarRutas([r'D:\Comedias\Comedia\Joy (2015).mp4']), [
-        id,
-      ]);
+    test('borrar, nuevas, desaparecidas y ajustes', () async {
+      final id = await bd.guardarPelicula(
+        fila('Joy').copyWith(nueva: const Value(true)),
+      );
+      // Al volver a guardarla (archivo cambiado) sigue siendo «nueva».
+      await bd.guardarPelicula(fila('Joy'));
+      expect((await bd.todasLasPeliculas()).single.nueva, isTrue);
+
+      await bd.marcarDesaparecidas([id], DateTime(2026, 10, 4));
+      expect(await bd.todasLasPeliculas(), isEmpty);
+      expect((await bd.peliculasDesaparecidas()).single.id, id);
       expect(await bd.contarPeliculas(), 0);
+
+      await bd.borrarPeliculas([id]);
+      expect(await bd.peliculasDesaparecidas(), isEmpty);
 
       await bd.guardarAjuste('carpetaRaiz', r'D:\');
       await bd.guardarAjuste('carpetaRaiz', r'E:\Pelis');

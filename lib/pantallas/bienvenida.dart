@@ -58,7 +58,12 @@ class _PantallaBienvenidaState extends ConsumerState<PantallaBienvenida> {
 
   Future<void> _escanear() async {
     setState(() => _paso = _Paso.escaneando);
-    await ref.read(escaneoProvider.notifier).iniciar(raiz: _carpeta);
+    // La carpeta se guarda ya, para que la vigilancia de cambios pase a
+    // mirar la nueva.
+    await ref.read(carpetaRaizProvider.notifier).cambiar(_carpeta!);
+    await ref
+        .read(escaneoProvider.notifier)
+        .iniciar(raiz: _carpeta, coleccionNueva: true);
   }
 
   Future<void> _terminar() async {

@@ -28,7 +28,9 @@ class ProgresoEscaneoVista extends StatelessWidget {
       ),
       FaseEscaneo.terminado => (
         p.porLeer == 0
-            ? 'Todo al día: no había cambios'
+            ? (p.hayCambios
+                  ? 'Catálogo al día'
+                  : 'Todo al día: no había cambios')
             : 'Listo: ${formatoNumero(p.leidas)} '
                   '${p.leidas == 1 ? 'película leída' : 'películas leídas'}',
         '${formatoNumero(p.encontradas)} películas en el disco · '
@@ -90,19 +92,9 @@ class ProgresoEscaneoVista extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(fontSize: 14, color: c.textoSecundario),
         ),
-        if (restante != null || p.errores > 0 || p.borradas > 0) ...[
+        if (_detalles(p, restante) case final detalles?) ...[
           const SizedBox(height: 4),
-          Text(
-            [
-              if (restante != null) 'Faltan ${duracionTexto(restante)}',
-              if (p.errores > 0)
-                '${formatoNumero(p.errores)} sin poder leer '
-                    '(se reintentarán)',
-              if (p.borradas > 0)
-                '${formatoNumero(p.borradas)} ya no están en el disco',
-            ].join(' · '),
-            style: TextStyle(fontSize: 13, color: c.textoTenue),
-          ),
+          Text(detalles, style: TextStyle(fontSize: 13, color: c.textoTenue)),
         ],
         if (p.enMarcha && alCancelar != null) ...[
           const SizedBox(height: 14),
@@ -117,6 +109,27 @@ class ProgresoEscaneoVista extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Línea pequeña con el tiempo restante y lo que ha cambiado.
+String? _detalles(ProgresoEscaneo p, Duration? restante) {
+  final n = formatoNumero;
+  final partes = [
+    if (restante != null) 'Faltan ${duracionTexto(restante)}',
+    if (p.fase != FaseEscaneo.buscando) ...[
+      if (p.nuevas > 0) '${n(p.nuevas)} ${p.nuevas == 1 ? 'nueva' : 'nuevas'}',
+      if (p.movidas > 0)
+        '${n(p.movidas)} ${p.movidas == 1 ? 'movida' : 'movidas'}',
+      if (p.recuperadas > 0) '${n(p.recuperadas)} de vuelta en el disco',
+      if (p.desaparecidas > 0)
+        '${n(p.desaparecidas)} ya no ${p.desaparecidas == 1 ? 'está' : 'están'}'
+            ' en el disco (ver Pendientes)',
+      if (p.enUso > 0)
+        '${n(p.enUso)} copiándose todavía (se leerán al terminar)',
+    ],
+    if (p.errores > 0) '${n(p.errores)} sin poder leer (se reintentarán)',
+  ];
+  return partes.isEmpty ? null : partes.join(' · ');
 }
 
 /// "unos 4 min", "menos de 1 min", "1 h 5 min".

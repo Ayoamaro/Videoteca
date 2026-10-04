@@ -132,7 +132,13 @@ class ProgresoEscaneo {
     this.porLeer = 0,
     this.leidas = 0,
     this.errores = 0,
-    this.borradas = 0,
+    this.nuevas = 0,
+    this.actualizadas = 0,
+    this.movidas = 0,
+    this.desaparecidas = 0,
+    this.recuperadas = 0,
+    this.enUso = 0,
+    this.idsNuevos = const [],
     this.actual = '',
     this.transcurrido = Duration.zero,
     this.mensaje = '',
@@ -150,8 +156,28 @@ class ProgresoEscaneo {
   /// Archivos que Windows no pudo leer.
   final int errores;
 
+  /// Películas que no estaban en el catálogo.
+  final int nuevas;
+
+  /// Películas que ya estaban y se han vuelto a leer porque el archivo ha
+  /// cambiado.
+  final int actualizadas;
+
+  /// Películas que estaban en otra carpeta o con otro nombre (se reconocen
+  /// por el tamaño y la fecha del archivo y conservan su ficha).
+  final int movidas;
+
   /// Películas que estaban en el catálogo y ya no están en el disco.
-  final int borradas;
+  final int desaparecidas;
+
+  /// Películas desaparecidas que han vuelto a su sitio.
+  final int recuperadas;
+
+  /// Archivos que todavía se están copiando: se leerán más tarde.
+  final int enUso;
+
+  /// Números de las películas nuevas guardadas (para avisar).
+  final List<int> idsNuevos;
 
   /// Nombre del último archivo leído.
   final String actual;
@@ -159,6 +185,10 @@ class ProgresoEscaneo {
 
   /// Explicación si algo ha ido mal.
   final String mensaje;
+
+  /// Ha cambiado algo en el catálogo.
+  bool get hayCambios =>
+      nuevas + actualizadas + movidas + desaparecidas + recuperadas > 0;
 
   bool get enMarcha =>
       fase == FaseEscaneo.buscando || fase == FaseEscaneo.leyendo;
@@ -183,7 +213,13 @@ class ProgresoEscaneo {
     int? porLeer,
     int? leidas,
     int? errores,
-    int? borradas,
+    int? nuevas,
+    int? actualizadas,
+    int? movidas,
+    int? desaparecidas,
+    int? recuperadas,
+    int? enUso,
+    List<int>? idsNuevos,
     String? actual,
     Duration? transcurrido,
     String? mensaje,
@@ -193,7 +229,13 @@ class ProgresoEscaneo {
     porLeer: porLeer ?? this.porLeer,
     leidas: leidas ?? this.leidas,
     errores: errores ?? this.errores,
-    borradas: borradas ?? this.borradas,
+    nuevas: nuevas ?? this.nuevas,
+    actualizadas: actualizadas ?? this.actualizadas,
+    movidas: movidas ?? this.movidas,
+    desaparecidas: desaparecidas ?? this.desaparecidas,
+    recuperadas: recuperadas ?? this.recuperadas,
+    enUso: enUso ?? this.enUso,
+    idsNuevos: idsNuevos ?? this.idsNuevos,
     actual: actual ?? this.actual,
     transcurrido: transcurrido ?? this.transcurrido,
     mensaje: mensaje ?? this.mensaje,
@@ -207,6 +249,7 @@ class Escaner {
     required this.raiz,
     required this.carpetas,
     this.trabajadores = 4,
+    this.marcarNuevas = false,
   });
 
   final BaseDatos bd;
@@ -216,6 +259,10 @@ class Escaner {
   /// Películas que se leen a la vez. En un disco duro mecánico, 4 va algo
   /// más rápido que 1 sin saturarlo.
   final int trabajadores;
+
+  /// Las películas que no estaban en el catálogo van a la bandeja de
+  /// Películas nuevas. En el primer escaneo no (serían todas).
+  final bool marcarNuevas;
 
   final _reloj = Stopwatch();
   ReceivePort? _puerto;
@@ -270,31 +317,92 @@ class Escaner {
         );
       }
 
-      // 2. Qué hay que leer: lo nuevo, lo cambiado y lo que dio error.
-      final porLeer = [
-        for (final a in enDisco)
-          if (completo || _hayQueLeer(a, conocidos[a.ruta])) a,
-      ];
-
-      // 3. Lo que ya no está en el disco sale del catálogo.
+      // 2. Archivos que ya no están donde estaban y archivos que no se
+      //    conocían. Si coinciden en tamaño y fecha, es la misma película
+      //    movida o renombrada: conserva su ficha (y su número).
       final rutasEnDisco = {for (final a in enDisco) a.ruta};
-      final desaparecidas = conocidos.keys.where(
-        (r) => !rutasEnDisco.contains(r),
-      );
-      final borradas = await bd.borrarRutas(desaparecidas.toList());
-      for (final id in borradas) {
-        _borrarMiniatura(id);
+      final faltan = {
+        for (final MapEntry(:key, :value) in conocidos.entries)
+          if (!rutasEnDisco.contains(key)) key: value,
+      };
+      final desconocidos = [
+        for (final a in enDisco)
+          if (!conocidos.containsKey(a.ruta)) a,
+      ];
+      final movidas = emparejarMovidas(faltan, desconocidos);
+      final releer = <String>{};
+      for (final (desde, hacia) in movidas) {
+        final u = ubicacionEnColeccion(raiz, hacia.ruta);
+        await bd.moverPelicula(
+          faltan[desde]!.id,
+          ruta: hacia.ruta,
+          grupo: u.grupo,
+          generoCarpeta: u.genero,
+        );
+        // Con otro nombre de archivo, se vuelve a leer por si acaso.
+        if (_nombre(desde) != _nombre(hacia.ruta)) releer.add(hacia.ruta);
+        final antes = faltan.remove(desde)!;
+        conocidos[hacia.ruta] = (
+          id: antes.id,
+          tamano: antes.tamano,
+          modificado: antes.modificado,
+          conError: antes.conError,
+          desaparecida: false,
+        );
       }
+
+      // 3. Lo que sigue sin aparecer se marca como desaparecido (no se borra:
+      //    se ve en Pendientes). Lo que había desaparecido y ha vuelto, se
+      //    desmarca.
+      final nuevasDesaparecidas = [
+        for (final c in faltan.values)
+          if (!c.desaparecida) c.id,
+      ];
+      await bd.marcarDesaparecidas(nuevasDesaparecidas, DateTime.now());
+      final recuperadas = [
+        for (final a in enDisco)
+          if (conocidos[a.ruta] case final c? when c.desaparecida) c.id,
+      ];
+      await bd.marcarDesaparecidas(recuperadas, null);
+
+      // 4. Qué hay que leer: lo nuevo, lo cambiado y lo que dio error. Lo que
+      //    se está copiando todavía se deja para luego.
+      var enUso = 0, actualizadas = 0;
+      final porLeer = <ArchivoEncontrado>[];
+      final nuevasRutas = <String>{};
+      for (final a in enDisco) {
+        final conocido = conocidos[a.ruta];
+        if (conocido == null) {
+          if (archivoEnUso(a.ruta)) {
+            enUso++;
+          } else {
+            porLeer.add(a);
+            nuevasRutas.add(a.ruta);
+          }
+        } else if (_haCambiado(a, conocido)) {
+          porLeer.add(a);
+          actualizadas++;
+        } else if (completo || conocido.conError || releer.contains(a.ruta)) {
+          // Se vuelve a leer, pero no cuenta como cambio.
+          porLeer.add(a);
+        }
+      }
+      _rutasNuevas = marcarNuevas ? nuevasRutas : const {};
 
       progreso = progreso.copiar(
         fase: FaseEscaneo.leyendo,
         encontradas: enDisco.length,
         porLeer: porLeer.length,
-        borradas: borradas.length,
+        nuevas: nuevasRutas.length,
+        actualizadas: actualizadas,
+        movidas: movidas.length,
+        desaparecidas: nuevasDesaparecidas.length,
+        recuperadas: recuperadas.length,
+        enUso: enUso,
       );
       avisar(siempre: true);
 
-      // 4. Leer los archivos con varios trabajadores.
+      // 5. Leer los archivos con varios trabajadores.
       if (porLeer.isNotEmpty) {
         final puerto = _puerto = ReceivePort();
         final cola = porLeer.reversed.toList();
@@ -346,6 +454,7 @@ class Escaner {
 
       progreso = progreso.copiar(
         fase: _cancelado ? FaseEscaneo.cancelado : FaseEscaneo.terminado,
+        idsNuevos: List.unmodifiable(_idsNuevos),
       );
     } on _ErrorEscaneo catch (e) {
       progreso = progreso.copiar(fase: FaseEscaneo.error, mensaje: e.mensaje);
@@ -363,20 +472,28 @@ class Escaner {
     }
   }
 
-  bool _hayQueLeer(ArchivoEncontrado a, ArchivoConocido? conocido) {
-    if (conocido == null || conocido.conError) return true;
+  /// ¿Ha cambiado el archivo desde que se leyó (tamaño o fecha)?
+  bool _haCambiado(ArchivoEncontrado a, ArchivoConocido conocido) {
     // La base de datos guarda las fechas con precisión de segundos.
     final segundos = a.modificado.millisecondsSinceEpoch ~/ 1000;
     return conocido.tamano != a.tamano ||
         conocido.modificado.millisecondsSinceEpoch ~/ 1000 != segundos;
   }
 
+  /// Archivos que no estaban en el catálogo (para marcarlos como nuevos).
+  Set<String> _rutasNuevas = const {};
+  final _idsNuevos = <int>[];
+
   /// Guarda un lote de películas leídas, con sus miniaturas.
   Future<void> _guardar(List<_Lectura> lote) async {
     if (lote.isEmpty) return;
     await bd.transaction(() async {
       for (final l in lote) {
-        final id = await bd.guardarPelicula(l.fila);
+        final nueva = _rutasNuevas.contains(l.fila.ruta.value);
+        final id = await bd.guardarPelicula(
+          l.fila.copyWith(nueva: Value(nueva)),
+        );
+        if (nueva) _idsNuevos.add(id);
         if (l.miniatura != null) {
           await File(carpetas.miniatura(id)).writeAsBytes(l.miniatura!);
         } else {
@@ -474,11 +591,121 @@ _Lectura _leerParaCatalogo(String raiz, ArchivoEncontrado archivo) {
       modificado: archivo.modificado,
       escaneada: DateTime.now(),
       errorLectura: Value(error),
+      desaparecida: const Value(null),
     ),
     miniatura,
     error,
   );
 }
+
+/// Empareja archivos que ya no están ([faltan], ruta → lo que se sabía) con
+/// archivos desconocidos ([nuevos]) que tienen el mismo tamaño y la misma
+/// fecha de modificación: son la misma película movida o renombrada.
+///
+/// Si hay varios candidatos (p. ej. dos copias idénticas de una película
+/// movidas a la vez), se emparejan por el nombre del archivo; si aun así hay
+/// dudas, no se empareja nada (más vale una «nueva» que una ficha cambiada).
+List<(String, ArchivoEncontrado)> emparejarMovidas(
+  Map<String, ArchivoConocido> faltan,
+  List<ArchivoEncontrado> nuevos,
+) {
+  String huella(int tamano, DateTime fecha) =>
+      '$tamano·${fecha.millisecondsSinceEpoch ~/ 1000}';
+  final porHuella = <String, List<String>>{};
+  for (final MapEntry(:key, :value) in faltan.entries) {
+    (porHuella[huella(value.tamano, value.modificado)] ??= []).add(key);
+  }
+  final nuevosPorHuella = <String, List<ArchivoEncontrado>>{};
+  for (final a in nuevos) {
+    final h = huella(a.tamano, a.modificado);
+    if (porHuella.containsKey(h)) (nuevosPorHuella[h] ??= []).add(a);
+  }
+  final parejas = <(String, ArchivoEncontrado)>[];
+  for (final MapEntry(key: h, value: candidatos) in nuevosPorHuella.entries) {
+    final antiguos = [...porHuella[h]!];
+    final restantes = <ArchivoEncontrado>[];
+    for (final a in candidatos) {
+      final mismoNombre = [
+        for (final r in antiguos)
+          if (_nombre(r) == _nombre(a.ruta)) r,
+      ];
+      if (mismoNombre.length == 1) {
+        parejas.add((mismoNombre.single, a));
+        antiguos.remove(mismoNombre.single);
+      } else {
+        restantes.add(a);
+      }
+    }
+    if (restantes.length == 1 && antiguos.length == 1) {
+      parejas.add((antiguos.single, restantes.single));
+    }
+  }
+  return parejas;
+}
+
+/// Nombre del archivo, sin la carpeta, en minúsculas.
+String _nombre(String ruta) =>
+    ruta.substring(ruta.lastIndexOf(Platform.pathSeparator) + 1).toLowerCase();
+
+/// ¿Hay otro programa escribiendo en el archivo? (P. ej. el Explorador
+/// mientras lo copia.) Se intenta abrir sin dejar que nadie escriba a la vez:
+/// si Windows no deja, es que alguien lo tiene abierto para escribir.
+bool archivoEnUso(String ruta) {
+  if (!Platform.isWindows) return false;
+  final texto = ruta.toNativeUtf16();
+  try {
+    final manija = _createFile(
+      texto,
+      _GENERIC_READ,
+      _FILE_SHARE_READ,
+      nullptr,
+      _OPEN_EXISTING,
+      0,
+      nullptr,
+    );
+    if (manija.address == _INVALID_HANDLE_VALUE) return true;
+    _closeHandle(manija);
+    return false;
+  } finally {
+    calloc.free(texto);
+  }
+}
+
+// ignore: constant_identifier_names
+const _GENERIC_READ = 0x80000000;
+// ignore: constant_identifier_names
+const _FILE_SHARE_READ = 0x1;
+// ignore: constant_identifier_names
+const _OPEN_EXISTING = 3;
+// ignore: constant_identifier_names
+const _INVALID_HANDLE_VALUE = -1;
+
+final _createFile = DynamicLibrary.open('kernel32.dll')
+    .lookupFunction<
+      Pointer<Void> Function(
+        Pointer<Utf16>,
+        Uint32,
+        Uint32,
+        Pointer<Void>,
+        Uint32,
+        Uint32,
+        Pointer<Void>,
+      ),
+      Pointer<Void> Function(
+        Pointer<Utf16>,
+        int,
+        int,
+        Pointer<Void>,
+        int,
+        int,
+        Pointer<Void>,
+      )
+    >('CreateFileW');
+
+final _closeHandle = DynamicLibrary.open('kernel32.dll')
+    .lookupFunction<Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>(
+      'CloseHandle',
+    );
 
 /// Ancho de las miniaturas: suficiente para la cuadrícula del catálogo y
 /// pesa unas 8 veces menos que la carátula original.

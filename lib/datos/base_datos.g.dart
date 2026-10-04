@@ -389,6 +389,30 @@ class $PeliculasTable extends Peliculas
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _nuevaMeta = const VerificationMeta('nueva');
+  @override
+  late final GeneratedColumn<bool> nueva = GeneratedColumn<bool>(
+    'nueva',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("nueva" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _desaparecidaMeta = const VerificationMeta(
+    'desaparecida',
+  );
+  @override
+  late final GeneratedColumn<DateTime> desaparecida = GeneratedColumn<DateTime>(
+    'desaparecida',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -424,6 +448,8 @@ class $PeliculasTable extends Peliculas
     modificado,
     escaneada,
     errorLectura,
+    nueva,
+    desaparecida,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -669,6 +695,21 @@ class $PeliculasTable extends Peliculas
         ),
       );
     }
+    if (data.containsKey('nueva')) {
+      context.handle(
+        _nuevaMeta,
+        nueva.isAcceptableOrUnknown(data['nueva']!, _nuevaMeta),
+      );
+    }
+    if (data.containsKey('desaparecida')) {
+      context.handle(
+        _desaparecidaMeta,
+        desaparecida.isAcceptableOrUnknown(
+          data['desaparecida']!,
+          _desaparecidaMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -810,6 +851,14 @@ class $PeliculasTable extends Peliculas
         DriftSqlType.string,
         data['${effectivePrefix}error_lectura'],
       ),
+      nueva: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}nueva'],
+      )!,
+      desaparecida: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}desaparecida'],
+      ),
     );
   }
 
@@ -870,6 +919,15 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
 
   /// Si Windows no pudo leer el archivo, el motivo (se reintenta al escanear).
   final String? errorLectura;
+
+  /// Detectada en el disco después del primer escaneo: está en la bandeja de
+  /// Películas nuevas hasta que se completa su ficha o se quita de allí.
+  final bool nueva;
+
+  /// Cuándo se vio que el archivo ya no estaba en el disco (`null` = está).
+  /// No se borra sola: sale en Pendientes hasta que se quite a mano o el
+  /// archivo vuelva.
+  final DateTime? desaparecida;
   const FilaPelicula({
     required this.id,
     required this.ruta,
@@ -904,6 +962,8 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     required this.modificado,
     required this.escaneada,
     this.errorLectura,
+    required this.nueva,
+    this.desaparecida,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -942,6 +1002,10 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     map['escaneada'] = Variable<DateTime>(escaneada);
     if (!nullToAbsent || errorLectura != null) {
       map['error_lectura'] = Variable<String>(errorLectura);
+    }
+    map['nueva'] = Variable<bool>(nueva);
+    if (!nullToAbsent || desaparecida != null) {
+      map['desaparecida'] = Variable<DateTime>(desaparecida);
     }
     return map;
   }
@@ -983,6 +1047,10 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
       errorLectura: errorLectura == null && nullToAbsent
           ? const Value.absent()
           : Value(errorLectura),
+      nueva: Value(nueva),
+      desaparecida: desaparecida == null && nullToAbsent
+          ? const Value.absent()
+          : Value(desaparecida),
     );
   }
 
@@ -1027,6 +1095,8 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
       modificado: serializer.fromJson<DateTime>(json['modificado']),
       escaneada: serializer.fromJson<DateTime>(json['escaneada']),
       errorLectura: serializer.fromJson<String?>(json['errorLectura']),
+      nueva: serializer.fromJson<bool>(json['nueva']),
+      desaparecida: serializer.fromJson<DateTime?>(json['desaparecida']),
     );
   }
   @override
@@ -1066,6 +1136,8 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
       'modificado': serializer.toJson<DateTime>(modificado),
       'escaneada': serializer.toJson<DateTime>(escaneada),
       'errorLectura': serializer.toJson<String?>(errorLectura),
+      'nueva': serializer.toJson<bool>(nueva),
+      'desaparecida': serializer.toJson<DateTime?>(desaparecida),
     };
   }
 
@@ -1103,6 +1175,8 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     DateTime? modificado,
     DateTime? escaneada,
     Value<String?> errorLectura = const Value.absent(),
+    bool? nueva,
+    Value<DateTime?> desaparecida = const Value.absent(),
   }) => FilaPelicula(
     id: id ?? this.id,
     ruta: ruta ?? this.ruta,
@@ -1137,6 +1211,8 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     modificado: modificado ?? this.modificado,
     escaneada: escaneada ?? this.escaneada,
     errorLectura: errorLectura.present ? errorLectura.value : this.errorLectura,
+    nueva: nueva ?? this.nueva,
+    desaparecida: desaparecida.present ? desaparecida.value : this.desaparecida,
   );
   FilaPelicula copyWithCompanion(PeliculasCompanion data) {
     return FilaPelicula(
@@ -1203,6 +1279,10 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
       errorLectura: data.errorLectura.present
           ? data.errorLectura.value
           : this.errorLectura,
+      nueva: data.nueva.present ? data.nueva.value : this.nueva,
+      desaparecida: data.desaparecida.present
+          ? data.desaparecida.value
+          : this.desaparecida,
     );
   }
 
@@ -1241,7 +1321,9 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
           ..write('anadida: $anadida, ')
           ..write('modificado: $modificado, ')
           ..write('escaneada: $escaneada, ')
-          ..write('errorLectura: $errorLectura')
+          ..write('errorLectura: $errorLectura, ')
+          ..write('nueva: $nueva, ')
+          ..write('desaparecida: $desaparecida')
           ..write(')'))
         .toString();
   }
@@ -1281,6 +1363,8 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
     modificado,
     escaneada,
     errorLectura,
+    nueva,
+    desaparecida,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1318,7 +1402,9 @@ class FilaPelicula extends DataClass implements Insertable<FilaPelicula> {
           other.anadida == this.anadida &&
           other.modificado == this.modificado &&
           other.escaneada == this.escaneada &&
-          other.errorLectura == this.errorLectura);
+          other.errorLectura == this.errorLectura &&
+          other.nueva == this.nueva &&
+          other.desaparecida == this.desaparecida);
 }
 
 class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
@@ -1355,6 +1441,8 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
   final Value<DateTime> modificado;
   final Value<DateTime> escaneada;
   final Value<String?> errorLectura;
+  final Value<bool> nueva;
+  final Value<DateTime?> desaparecida;
   const PeliculasCompanion({
     this.id = const Value.absent(),
     this.ruta = const Value.absent(),
@@ -1389,6 +1477,8 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     this.modificado = const Value.absent(),
     this.escaneada = const Value.absent(),
     this.errorLectura = const Value.absent(),
+    this.nueva = const Value.absent(),
+    this.desaparecida = const Value.absent(),
   });
   PeliculasCompanion.insert({
     this.id = const Value.absent(),
@@ -1424,6 +1514,8 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     required DateTime modificado,
     required DateTime escaneada,
     this.errorLectura = const Value.absent(),
+    this.nueva = const Value.absent(),
+    this.desaparecida = const Value.absent(),
   }) : ruta = Value(ruta),
        titulo = Value(titulo),
        anadida = Value(anadida),
@@ -1463,6 +1555,8 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     Expression<DateTime>? modificado,
     Expression<DateTime>? escaneada,
     Expression<String>? errorLectura,
+    Expression<bool>? nueva,
+    Expression<DateTime>? desaparecida,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1498,6 +1592,8 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
       if (modificado != null) 'modificado': modificado,
       if (escaneada != null) 'escaneada': escaneada,
       if (errorLectura != null) 'error_lectura': errorLectura,
+      if (nueva != null) 'nueva': nueva,
+      if (desaparecida != null) 'desaparecida': desaparecida,
     });
   }
 
@@ -1535,6 +1631,8 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     Value<DateTime>? modificado,
     Value<DateTime>? escaneada,
     Value<String?>? errorLectura,
+    Value<bool>? nueva,
+    Value<DateTime?>? desaparecida,
   }) {
     return PeliculasCompanion(
       id: id ?? this.id,
@@ -1570,6 +1668,8 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
       modificado: modificado ?? this.modificado,
       escaneada: escaneada ?? this.escaneada,
       errorLectura: errorLectura ?? this.errorLectura,
+      nueva: nueva ?? this.nueva,
+      desaparecida: desaparecida ?? this.desaparecida,
     );
   }
 
@@ -1675,6 +1775,12 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
     if (errorLectura.present) {
       map['error_lectura'] = Variable<String>(errorLectura.value);
     }
+    if (nueva.present) {
+      map['nueva'] = Variable<bool>(nueva.value);
+    }
+    if (desaparecida.present) {
+      map['desaparecida'] = Variable<DateTime>(desaparecida.value);
+    }
     return map;
   }
 
@@ -1713,7 +1819,9 @@ class PeliculasCompanion extends UpdateCompanion<FilaPelicula> {
           ..write('anadida: $anadida, ')
           ..write('modificado: $modificado, ')
           ..write('escaneada: $escaneada, ')
-          ..write('errorLectura: $errorLectura')
+          ..write('errorLectura: $errorLectura, ')
+          ..write('nueva: $nueva, ')
+          ..write('desaparecida: $desaparecida')
           ..write(')'))
         .toString();
   }
@@ -1972,6 +2080,8 @@ typedef $$PeliculasTableCreateCompanionBuilder = PeliculasCompanion Function({
   required DateTime modificado,
   required DateTime escaneada,
   Value<String?> errorLectura,
+  Value<bool> nueva,
+  Value<DateTime?> desaparecida,
 });
 typedef $$PeliculasTableUpdateCompanionBuilder = PeliculasCompanion Function({
   Value<int> id,
@@ -2007,6 +2117,8 @@ typedef $$PeliculasTableUpdateCompanionBuilder = PeliculasCompanion Function({
   Value<DateTime> modificado,
   Value<DateTime> escaneada,
   Value<String?> errorLectura,
+  Value<bool> nueva,
+  Value<DateTime?> desaparecida,
 });
 
 class $$PeliculasTableFilterComposer
@@ -2180,6 +2292,16 @@ class $$PeliculasTableFilterComposer
 
   ColumnFilters<String> get errorLectura => $composableBuilder(
     column: $table.errorLectura,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get nueva => $composableBuilder(
+    column: $table.nueva,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get desaparecida => $composableBuilder(
+    column: $table.desaparecida,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2357,6 +2479,16 @@ class $$PeliculasTableOrderingComposer
     column: $table.errorLectura,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get nueva => $composableBuilder(
+    column: $table.nueva,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get desaparecida => $composableBuilder(
+    column: $table.desaparecida,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PeliculasTableAnnotationComposer
@@ -2496,6 +2628,14 @@ class $$PeliculasTableAnnotationComposer
     column: $table.errorLectura,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get nueva =>
+      $composableBuilder(column: $table.nueva, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get desaparecida => $composableBuilder(
+    column: $table.desaparecida,
+    builder: (column) => column,
+  );
 }
 
 class $$PeliculasTableTableManager
@@ -2562,6 +2702,8 @@ class $$PeliculasTableTableManager
                 Value<DateTime> modificado = const Value.absent(),
                 Value<DateTime> escaneada = const Value.absent(),
                 Value<String?> errorLectura = const Value.absent(),
+                Value<bool> nueva = const Value.absent(),
+                Value<DateTime?> desaparecida = const Value.absent(),
               }) => PeliculasCompanion(
                 id: id,
                 ruta: ruta,
@@ -2596,6 +2738,8 @@ class $$PeliculasTableTableManager
                 modificado: modificado,
                 escaneada: escaneada,
                 errorLectura: errorLectura,
+                nueva: nueva,
+                desaparecida: desaparecida,
               ),
           createCompanionCallback:
               ({
@@ -2632,6 +2776,8 @@ class $$PeliculasTableTableManager
                 required DateTime modificado,
                 required DateTime escaneada,
                 Value<String?> errorLectura = const Value.absent(),
+                Value<bool> nueva = const Value.absent(),
+                Value<DateTime?> desaparecida = const Value.absent(),
               }) => PeliculasCompanion.insert(
                 id: id,
                 ruta: ruta,
@@ -2666,6 +2812,8 @@ class $$PeliculasTableTableManager
                 modificado: modificado,
                 escaneada: escaneada,
                 errorLectura: errorLectura,
+                nueva: nueva,
+                desaparecida: desaparecida,
               ),
           withReferenceMapper: (p0) => p0
               .map(

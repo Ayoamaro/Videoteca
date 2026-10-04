@@ -172,6 +172,7 @@ ThemeData construirTema(Brightness brillo) {
       behavior: SnackBarBehavior.floating,
       backgroundColor: c.seleccion,
       contentTextStyle: texto(14, FontWeight.w600),
+      actionTextColor: c.doradoTexto,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
     tooltipTheme: TooltipThemeData(

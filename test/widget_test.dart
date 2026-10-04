@@ -56,8 +56,8 @@ void main() {
     expect(find.text('ADMINISTRACIÓN'), findsOneWidget);
 
     for (final (menu, titulo) in [
-      ('Películas nuevas', '¿Cuál es «Cazadores de Fronteras (2025)»?'),
-      ('Pendientes', 'Todo lo que necesita tu atención en la colección.'),
+      ('Películas nuevas', 'Revisar el disco'),
+      ('Pendientes', 'Nombre fuera de formato'),
       ('Completar colección', 'Completar mi colección'),
       ('Ajustes', 'Apariencia'),
       ('Estadísticas', 'Esta pantalla llega el día 17.'),

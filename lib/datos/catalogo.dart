@@ -72,8 +72,34 @@ class Catalogo extends AsyncNotifier<List<Pelicula>> {
     final peliculas = await _cargar();
     if (olvidarImagenes) PaintingBinding.instance.imageCache.clear();
     state = AsyncData(peliculas);
+    ref.invalidate(desaparecidasProvider);
+  }
+
+  /// Quita del catálogo películas que ya no están en el disco (y sus
+  /// miniaturas). Nunca toca el disco.
+  Future<void> quitar(Iterable<int> ids) async {
+    final carpetas = ref.read(carpetasAppProvider);
+    await ref.read(baseDatosProvider).borrarPeliculas(ids);
+    for (final id in ids) {
+      final miniatura = File(carpetas.miniatura(id));
+      if (miniatura.existsSync()) miniatura.deleteSync();
+    }
+    await recargar();
+  }
+
+  /// Saca películas de la bandeja de Películas nuevas.
+  Future<void> quitarDeNuevas(Iterable<int> ids) async {
+    await ref.read(baseDatosProvider).marcarNuevas(ids, nueva: false);
+    await recargar();
   }
 }
+
+/// Películas que estaban en el catálogo y ya no están en el disco.
+final desaparecidasProvider = FutureProvider<List<Pelicula>>((ref) async {
+  final carpetas = ref.read(carpetasAppProvider);
+  final filas = await ref.read(baseDatosProvider).peliculasDesaparecidas();
+  return [for (final f in filas) peliculaDesdeFila(f, carpetas)];
+});
 
 /// Convierte una fila de la base de datos en una [Pelicula].
 Pelicula peliculaDesdeFila(FilaPelicula f, CarpetasApp carpetas) {
@@ -109,6 +135,9 @@ Pelicula peliculaDesdeFila(FilaPelicula f, CarpetasApp carpetas) {
     enlaceFilmaffinity: f.enlaceFilmaffinity,
     enlaceImdb: f.enlaceImdb,
     anadida: f.anadida,
+    nueva: f.nueva,
+    errorLectura: f.errorLectura,
+    desaparecida: f.desaparecida,
     tieneCaratula: f.tieneCaratula,
     miniatura: f.tieneMiniatura ? carpetas.miniatura(f.id) : null,
     tono: _tonos[f.titulo.hashCode % _tonos.length],
@@ -278,21 +307,43 @@ final escaneoProvider = NotifierProvider<Escaneo, ProgresoEscaneo?>(
 class Escaneo extends Notifier<ProgresoEscaneo?> {
   Escaner? _escaner;
 
+  /// Ha llegado un aviso de cambios mientras se escaneaba: al terminar se
+  /// vuelve a revisar.
+  bool _revisarOtraVez = false;
+  Timer? _reintento;
+  var _esperaReintento = const Duration(seconds: 15);
+
   @override
-  ProgresoEscaneo? build() => null;
+  ProgresoEscaneo? build() {
+    ref.onDispose(() => _reintento?.cancel());
+    return null;
+  }
 
   bool get enMarcha => state?.enMarcha ?? false;
 
   /// Escanea la carpeta raíz (o [raiz], si se da). Con [completo] vuelve a
   /// leer todos los archivos; si no, solo los nuevos o cambiados.
-  Future<void> iniciar({String? raiz, bool completo = false}) async {
+  ///
+  /// Con [automatico] (revisiones que pide el vigilante), si cambia algo se
+  /// avisa con un mensaje en la parte de abajo de la pantalla. Con
+  /// [coleccionNueva] (el asistente, al elegir carpeta) no se marca nada como
+  /// «nueva»: serían todas.
+  Future<void> iniciar({
+    String? raiz,
+    bool completo = false,
+    bool automatico = false,
+    bool coleccionNueva = false,
+  }) async {
     raiz ??= ref.read(carpetaRaizProvider);
     if (raiz == null || enMarcha) return;
+    _reintento?.cancel();
     final bd = ref.read(baseDatosProvider);
     final escaner = _escaner = Escaner(
       bd: bd,
       raiz: raiz,
       carpetas: ref.read(carpetasAppProvider),
+      // En el primer escaneo no se marcan como nuevas (serían todas).
+      marcarNuevas: !coleccionNueva && ref.read(ultimoEscaneoProvider) != null,
     );
     var leidasAlRecargar = 0;
     await for (final progreso in escaner.ejecutar(completo: completo)) {
@@ -304,11 +355,79 @@ class Escaneo extends Notifier<ProgresoEscaneo?> {
       }
     }
     _escaner = null;
-    await bd.guardarAjuste('ultimoEscaneo', DateTime.now().toIso8601String());
-    await ref.read(catalogoProvider.notifier).recargar(olvidarImagenes: true);
+    final fin = state!;
+    if (fin.fase == FaseEscaneo.terminado) {
+      await ref.read(ultimoEscaneoProvider.notifier).guardar(DateTime.now());
+    }
+    if (fin.hayCambios || !automatico) {
+      await ref
+          .read(catalogoProvider.notifier)
+          .recargar(olvidarImagenes: fin.actualizadas > 0 || !automatico);
+    }
+    if (automatico && fin.hayCambios) {
+      ref.read(avisoCambiosProvider.notifier).avisar(fin);
+    }
+
+    // Archivos que se estaban copiando: se mira otra vez dentro de un rato
+    // (cada vez se espera más, hasta 5 minutos, por si uno no acaba nunca).
+    if (fin.enUso > 0) {
+      _reintento = Timer(_esperaReintento, revisar);
+      _esperaReintento = Duration(
+        seconds: (_esperaReintento.inSeconds * 2).clamp(15, 300),
+      );
+    } else {
+      _esperaReintento = const Duration(seconds: 15);
+    }
+    if (_revisarOtraVez) {
+      _revisarOtraVez = false;
+      unawaited(revisar());
+    }
+  }
+
+  /// Revisión rápida pedida por el vigilante (o al arrancar). Si ya hay un
+  /// escaneo en marcha, se hace otra al terminar.
+  Future<void> revisar() async {
+    if (enMarcha) {
+      _revisarOtraVez = true;
+      return;
+    }
+    await iniciar(automatico: true);
   }
 
   void cancelar() => _escaner?.cancelar();
+}
+
+/// Cuándo terminó el último escaneo (`null` si nunca se ha completado uno).
+final ultimoEscaneoProvider = NotifierProvider<UltimoEscaneo, DateTime?>(
+  UltimoEscaneo.new,
+);
+
+class UltimoEscaneo extends Notifier<DateTime?> {
+  static const clave = 'ultimoEscaneo';
+
+  @override
+  DateTime? build() =>
+      DateTime.tryParse(ref.read(ajustesInicialesProvider)[clave] ?? '');
+
+  Future<void> guardar(DateTime fecha) async {
+    state = fecha;
+    await ref
+        .read(baseDatosProvider)
+        .guardarAjuste(clave, fecha.toIso8601String());
+  }
+}
+
+/// Último resultado de una revisión automática con cambios, para avisar
+/// («1 película nueva: …»). El marco lo enseña y lo vacía.
+final avisoCambiosProvider = NotifierProvider<AvisoCambios, ProgresoEscaneo?>(
+  AvisoCambios.new,
+);
+
+class AvisoCambios extends Notifier<ProgresoEscaneo?> {
+  @override
+  ProgresoEscaneo? build() => null;
+
+  void avisar(ProgresoEscaneo resultado) => state = resultado;
 }
 
 /// ¿Existe la carpeta raíz? (Si el disco está desconectado, no.)

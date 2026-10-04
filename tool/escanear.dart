@@ -45,7 +45,9 @@ Future<void> main(List<String> argumentos) async {
   print('Resultado: ${fin.fase.name} ${fin.mensaje}');
   print(
     'En el disco: ${fin.encontradas} · leídas: ${fin.leidas} · '
-    'errores: ${fin.errores} · quitadas: ${fin.borradas} · '
+    'errores: ${fin.errores} · nuevas: ${fin.nuevas} · '
+    'movidas: ${fin.movidas} · desaparecidas: ${fin.desaparecidas} · '
+    'copiándose: ${fin.enUso} · '
     'tiempo: ${_t(fin.transcurrido)}',
   );
 

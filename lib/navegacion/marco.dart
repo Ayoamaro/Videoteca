@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../datos/catalogo.dart';
+import '../datos/vigilancia.dart';
+import '../disco/escaner.dart';
 import '../tema/colores.dart';
 import '../tema/tema.dart';
 import '../utilidades.dart';
@@ -32,21 +34,15 @@ const destinosColeccion = [
   Destino('/estadisticas', 'Estadísticas', Icons.bar_chart_rounded),
 ];
 
-// Las insignias son datos de ejemplo hasta el día 8 (detección de cambios).
+// Las insignias (cuántas nuevas y cuántos pendientes) se ponen en el menú.
 const destinosAdministracion = [
   Destino(
     '/nuevas',
     'Películas nuevas',
     Icons.download_outlined,
-    insignia: 3,
     insigniaDestacada: true,
   ),
-  Destino(
-    '/pendientes',
-    'Pendientes',
-    Icons.warning_amber_rounded,
-    insignia: 57,
-  ),
+  Destino('/pendientes', 'Pendientes', Icons.warning_amber_rounded),
   Destino('/coleccion', 'Completar colección', Icons.layers_outlined),
   Destino('/ajustes', 'Ajustes', Icons.settings_outlined),
 ];
@@ -69,7 +65,7 @@ class Marco extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      _AtajoBuscar(child: _construir(context));
+      _Vigilancia(child: _AtajoBuscar(child: _construir(context)));
 
   Widget _construir(BuildContext context) {
     return LayoutBuilder(
@@ -167,15 +163,91 @@ class _AtajoBuscarState extends ConsumerState<_AtajoBuscar> {
   Widget build(BuildContext context) => widget.child;
 }
 
+/// Vigila el disco mientras la app está abierta y avisa abajo de la pantalla
+/// cuando aparecen, se mueven o desaparecen películas.
+class _Vigilancia extends ConsumerWidget {
+  const _Vigilancia({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(vigilanciaProvider);
+    ref.listen(avisoCambiosProvider, (_, resultado) {
+      if (resultado == null) return;
+      final unaNueva = resultado.idsNuevos.length == 1
+          ? ref.read(peliculaPorIdProvider(resultado.idsNuevos.single))
+          : null;
+      final (texto, destino) = textoCambios(resultado, unaNueva?.titulo);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(texto),
+            duration: const Duration(seconds: 8),
+            action: destino == null
+                ? null
+                : SnackBarAction(
+                    label: 'Ver',
+                    onPressed: () => GoRouter.of(context).go(
+                      unaNueva != null ? '/pelicula/${unaNueva.id}' : destino,
+                    ),
+                  ),
+          ),
+        );
+    });
+    return child;
+  }
+}
+
+/// Mensaje que resume los cambios encontrados y a qué pantalla llevar.
+/// «Película nueva: Joy», «3 películas nuevas · 1 movida»…
+(String, String?) textoCambios(ProgresoEscaneo r, String? tituloNueva) {
+  String plural(int n, String una, String varias) =>
+      n == 1 ? una : '${formatoNumero(n)} $varias';
+  final partes = [
+    if (r.nuevas == 1 && tituloNueva != null)
+      'Película nueva: $tituloNueva'
+    else if (r.nuevas > 0)
+      plural(r.nuevas, '1 película nueva', 'películas nuevas'),
+    if (r.movidas > 0)
+      plural(r.movidas, '1 película movida', 'películas movidas'),
+    if (r.actualizadas > 0)
+      plural(
+        r.actualizadas,
+        '1 película actualizada',
+        'películas actualizadas',
+      ),
+    if (r.recuperadas > 0)
+      plural(r.recuperadas, '1 película ha vuelto', 'películas han vuelto'),
+    if (r.desaparecidas > 0)
+      plural(
+        r.desaparecidas,
+        '1 película ya no está en el disco',
+        'películas ya no están en el disco',
+      ),
+  ];
+  final destino = r.nuevas > 0
+      ? '/nuevas'
+      : r.desaparecidas > 0
+      ? '/pendientes'
+      : null;
+  return (partes.join(' · '), destino);
+}
+
 /// Menú lateral del diseño de escritorio.
-class MenuLateral extends StatelessWidget {
+class MenuLateral extends ConsumerWidget {
   const MenuLateral({super.key, required this.activo});
 
   final String activo;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colores;
+    final insignias = {
+      '/nuevas': ref.watch(nuevasProvider).length,
+      '/pendientes': ref.watch(totalPendientesProvider),
+    };
     return Container(
       width: 248,
       decoration: BoxDecoration(
@@ -194,10 +266,15 @@ class MenuLateral extends StatelessWidget {
                   children: [
                     _logo(context),
                     const SizedBox(height: 28),
-                    _grupo(context, 'Colección', destinosColeccion),
+                    _grupo(context, 'Colección', destinosColeccion, const {}),
                     if (esAdministrador) ...[
                       const SizedBox(height: 28),
-                      _grupo(context, 'Administración', destinosAdministracion),
+                      _grupo(
+                        context,
+                        'Administración',
+                        destinosAdministracion,
+                        insignias,
+                      ),
                     ] else ...[
                       const SizedBox(height: 4),
                       _ElementoMenu(
@@ -246,7 +323,12 @@ class MenuLateral extends StatelessWidget {
     );
   }
 
-  Widget _grupo(BuildContext context, String titulo, List<Destino> destinos) {
+  Widget _grupo(
+    BuildContext context,
+    String titulo,
+    List<Destino> destinos,
+    Map<String, int> insignias,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -263,7 +345,11 @@ class MenuLateral extends StatelessWidget {
           ),
         ),
         for (final d in destinos) ...[
-          _ElementoMenu(destino: d, activo: d.ruta == activo),
+          _ElementoMenu(
+            destino: d,
+            activo: d.ruta == activo,
+            insignia: insignias[d.ruta],
+          ),
           const SizedBox(height: 4),
         ],
       ],
@@ -272,10 +358,17 @@ class MenuLateral extends StatelessWidget {
 }
 
 class _ElementoMenu extends StatelessWidget {
-  const _ElementoMenu({required this.destino, required this.activo});
+  const _ElementoMenu({
+    required this.destino,
+    required this.activo,
+    this.insignia,
+  });
 
   final Destino destino;
   final bool activo;
+
+  /// Número a la derecha (si es 0 no se enseña).
+  final int? insignia;
 
   @override
   Widget build(BuildContext context) {
@@ -309,9 +402,9 @@ class _ElementoMenu extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (destino.insignia != null)
+                if ((insignia ?? destino.insignia ?? 0) > 0)
                   Insignia(
-                    destino.insignia!,
+                    insignia ?? destino.insignia!,
                     destacada: destino.insigniaDestacada,
                   ),
               ],
@@ -377,6 +470,8 @@ class _Estado extends ConsumerWidget {
     final c = context.colores;
     final conectado = ref.watch(discoConectadoProvider).value ?? true;
     final disco = nombreDisco(ref.watch(carpetaRaizProvider));
+    final vigilando = ref.watch(vigilanciaProvider);
+    final revisando = ref.watch(escaneoProvider)?.enMarcha ?? false;
     // «Disco D: conectado»; si la raíz no es una unidad, «Carpeta …».
     final textoDisco = disco.startsWith('el ')
         ? '${disco.replaceFirst('el disco', 'Disco')} ${conectado ? 'conectado' : 'desconectado'}'
@@ -404,12 +499,39 @@ class _Estado extends ConsumerWidget {
               ),
             ],
           ),
+          if (esAdministrador) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  revisando
+                      ? Icons.sync_rounded
+                      : vigilando
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  size: 16,
+                  color: c.textoSuave,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    revisando
+                        ? 'Revisando cambios…'
+                        : vigilando
+                        ? 'Vigilando cambios'
+                        : 'Sin vigilar cambios',
+                    style: estilo,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [
               Icon(Icons.cloud_outlined, size: 16, color: c.textoSuave),
               const SizedBox(width: 8),
-              Flexible(child: Text('Publicado hace 2 min', style: estilo)),
+              Flexible(child: Text('Sin publicar todavía', style: estilo)),
             ],
           ),
           Padding(
@@ -419,11 +541,6 @@ class _Estado extends ConsumerWidget {
           Text(
             esAdministrador ? 'Administrador · este PC' : 'Consulta',
             style: estilo.copyWith(color: c.textoSecundario),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Nuevas y Pendientes: de ejemplo',
-            style: estilo.copyWith(fontSize: 12, color: c.doradoTexto),
           ),
         ],
       ),

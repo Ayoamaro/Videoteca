@@ -73,6 +73,15 @@ class Peliculas extends Table {
 
   /// Si Windows no pudo leer el archivo, el motivo (se reintenta al escanear).
   TextColumn get errorLectura => text().nullable()();
+
+  /// Detectada en el disco después del primer escaneo: está en la bandeja de
+  /// Películas nuevas hasta que se completa su ficha o se quita de allí.
+  BoolColumn get nueva => boolean().withDefault(const Constant(false))();
+
+  /// Cuándo se vio que el archivo ya no estaba en el disco (`null` = está).
+  /// No se borra sola: sale en Pendientes hasta que se quite a mano o el
+  /// archivo vuelva.
+  DateTimeColumn get desaparecida => dateTime().nullable()();
 }
 
 /// Ajustes de la app (clave → valor), p. ej. la carpeta raíz.
@@ -91,6 +100,7 @@ typedef ArchivoConocido = ({
   int tamano,
   DateTime modificado,
   bool conError,
+  bool desaparecida,
 });
 
 @DriftDatabase(tables: [Peliculas, Ajustes])
@@ -107,15 +117,36 @@ class BaseDatos extends _$BaseDatos {
   );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, desde, hasta) async {
+      // Versión 2 (día 8): películas nuevas y desaparecidas.
+      if (desde < 2) {
+        await m.addColumn(peliculas, peliculas.nueva);
+        await m.addColumn(peliculas, peliculas.desaparecida);
+      }
+    },
+  );
 
   // ── Películas ──────────────────────────────────────────────────────────
 
-  Future<List<FilaPelicula>> todasLasPeliculas() => select(peliculas).get();
+  /// Las películas que están en el disco.
+  Future<List<FilaPelicula>> todasLasPeliculas() =>
+      (select(peliculas)..where((p) => p.desaparecida.isNull())).get();
+
+  /// Las que ya no están en el disco (se ven en Pendientes).
+  Future<List<FilaPelicula>> peliculasDesaparecidas() =>
+      (select(peliculas)..where((p) => p.desaparecida.isNotNull())).get();
 
   Future<int> contarPeliculas() async {
     final total = peliculas.id.count();
-    final fila = await (selectOnly(peliculas)..addColumns([total])).getSingle();
+    final fila =
+        await (selectOnly(peliculas)
+              ..addColumns([total])
+              ..where(peliculas.desaparecida.isNull()))
+            .getSingle();
     return fila.read(total) ?? 0;
   }
 
@@ -128,6 +159,7 @@ class BaseDatos extends _$BaseDatos {
               peliculas.tamanoBytes,
               peliculas.modificado,
               peliculas.errorLectura,
+              peliculas.desaparecida,
             ]))
             .get();
     return {
@@ -137,30 +169,60 @@ class BaseDatos extends _$BaseDatos {
           tamano: f.read(peliculas.tamanoBytes)!,
           modificado: f.read(peliculas.modificado)!,
           conError: f.read(peliculas.errorLectura) != null,
+          desaparecida: f.read(peliculas.desaparecida) != null,
         ),
     };
   }
 
   /// Guarda una película nueva o actualiza la que ya tenía esa ruta.
-  /// Devuelve su número (id), que no cambia al actualizarla.
+  /// Devuelve su número (id), que no cambia al actualizarla. Al actualizar no
+  /// se toca la marca de «nueva».
   Future<int> guardarPelicula(PeliculasCompanion datos) async {
     final fila = await into(peliculas).insertReturning(
       datos,
-      onConflict: DoUpdate((_) => datos, target: [peliculas.ruta]),
+      onConflict: DoUpdate(
+        (_) => datos.copyWith(nueva: const Value.absent()),
+        target: [peliculas.ruta],
+      ),
     );
     return fila.id;
   }
 
-  /// Borra las películas con esas rutas y devuelve sus números.
-  Future<List<int>> borrarRutas(Iterable<String> rutas) async {
-    final ids = <int>[];
-    for (final ruta in rutas) {
-      final borradas = await (delete(
-        peliculas,
-      )..where((p) => p.ruta.equals(ruta))).goAndReturn();
-      ids.addAll(borradas.map((f) => f.id));
-    }
-    return ids;
+  /// La película [id] se ha movido (o renombrado) a [ruta]: se cambia la
+  /// ruta y la carpeta, y se conserva todo lo demás.
+  Future<void> moverPelicula(
+    int id, {
+    required String ruta,
+    required String grupo,
+    required String generoCarpeta,
+  }) => (update(peliculas)..where((p) => p.id.equals(id))).write(
+    PeliculasCompanion(
+      ruta: Value(ruta),
+      grupo: Value(grupo),
+      generoCarpeta: Value(generoCarpeta),
+      desaparecida: const Value(null),
+    ),
+  );
+
+  /// Marca como desaparecidas (con la fecha [cuando]) o, con `null`, como
+  /// de nuevo en su sitio.
+  Future<void> marcarDesaparecidas(Iterable<int> ids, DateTime? cuando) =>
+      _cambiar(ids, PeliculasCompanion(desaparecida: Value(cuando)));
+
+  /// Quita (o pone) la marca de «nueva».
+  Future<void> marcarNuevas(Iterable<int> ids, {required bool nueva}) =>
+      _cambiar(ids, PeliculasCompanion(nueva: Value(nueva)));
+
+  Future<void> _cambiar(Iterable<int> ids, PeliculasCompanion cambio) async {
+    if (ids.isEmpty) return;
+    await (update(peliculas)..where((p) => p.id.isIn(ids))).write(cambio);
+  }
+
+  /// Borra las películas con esos números (solo del catálogo, nunca del
+  /// disco).
+  Future<void> borrarPeliculas(Iterable<int> ids) async {
+    if (ids.isEmpty) return;
+    await (delete(peliculas)..where((p) => p.id.isIn(ids))).go();
   }
 
   // ── Ajustes ────────────────────────────────────────────────────────────

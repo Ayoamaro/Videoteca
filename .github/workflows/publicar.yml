@@ -1,0 +1,68 @@
+# Al subir una etiqueta de versión (p. ej. `v0.1`), compila la app de Windows,
+# crea el instalador y lo publica en GitHub → Releases.
+name: Publicar versión
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.47.6'
+
+permissions:
+  contents: write
+
+jobs:
+  instalador:
+    name: Instalador de Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build windows --release
+
+      # La versión sale de pubspec.yaml («version: 0.1.0+1» → 0.1.0).
+      - name: Leer la versión
+        id: version
+        shell: pwsh
+        run: |
+          $linea = Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)'
+          "numero=$($linea.Matches[0].Groups[1].Value)" >> $env:GITHUB_OUTPUT
+
+      # Las librerías de Visual C++ van con la app, por si el PC no las tiene.
+      - name: Añadir las librerías de Visual C++
+        shell: pwsh
+        run: |
+          foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+            Copy-Item "$env:WINDIR\System32\$dll" build\windows\x64\runner\Release\
+          }
+
+      - name: Compilar el instalador
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc "/DVersion=${{ steps.version.outputs.numero }}" windows\instalador\videoteca.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: instalador-windows
+          path: build/instalador/*.exe
+
+      - name: Publicar en Releases
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" (Get-Item build\instalador\*.exe).FullName `
+            --title "Videoteca ${{ github.ref_name }}" `
+            --notes-file docs/novedades/${{ github.ref_name }}.md

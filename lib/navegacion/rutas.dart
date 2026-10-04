@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../datos/buscador.dart';
 import '../datos/catalogo.dart';
 import '../pantallas/ajustes.dart';
 import '../pantallas/bienvenida.dart';
@@ -56,6 +57,10 @@ final rutasProvider = Provider<GoRouter>((ref) {
                 key: ValueKey(e.uri.toString()),
                 busqueda: e.uri.queryParameters['q'] ?? '',
                 genero: e.uri.queryParameters['genero'],
+                ambito: AmbitoBusqueda.values.firstWhere(
+                  (a) => a.name == e.uri.queryParameters['en'],
+                  orElse: () => AmbitoBusqueda.todo,
+                ),
               ),
             ),
           ),

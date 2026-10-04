@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../datos/buscador.dart';
 import '../datos/catalogo.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
@@ -9,33 +10,40 @@ import '../utilidades.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
 
-enum Orden { recientes, titulo, anio, estrellas }
+enum Orden { parecidas, recientes, titulo, anio, estrellas }
 
 const _nombresOrden = {
+  Orden.parecidas: 'Más parecidas',
   Orden.recientes: 'Añadidas recientemente',
   Orden.titulo: 'Título',
   Orden.anio: 'Año',
   Orden.estrellas: 'Estrellas',
 };
 
-/// Texto de búsqueda ya preparado (sin tildes) de cada película, calculado
-/// una sola vez para que buscar entre miles sea rápido.
-final _textoBusqueda = Expando<String>();
-
-String _buscable(Pelicula p) => _textoBusqueda[p] ??= normalizar(
-  '${p.titulo} ${p.tituloOriginal} ${p.reparto} ${p.direccion}',
-);
+const _nombresAmbito = {
+  AmbitoBusqueda.todo: 'Todo',
+  AmbitoBusqueda.titulos: 'Títulos',
+  AmbitoBusqueda.actores: 'Actores',
+  AmbitoBusqueda.directores: 'Directores',
+};
 
 /// Catálogo con buscador, filtros, orden y vista de cuadrícula o lista.
 ///
 /// Solo se dibujan las películas que caben en pantalla: así va igual de
-/// fluido con 10 que con 5.541. El buscador instantáneo con autocompletado
-/// llega el día 5 y los filtros completos el día 6.
+/// fluido con 10 que con 5.541. Los filtros completos llegan el día 6.
 class PantallaCatalogo extends ConsumerStatefulWidget {
-  const PantallaCatalogo({super.key, this.busqueda = '', this.genero});
+  const PantallaCatalogo({
+    super.key,
+    this.busqueda = '',
+    this.genero,
+    this.ambito = AmbitoBusqueda.todo,
+  });
 
   final String busqueda;
   final String? genero;
+
+  /// Dónde buscar el texto: en todo, solo títulos, actores o directores.
+  final AmbitoBusqueda ambito;
 
   @override
   ConsumerState<PantallaCatalogo> createState() => _PantallaCatalogoState();
@@ -44,8 +52,13 @@ class PantallaCatalogo extends ConsumerStatefulWidget {
 class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
   late final _texto = TextEditingController(text: widget.busqueda);
   late final Set<String> _generos = {if (widget.genero != null) widget.genero!};
-  Orden _orden = Orden.recientes;
+  late AmbitoBusqueda _ambito = widget.ambito;
+  late Orden _orden = widget.busqueda.trim().isEmpty
+      ? Orden.recientes
+      : Orden.parecidas;
   bool _lista = false;
+
+  bool get _buscando => _texto.text.trim().isNotEmpty;
 
   @override
   void dispose() {
@@ -53,18 +66,26 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
     super.dispose();
   }
 
+  void _alEscribir(String texto) => setState(() {
+    // Al empezar a buscar se ordena por parecido; al borrar, como antes.
+    if (_buscando && _orden == Orden.recientes) _orden = Orden.parecidas;
+    if (!_buscando && _orden == Orden.parecidas) _orden = Orden.recientes;
+  });
+
   List<Pelicula> _resultados(List<Pelicula> todas) {
-    // Cada palabra escrita tiene que aparecer en algún sitio, en cualquier orden.
-    final palabras = normalizar(_texto.text)
-        .split(' ')
-        .where((w) => w.isNotEmpty)
-        .toList();
+    // Con texto, el buscador devuelve las que encajan, de más a menos
+    // parecidas.
+    var lista = todas;
+    if (_buscando) {
+      final porId = ref.read(peliculasPorIdProvider);
+      lista = [
+        for (final c
+            in ref.read(buscadorProvider).buscar(_texto.text, ambito: _ambito))
+          ?porId[c.id],
+      ];
+    }
     final generos = _generos.map(normalizar).toSet();
-    final lista = todas.where((p) {
-      if (palabras.isNotEmpty) {
-        final donde = _buscable(p);
-        if (!palabras.every(donde.contains)) return false;
-      }
+    lista = lista.where((p) {
       if (generos.isNotEmpty) {
         final suyos = {p.generoCarpeta, ...p.generos}.map(normalizar);
         if (!suyos.any(generos.contains)) return false;
@@ -74,6 +95,12 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
 
     final antiguo = DateTime(1900);
     switch (_orden) {
+      case Orden.parecidas:
+        if (!_buscando) {
+          lista.sort(
+            (a, b) => (b.anadida ?? antiguo).compareTo(a.anadida ?? antiguo),
+          );
+        }
       case Orden.recientes:
         lista.sort(
           (a, b) => (b.anadida ?? antiguo).compareTo(a.anadida ?? antiguo),
@@ -128,6 +155,9 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
   Widget build(BuildContext context) {
     final todas = ref.watch(catalogoProvider).value ?? const <Pelicula>[];
     final generos = ref.watch(generosProvider);
+    ref
+      ..watch(buscadorProvider)
+      ..watch(peliculasPorIdProvider);
     final resultados = _resultados(todas);
     return LayoutBuilder(
       builder: (context, medidas) {
@@ -153,9 +183,25 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
                   indicacion: ancha
                       ? 'Busca por título, título original, actor o director…'
                       : 'Título, actor o director…',
-                  alCambiar: (_) => setState(() {}),
+                  alCambiar: _alEscribir,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 14),
+                // Dónde buscar (como en el diseño del móvil).
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final MapEntry(key: ambito, value: nombre)
+                        in _nombresAmbito.entries)
+                      ChoiceChip(
+                        label: Text(nombre),
+                        selected: _ambito == ambito,
+                        showCheckmark: false,
+                        onSelected: (_) => setState(() => _ambito = ambito),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 20),
                 Expanded(
                   child: ancha
                       ? Row(
@@ -249,7 +295,8 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
               dropdownColor: c.superficieAlta,
               items: [
                 for (final o in Orden.values)
-                  DropdownMenuItem(value: o, child: Text(_nombresOrden[o]!)),
+                  if (o != Orden.parecidas || _buscando)
+                    DropdownMenuItem(value: o, child: Text(_nombresOrden[o]!)),
               ],
               onChanged: (o) => setState(() => _orden = o!),
             ),

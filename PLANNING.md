@@ -81,11 +81,12 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Al terminar:** tus 5.541 películas están en el catálogo de la app.
 **Hecho:** el escaneo completo tarda ~5,5 min (4 lecturas a la vez); los siguientes solo leen lo nuevo o cambiado (Ajustes → *Buscar cambios*). Base de datos y miniaturas (240 px, ~27 KB) en `%LOCALAPPDATA%\Videoteca`. Son 5.540 `.mp4` + 1 `.m4v` (*Wonka*), que también se acepta. Prueba desde la terminal: `dart run tool/escanear.dart D:\ <carpeta temporal>`.
 
-### ☐ Día 5 — Inicio y buscador
+### ☑ Día 5 — Inicio y buscador
 - Pantalla de Inicio: contador, "Añadidas recientemente" y géneros.
 - **Buscador con autocompletado** instantáneo: título español u original, sin importar tildes ni mayúsculas, y también por actor y director.
 
 **Al terminar:** escribes "vengadores" y aparece al momento.
+**Hecho:** cada búsqueda tarda ~10 ms entre las 5.541. Debajo del buscador de Inicio salen hasta 6 películas y los actores o directores con ese nombre; ↑ ↓ e Intro para elegir, **Ctrl + K** desde cualquier pantalla. Encuentra «atame» → *¡Átame!*, «spiderman» → *Spider-Man* y «origen 2010» (título + año). En el Catálogo: botones *Todo / Títulos / Actores / Directores* y orden «Más parecidas». Prueba desde la terminal: `dart run tool/probar_busqueda.dart`.
 
 ### ☐ Día 6 — Catálogo y filtros
 - Cuadrícula y vista de lista.

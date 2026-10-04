@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../datos/catalogo.dart';
 import '../tema/colores.dart';
 import '../tema/tema.dart';
 import '../utilidades.dart';
@@ -65,7 +68,10 @@ class Marco extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      _AtajoBuscar(child: _construir(context));
+
+  Widget _construir(BuildContext context) {
     return LayoutBuilder(
       builder: (context, medidas) {
         if (medidas.maxWidth >= anchoEscritorio) {
@@ -115,6 +121,50 @@ class Marco extends StatelessWidget {
     if (ruta == '/generos') return 2;
     return 3;
   }
+}
+
+/// Ctrl + K desde cualquier pantalla: va a Inicio y pone el cursor en el
+/// buscador.
+class _AtajoBuscar extends ConsumerStatefulWidget {
+  const _AtajoBuscar({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_AtajoBuscar> createState() => _AtajoBuscarState();
+}
+
+class _AtajoBuscarState extends ConsumerState<_AtajoBuscar> {
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_alPulsar);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_alPulsar);
+    super.dispose();
+  }
+
+  bool _alPulsar(KeyEvent evento) {
+    if (evento is! KeyDownEvent ||
+        evento.logicalKey != LogicalKeyboardKey.keyK ||
+        !HardwareKeyboard.instance.isControlPressed) {
+      return false;
+    }
+    final foco = ref.read(focoBusquedaProvider);
+    GoRouter.of(context).go('/');
+    // Se espera a que Inicio esté en pantalla (si ya lo estaba, se fuerza un
+    // redibujado para que la espera no sea eterna).
+    WidgetsBinding.instance
+      ..addPostFrameCallback((_) => foco.requestFocus())
+      ..scheduleFrame();
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Menú lateral del diseño de escritorio.

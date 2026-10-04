@@ -7,6 +7,7 @@ import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../tema/tema.dart';
 import '../utilidades.dart';
+import '../widgets/buscador_sugerencias.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
 
@@ -74,13 +75,12 @@ class PantallaInicio extends ConsumerWidget {
                 ),
               ],
             ),
-            CampoBusqueda(
+            BuscadorConSugerencias(
               alto: movil ? 54 : 64,
               indicacion: movil
                   ? '¿Qué película buscas?'
                   : 'Busca por título, título original, actor o director…',
-              alEnviar: (texto) =>
-                  context.go('/catalogo?q=${Uri.encodeQueryComponent(texto)}'),
+              atajo: movil ? null : 'Ctrl K',
             ),
             if (esAdministrador && nuevas.isNotEmpty) _AvisoNuevas(nuevas),
             Column(

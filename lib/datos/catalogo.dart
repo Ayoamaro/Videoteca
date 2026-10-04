@@ -3,13 +3,14 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../disco/caratula_mp4.dart';
 import '../disco/escaner.dart';
 import '../modelos/pelicula.dart';
 import 'base_datos.dart';
+import 'buscador.dart';
 import 'carpetas_app.dart';
 
 // "Proveedores" (Riverpod): piezas que guardan datos y avisan a las pantallas
@@ -122,12 +123,40 @@ const _tonos = [
   Color(0xFF2A4447),
 ];
 
+/// Todas las películas por su número (id).
+final peliculasPorIdProvider = Provider<Map<int, Pelicula>>(
+  (ref) => {
+    for (final p in ref.watch(catalogoProvider).value ?? const <Pelicula>[])
+      p.id: p,
+  },
+);
+
 /// Una película por su número, o `null` si no está.
-final peliculaPorIdProvider = Provider.family<Pelicula?, int>((ref, id) {
-  for (final p in ref.watch(catalogoProvider).value ?? const <Pelicula>[]) {
-    if (p.id == id) return p;
-  }
-  return null;
+final peliculaPorIdProvider = Provider.family<Pelicula?, int>(
+  (ref, id) => ref.watch(peliculasPorIdProvider)[id],
+);
+
+/// El buscador, preparado de nuevo cada vez que cambia el catálogo.
+final buscadorProvider = Provider<Buscador>(
+  (ref) => Buscador([
+    for (final p in ref.watch(catalogoProvider).value ?? const <Pelicula>[])
+      (
+        id: p.id,
+        titulo: p.titulo,
+        tituloOriginal: p.tituloOriginal,
+        anio: p.anio,
+        direccion: p.direccion,
+        reparto: p.reparto,
+      ),
+  ]),
+);
+
+/// El cuadro de búsqueda de Inicio, para poder llevar allí el cursor desde
+/// cualquier pantalla con Ctrl + K.
+final focoBusquedaProvider = Provider<FocusNode>((ref) {
+  final foco = FocusNode(debugLabel: 'Buscar');
+  ref.onDispose(foco.dispose);
+  return foco;
 });
 
 /// Géneros según las carpetas, con su número de películas (de más a menos).

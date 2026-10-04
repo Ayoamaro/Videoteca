@@ -262,6 +262,8 @@ class CampoBusqueda extends StatelessWidget {
     this.alEnviar,
     this.alto = 64,
     this.autofoco = false,
+    this.foco,
+    this.atajo,
     this.indicacion = 'Busca por título, título original, actor o director…',
   });
 
@@ -270,6 +272,10 @@ class CampoBusqueda extends StatelessWidget {
   final ValueChanged<String>? alEnviar;
   final double alto;
   final bool autofoco;
+  final FocusNode? foco;
+
+  /// Tecla rápida que se muestra a la derecha (p. ej. "Ctrl K").
+  final String? atajo;
   final String indicacion;
 
   @override
@@ -279,34 +285,70 @@ class CampoBusqueda extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(color: c.bordeFuerte),
     );
-    return SizedBox(
-      height: alto,
-      child: TextField(
-        controller: controlador,
-        autofocus: autofoco,
-        expands: true,
-        maxLines: null,
-        onChanged: alCambiar,
-        onSubmitted: alEnviar,
-        textInputAction: TextInputAction.search,
-        textAlignVertical: TextAlignVertical.center,
-        style: TextStyle(fontSize: alto > 56 ? 18 : 16, color: c.texto),
-        decoration: InputDecoration(
-          hintText: indicacion,
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 18, right: 10),
-            child: Icon(
-              Icons.search_rounded,
-              size: 24,
-              color: c.textoSecundario,
-            ),
-          ),
-          contentPadding: EdgeInsets.zero,
-          border: borde,
-          enabledBorder: borde,
-          focusedBorder: borde.copyWith(
-            borderSide: BorderSide(color: c.dorado, width: 1.5),
-          ),
+    final controlador = this.controlador;
+    // A la derecha: una ✕ para borrar si hay texto escrito o, si no, la
+    // tecla rápida.
+    final derecha = controlador == null
+        ? null
+        : ValueListenableBuilder(
+            valueListenable: controlador,
+            builder: (context, valor, _) {
+              if (valor.text.isNotEmpty) {
+                return IconButton(
+                  tooltip: 'Borrar',
+                  icon: Icon(Icons.close_rounded, color: c.textoSecundario),
+                  onPressed: () {
+                    controlador.clear();
+                    alCambiar?.call('');
+                    foco?.requestFocus();
+                  },
+                );
+              }
+              if (atajo == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: c.bordeFuerte),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    atajo!,
+                    style: TextStyle(fontSize: 12, color: c.textoTenue),
+                  ),
+                ),
+              );
+            },
+          );
+    return TextField(
+      controller: controlador,
+      focusNode: foco,
+      autofocus: autofoco,
+      onChanged: alCambiar,
+      onSubmitted: alEnviar,
+      textInputAction: TextInputAction.search,
+      textAlignVertical: TextAlignVertical.center,
+      style: TextStyle(fontSize: alto > 56 ? 18 : 16, color: c.texto),
+      decoration: InputDecoration(
+        hintText: indicacion,
+        constraints: BoxConstraints.tightFor(height: alto),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 18, right: 10),
+          child: Icon(Icons.search_rounded, size: 24, color: c.textoSecundario),
+        ),
+        suffixIcon: derecha == null
+            ? null
+            : Padding(padding: const EdgeInsets.only(right: 6), child: derecha),
+        suffixIconConstraints: const BoxConstraints(minWidth: 0),
+        contentPadding: EdgeInsets.zero,
+        border: borde,
+        enabledBorder: borde,
+        focusedBorder: borde.copyWith(
+          borderSide: BorderSide(color: c.dorado, width: 1.5),
         ),
       ),
     );

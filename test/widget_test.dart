@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -82,6 +83,71 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Avengers: Endgame'), findsOneWidget);
     expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
+  }, variant: windows);
+
+  testWidgets(
+    'Autocompletado en Inicio: escribir, elegir con flechas e Intro',
+    (tester) async {
+      await abrirApp(tester, const Size(1440, 1000));
+
+      await tester.tap(find.byType(TextField).first);
+      await tester.enterText(find.byType(TextField).first, 'VENGADORES');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Avengers: Endgame · 2019'), findsOneWidget);
+      expect(find.text('Ver los 4 resultados en el catálogo'), findsOneWidget);
+
+      // Por director, con su sugerencia de persona.
+      await tester.enterText(find.byType(TextField).first, 'whedon');
+      await tester.pumpAndSettle();
+      expect(find.text('Joss Whedon'), findsOneWidget);
+      expect(
+        find.text('Dirigida por Joss Whedon · 2012 · Fantasía'),
+        findsWidgets,
+      );
+
+      // ↓ marca la primera y Intro abre su ficha.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
+    },
+    variant: windows,
+  );
+
+  testWidgets('Intro sin elegir nada lleva al catálogo con los resultados', (
+    tester,
+  ) async {
+    await abrirApp(tester, const Size(1440, 1000));
+    await tester.tap(find.byType(TextField).first);
+    await tester.enterText(find.byType(TextField).first, 'russ');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(find.text('Más parecidas'), findsOneWidget);
+    expect(find.text('Los Vengadores 3: Infinity War'), findsOneWidget);
+    expect(find.text('Joy'), findsOneWidget); // David O. Russell
+    expect(find.text('Forrest Gump'), findsNothing);
+
+    // Solo en los títulos: ninguno lleva «russ».
+    await tester.tap(find.text('Títulos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Los Vengadores 3: Infinity War'), findsNothing);
+  }, variant: windows);
+
+  testWidgets('Ctrl + K lleva al buscador desde cualquier pantalla', (
+    tester,
+  ) async {
+    await abrirApp(tester, const Size(1440, 1000));
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(find.text('¿Qué película buscas?'), findsOneWidget);
+    final contexto = tester.element(find.byType(VideotecaApp));
+    final foco = ProviderScope.containerOf(contexto).read(focoBusquedaProvider);
+    expect(foco.hasFocus, isTrue);
   }, variant: windows);
 
   testWidgets('En pantalla estrecha se usa la barra inferior', (tester) async {

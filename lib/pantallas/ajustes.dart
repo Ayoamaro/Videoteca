@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../arranque.dart';
 import '../datos/catalogo.dart';
+import '../datos/consulta.dart';
+import '../datos/sesion.dart' show largoMinimoContrasena;
 import '../datos/fuentes.dart';
 import '../datos/publicacion.dart';
 import '../disco/acciones_windows.dart';
@@ -153,8 +156,287 @@ class PantallaAjustes extends ConsumerWidget {
                     ),
                 ],
               ),
-            ],
+            ] else
+              const _SeccionCopia(),
+            const _SeccionSesion(),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Modo consulta: qué versión del catálogo hay descargada.
+class _SeccionCopia extends ConsumerWidget {
+  const _SeccionCopia();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final e = ref.watch(consultaProvider);
+    final copia = e.copia;
+    final total = ref.watch(catalogoProvider).value?.length ?? 0;
+    final (pastilla, color, fondo) = switch (e.fase) {
+      FaseCopia.buscando => ('Buscando novedades…', c.azul, c.azulFondo),
+      FaseCopia.descargando => ('Descargando…', c.azul, c.azulFondo),
+      FaseCopia.contrasenaCambiada => (
+        'Hay que volver a entrar',
+        c.rojo,
+        c.rojoFondo,
+      ),
+      FaseCopia.error => (
+        e.sinInternet ? 'Sin internet' : 'Sin actualizar',
+        c.rojo,
+        c.rojoFondo,
+      ),
+      _ when copia.version == 0 => ('Sin descargar', c.naranja, c.naranjaFondo),
+      _ => ('Al día', c.verde, c.verdeFondo),
+    };
+    final progreso = e.progreso;
+    final ultimo = e.ultimo;
+    final comprobada = e.comprobada;
+    return _Seccion(
+      titulo: 'Catálogo descargado',
+      children: [
+        Row(
+          children: [
+            Icon(Icons.cloud_download_rounded, color: c.doradoTexto),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                copia.repositorio,
+                style: TextStyle(
+                  fontFamily: fuenteRutas,
+                  fontSize: 15,
+                  color: c.texto,
+                ),
+              ),
+            ),
+            Pastilla(pastilla, color: color, fondo: fondo),
+          ],
+        ),
+        Text(
+          copia.version == 0
+              ? 'Todavía no se ha descargado el catálogo.'
+              : 'Versión ${copia.version} · publicada: '
+                    '${cuandoTexto(copia.fecha).toLowerCase()} · '
+                    '${formatoNumero(total)} películas. Está guardada en '
+                    'este aparato: se puede consultar sin internet.',
+          style: TextStyle(fontSize: 14, height: 1.5, color: c.textoSuave),
+        ),
+        if (e.fase == FaseCopia.descargando && progreso != null) ...[
+          LinearProgressIndicator(
+            value: progreso.total == 0
+                ? null
+                : progreso.hechos / progreso.total,
+          ),
+          Text(
+            'Descargando ${progreso.fase}: ${progreso.hechos} de '
+            '${progreso.total} paquetes',
+            style: TextStyle(fontSize: 13, color: c.textoSecundario),
+          ),
+        ] else if (e.fase == FaseCopia.error)
+          Text(
+            e.error ?? 'Error desconocido.',
+            style: TextStyle(fontSize: 13, color: c.rojo),
+          )
+        else if (e.fase == FaseCopia.contrasenaCambiada)
+          Text(
+            'La contraseña común ha cambiado. Para recibir las novedades, '
+            'cierra la sesión y entra con la nueva.',
+            style: TextStyle(fontSize: 13, color: c.rojo),
+          )
+        else if (ultimo != null)
+          Text(
+            'Última actualización: ${textoNovedades(ultimo).toLowerCase()}.',
+            style: TextStyle(fontSize: 13, color: c.textoSecundario),
+          )
+        else if (comprobada != null)
+          Text(
+            'Comprobado ${cuandoTexto(comprobada).toLowerCase()}: no hay '
+            'novedades.',
+            style: TextStyle(fontSize: 13, color: c.textoSecundario),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: e.trabajando || e.fase == FaseCopia.contrasenaCambiada
+                ? null
+                : () => ref.read(consultaProvider.notifier).comprobar(),
+            icon: const Icon(Icons.sync_rounded, size: 18),
+            label: const Text('Buscar novedades'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Con qué modo se ha entrado, cerrar la sesión y (administrador) cambiar
+/// su contraseña.
+class _SeccionSesion extends ConsumerWidget {
+  const _SeccionSesion();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final control = ref.watch(sesionProvider);
+    return _Seccion(
+      titulo: 'Sesión',
+      children: [
+        Row(
+          children: [
+            Icon(
+              esAdministrador
+                  ? Icons.admin_panel_settings_outlined
+                  : Icons.search_rounded,
+              color: c.doradoTexto,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                esAdministrador
+                    ? 'Has entrado como administrador de este PC.'
+                    : 'Has entrado en modo consulta con la contraseña común.',
+                style: TextStyle(fontSize: 14, color: c.texto),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          esAdministrador
+              ? 'La sesión se queda abierta aunque cierres la app. Al '
+                    'cerrarla, se vuelve a la pantalla de entrada.'
+              : 'La sesión se queda abierta aunque cierres la app. Al '
+                    'cerrarla, se vuelve a la pantalla de entrada (el '
+                    'catálogo descargado se conserva).',
+          style: TextStyle(fontSize: 13, height: 1.5, color: c.textoSuave),
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            if (esAdministrador)
+              OutlinedButton.icon(
+                onPressed: control == null
+                    ? null
+                    : () => showDialog<void>(
+                        context: context,
+                        builder: (_) => _DialogoContrasenaAdmin(control),
+                      ),
+                icon: const Icon(Icons.key_rounded, size: 18),
+                label: const Text('Cambiar contraseña'),
+              ),
+            OutlinedButton.icon(
+              onPressed: control?.cerrar,
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('Cerrar sesión'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _DialogoContrasenaAdmin extends StatefulWidget {
+  const _DialogoContrasenaAdmin(this.control);
+
+  final ControlSesion control;
+
+  @override
+  State<_DialogoContrasenaAdmin> createState() =>
+      _DialogoContrasenaAdminState();
+}
+
+class _DialogoContrasenaAdminState extends State<_DialogoContrasenaAdmin> {
+  final _actual = TextEditingController();
+  final _nueva = TextEditingController();
+  final _repetida = TextEditingController();
+  String? _error;
+  var _trabajando = false;
+
+  @override
+  void dispose() {
+    _actual.dispose();
+    _nueva.dispose();
+    _repetida.dispose();
+    super.dispose();
+  }
+
+  Future<void> _guardar() async {
+    final actual = widget.control.sesion.contrasenaAdmin;
+    if (_nueva.text.length < largoMinimoContrasena) {
+      setState(
+        () => _error =
+            'La contraseña nueva tiene que tener al menos '
+            '$largoMinimoContrasena caracteres.',
+      );
+      return;
+    }
+    if (_nueva.text != _repetida.text) {
+      setState(() => _error = 'Las dos contraseñas nuevas no coinciden.');
+      return;
+    }
+    setState(() {
+      _error = null;
+      _trabajando = true;
+    });
+    if (actual != null && !await actual.comprobar(_actual.text)) {
+      if (mounted) {
+        setState(() {
+          _error = 'La contraseña actual no es correcta.';
+          _trabajando = false;
+        });
+      }
+      return;
+    }
+    await widget.control.cambiarContrasenaAdmin(_nueva.text);
+    if (!mounted) return;
+    final avisos = ScaffoldMessenger.of(context);
+    Navigator.pop(context);
+    avisos.showSnackBar(
+      const SnackBar(content: Text('Contraseña de administrador cambiada.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget campo(TextEditingController controlador, String etiqueta) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controlador,
+        obscureText: true,
+        enabled: !_trabajando,
+        decoration: InputDecoration(labelText: etiqueta),
+        onSubmitted: (_) => _guardar(),
+      ),
+    );
+    return AlertDialog(
+      title: const Text('Cambiar contraseña de administrador'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            campo(_actual, 'Contraseña actual'),
+            campo(_nueva, 'Contraseña nueva'),
+            campo(_repetida, 'Repite la nueva'),
+            if (_error != null)
+              Text(_error!, style: TextStyle(color: context.colores.rojo)),
+            if (_trabajando) const LinearProgressIndicator(),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _trabajando ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _trabajando ? null : _guardar,
+          child: const Text('Cambiar'),
         ),
       ],
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../arranque.dart';
 import '../datos/catalogo.dart';
 import '../disco/dialogo_abrir.dart';
 import '../disco/escaner.dart';
@@ -103,6 +104,13 @@ class _PantallaBienvenidaState extends ConsumerState<PantallaBienvenida> {
                         TextButton(
                           onPressed: () => context.go('/ajustes'),
                           child: const Text('Volver'),
+                        ),
+                      // Primer arranque: se puede volver a la pantalla de
+                      // entrada (p. ej. para entrar en modo consulta).
+                      if (!yaConfigurada && _paso == _Paso.inicio)
+                        TextButton(
+                          onPressed: () => ref.read(sesionProvider)?.cerrar(),
+                          child: const Text('Volver a la entrada'),
                         ),
                     ],
                   ),

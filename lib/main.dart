@@ -3,9 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'datos/base_datos.dart';
+import 'arranque.dart';
 import 'datos/carpetas_app.dart';
-import 'datos/catalogo.dart';
 import 'navegacion/rutas.dart';
 import 'tema/tema.dart';
 
@@ -14,21 +13,9 @@ Future<void> main() async {
   // Prepara los nombres de días y meses en español ("viernes, 3 de octubre").
   await initializeDateFormatting('es');
 
-  // Abre la base de datos local y lee los ajustes guardados.
-  final carpetas = CarpetasApp.preparar();
-  final bd = BaseDatos.abrir(carpetas.baseDatos);
-  final ajustes = await bd.todosLosAjustes();
-
-  runApp(
-    ProviderScope(
-      overrides: [
-        baseDatosProvider.overrideWithValue(bd),
-        carpetasAppProvider.overrideWithValue(carpetas),
-        ajustesInicialesProvider.overrideWithValue(ajustes),
-      ],
-      child: const VideotecaApp(),
-    ),
-  );
+  // Primero, la pantalla de acceso (o, si ya se había entrado, la app con
+  // la base de datos de ese modo).
+  runApp(Arranque(carpeta: carpetaDatosApp()));
 }
 
 class VideotecaApp extends ConsumerWidget {

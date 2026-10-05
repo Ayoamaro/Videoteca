@@ -26,18 +26,32 @@ String carpetaDatosApp() {
 }
 
 /// Rutas concretas dentro de [carpetaDatosApp].
+///
+/// El modo consulta tiene su propia carpeta dentro (`consulta`), con su base
+/// de datos y las carátulas descargadas del tablón (WebP).
 class CarpetasApp {
-  CarpetasApp(this.raiz);
+  CarpetasApp(this.raiz, {this.extensionMiniaturas = 'jpg'});
 
   /// Prepara las carpetas (las crea si no existen).
-  factory CarpetasApp.preparar([String? raiz]) {
-    final carpetas = CarpetasApp(raiz ?? carpetaDatosApp());
-    Directory(carpetas.miniaturas).createSync(recursive: true);
-    Directory(carpetas.copias).createSync(recursive: true);
-    return carpetas;
+  factory CarpetasApp.preparar([String? raiz]) =>
+      CarpetasApp(raiz ?? carpetaDatosApp()).._crear();
+
+  /// Las del modo consulta, dentro de [raiz] (o de la carpeta de la app).
+  factory CarpetasApp.consulta([String? raiz]) => CarpetasApp(
+    '${raiz ?? carpetaDatosApp()}${Platform.pathSeparator}consulta',
+    extensionMiniaturas: 'webp',
+  ).._crear();
+
+  void _crear() {
+    Directory(miniaturas).createSync(recursive: true);
+    Directory(copias).createSync(recursive: true);
   }
 
   final String raiz;
+
+  /// `jpg` en el PC del administrador (sacadas de los `.mp4`) y `webp` en el
+  /// modo consulta (las del tablón).
+  final String extensionMiniaturas;
 
   String get _sep => Platform.pathSeparator;
   String get baseDatos => '$raiz${_sep}videoteca.sqlite';
@@ -58,7 +72,7 @@ class CarpetasApp {
   String get estadoTablon => '$tablon${_sep}estado.json';
 
   /// Miniatura de la carátula de la película con número [id].
-  String miniatura(int id) => '$miniaturas$_sep$id.jpg';
+  String miniatura(int id) => '$miniaturas$_sep$id.$extensionMiniaturas';
 
   /// Carátula guardada del cambio [cambio] del registro: la que había
   /// ([antes]) o la que se puso.

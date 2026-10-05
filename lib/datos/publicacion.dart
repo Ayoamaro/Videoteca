@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -196,7 +194,7 @@ class Tablon extends Notifier<EstadoTablon> {
     var llave = state.llave, parametros = state.parametros;
     if (contrasena != null) {
       parametros = ParametrosLlave.nuevos();
-      llave = await _derivar(contrasena, parametros);
+      llave = await derivarLlaveAparte(contrasena, parametros);
       await bd.guardarAjuste(
         _Ajuste.parametros,
         jsonEncode(parametros.toJson()),
@@ -339,24 +337,3 @@ class Tablon extends Notifier<EstadoTablon> {
     }
   }
 }
-
-// Sacar la llave de la contraseña lleva casi un segundo de cálculo: en otro
-// hilo, para no congelar la pantalla (en una función suelta, ver
-// `edicion.dart`).
-Future<LlaveTablon> _derivar(String contrasena, ParametrosLlave p) async {
-  final sal = p.sal, memoria = p.memoria, iteraciones = p.iteraciones;
-  final bytes = await Isolate.run(
-    () => _derivarBytes(contrasena, sal, memoria, iteraciones),
-  );
-  return LlaveTablon(bytes);
-}
-
-Future<Uint8List> _derivarBytes(
-  String contrasena,
-  Uint8List sal,
-  int memoria,
-  int iteraciones,
-) async => (await derivarLlave(
-  contrasena,
-  ParametrosLlave(sal: sal, memoria: memoria, iteraciones: iteraciones),
-)).bytes;

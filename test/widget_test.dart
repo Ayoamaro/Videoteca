@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,8 +8,11 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:videoteca/datos/catalogo.dart';
 import 'package:videoteca/datos/ejemplo.dart';
+import 'package:videoteca/datos/sesion.dart';
 import 'package:videoteca/main.dart';
 import 'package:videoteca/modelos/pelicula.dart';
+import 'package:videoteca/pantallas/acceso.dart';
+import 'package:videoteca/tema/tema.dart';
 import 'package:videoteca/utilidades.dart';
 
 /// Catálogo con los datos de ejemplo en lugar de la base de datos.
@@ -215,6 +220,61 @@ void main() {
     final contexto = tester.element(find.text('Apariencia'));
     expect(Theme.of(contexto).brightness, Brightness.light);
   }, variant: windows);
+
+  Future<void> abrirAcceso(WidgetTester tester, Size tamano) async {
+    tester.view.physicalSize = tamano;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final carpeta = Directory.systemTemp.createTempSync('acceso');
+    addTearDown(() => carpeta.deleteSync(recursive: true));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: construirTema(Brightness.dark),
+        home: PantallaAcceso(
+          sesion: Sesion(),
+          carpeta: carpeta.path,
+          alEntrar: (modo, {ajustes = const {}}) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('Acceso en el PC: consultar o administrar', (tester) async {
+    await abrirAcceso(tester, const Size(1440, 1000));
+    expect(find.text('¿Cómo quieres entrar?'), findsOneWidget);
+    expect(find.text('Consultar el catálogo'), findsOneWidget);
+    expect(find.text('Administrar este PC'), findsOneWidget);
+
+    // Sin contraseña de administrador todavía: hay que crearla dos veces.
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Nueva contraseña'),
+      'secreta1',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Repite la contraseña'),
+      'secreta2',
+    );
+    await tester.tap(find.text('Crear y entrar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Las dos contraseñas no coinciden.'), findsOneWidget);
+
+    // Un tablón mal escrito.
+    await tester.enterText(find.widgetWithText(TextField, 'Tablón'), 'nada');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Contraseña común'),
+      'x',
+    );
+    await tester.tap(find.text('Entrar'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('El tablón se escribe'), findsOneWidget);
+  }, variant: windows);
+
+  testWidgets('Acceso en el móvil: solo consulta', (tester) async {
+    await abrirAcceso(tester, const Size(400, 850));
+    expect(find.text('Consultar el catálogo'), findsOneWidget);
+    expect(find.text('Administrar este PC'), findsNothing);
+  });
 
   test('Números con punto de miles y búsqueda sin tildes', () {
     expect(formatoNumero(5541), '5.541');

@@ -26,7 +26,9 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter test
-      - run: flutter build windows --release
+      # El tablón que se propone al entrar en modo consulta (cámbialo por el
+      # tuyo si montas tu propia colección).
+      - run: flutter build windows --release --dart-define=TABLON=Ayoamaro/Videoteca_Tablon
 
       # La versión sale de pubspec.yaml («version: 0.1.0+1» → 0.1.0).
       - name: Leer la versión

@@ -102,7 +102,8 @@ class _CaratulaGrande extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final completa = p.caratula != null || !p.tieneCaratula
+    // En el modo consulta no hay archivo: solo la miniatura descargada.
+    final completa = p.caratula != null || !p.tieneCaratula || !esAdministrador
         ? null
         : ref.watch(caratulaCompletaProvider(p.ruta)).value;
     return Caratula(

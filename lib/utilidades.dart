@@ -2,9 +2,23 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// El administrador solo trabaja desde el PC; en Android la app es de consulta.
-/// (El inicio de sesión real con contraseñas llega el día 15.)
-bool get esAdministrador => defaultTargetPlatform != TargetPlatform.android;
+import 'datos/sesion.dart';
+
+/// Con qué modo se ha entrado en la app (lo pone el arranque al abrir la
+/// sesión; ver `arranque.dart`).
+ModoApp? modoSesion;
+
+/// ¿Se ha entrado como administrador? Sin sesión (en las pruebas), el
+/// administrador es el PC y el móvil es de consulta.
+bool get esAdministrador =>
+    (modoSesion ??
+        (defaultTargetPlatform == TargetPlatform.android
+            ? ModoApp.consulta
+            : ModoApp.administrador)) ==
+    ModoApp.administrador;
+
+/// En el móvil solo se puede consultar: el administrador trabaja en el PC.
+bool get puedeAdministrar => defaultTargetPlatform != TargetPlatform.android;
 
 /// 5541 → "5.541" (con punto de miles también en números de 4 cifras).
 String formatoNumero(int n) {

@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../arranque.dart';
 import '../datos/catalogo.dart';
+import '../datos/consulta.dart';
 import '../datos/lote.dart';
 import '../datos/nuevas.dart';
 import '../datos/publicacion.dart';
@@ -169,25 +171,39 @@ class _AtajoBuscarState extends ConsumerState<_AtajoBuscar> {
 }
 
 /// Vigila el disco mientras la app está abierta y avisa abajo de la pantalla
-/// cuando aparecen, se mueven o desaparecen películas.
-class _Vigilancia extends ConsumerWidget {
+/// cuando aparecen, se mueven o desaparecen películas. En el modo consulta,
+/// pone al día la copia del catálogo (al abrir y al volver a la app) y avisa
+/// de las novedades.
+class _Vigilancia extends ConsumerStatefulWidget {
   const _Vigilancia({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(vigilanciaProvider);
-    // Busca solas, en segundo plano, los datos de las películas nuevas.
-    if (esAdministrador) ref.listen(busquedasNuevasProvider, (_, _) {});
-    // Publica sola en el tablón los cambios del catálogo.
-    if (esAdministrador) ref.listen(tablonProvider, (_, _) {});
-    ref.listen(avisoCambiosProvider, (_, resultado) {
-      if (resultado == null) return;
-      final unaNueva = resultado.idsNuevos.length == 1
-          ? ref.read(peliculaPorIdProvider(resultado.idsNuevos.single))
-          : null;
-      final (texto, destino) = textoCambios(resultado, unaNueva?.titulo);
+  ConsumerState<_Vigilancia> createState() => _VigilanciaState();
+}
+
+class _VigilanciaState extends ConsumerState<_Vigilancia> {
+  AppLifecycleListener? _ciclo;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!esAdministrador) {
+      _ciclo = AppLifecycleListener(
+        onResume: () =>
+            ref.read(consultaProvider.notifier).comprobar(siHaceRato: true),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _ciclo?.dispose();
+    super.dispose();
+  }
+
+  void _avisar(String texto, {String? accion, VoidCallback? alPulsar}) =>
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -196,18 +212,46 @@ class _Vigilancia extends ConsumerWidget {
             duration: const Duration(seconds: 8),
             // Con botón, Flutter lo dejaría fijo hasta cerrarlo a mano.
             persist: false,
-            action: destino == null
+            action: accion == null
                 ? null
-                : SnackBarAction(
-                    label: 'Ver',
-                    onPressed: () => GoRouter.of(
-                      context,
-                    ).go(unaNueva != null ? '/nuevas/${unaNueva.id}' : destino),
-                  ),
+                : SnackBarAction(label: accion, onPressed: alPulsar!),
           ),
         );
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(vigilanciaProvider);
+    if (esAdministrador) {
+      // Busca solas, en segundo plano, los datos de las películas nuevas.
+      ref.listen(busquedasNuevasProvider, (_, _) {});
+      // Publica sola en el tablón los cambios del catálogo.
+      ref.listen(tablonProvider, (_, _) {});
+    } else {
+      // Avisa cuando llega una versión nueva del catálogo (no la primera
+      // descarga).
+      ref.listen(consultaProvider.select((e) => e.ultimo), (_, r) {
+        if (r == null || r.primera) return;
+        _avisar(
+          'Catálogo actualizado a la versión ${r.estado.version}: '
+          '${textoNovedades(r)}',
+        );
+      });
+    }
+    ref.listen(avisoCambiosProvider, (_, resultado) {
+      if (resultado == null) return;
+      final unaNueva = resultado.idsNuevos.length == 1
+          ? ref.read(peliculaPorIdProvider(resultado.idsNuevos.single))
+          : null;
+      final (texto, destino) = textoCambios(resultado, unaNueva?.titulo);
+      _avisar(
+        texto,
+        accion: destino == null ? null : 'Ver',
+        alPulsar: () =>
+            GoRouter.of(context)
+                .go(unaNueva != null ? '/nuevas/${unaNueva.id}' : destino!),
+      );
     });
-    return child;
+    return widget.child;
   }
 }
 
@@ -455,7 +499,8 @@ class _ElementoMenu extends StatelessWidget {
 }
 
 /// Pone encima de la pantalla una franja de aviso cuando el disco de la
-/// colección no está conectado.
+/// colección no está conectado. En el modo consulta, mientras se descarga el
+/// catálogo por primera vez o si la contraseña común ha cambiado.
 class _ConAviso extends ConsumerWidget {
   const _ConAviso({required this.child});
 
@@ -463,38 +508,128 @@ class _ConAviso extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final conectado = ref.watch(discoConectadoProvider).value ?? true;
-    if (conectado) return child;
-    final c = context.colores;
-    final disco = nombreDisco(ref.watch(carpetaRaizProvider));
+    final franja = esAdministrador
+        ? _franjaDisco(context, ref)
+        : _franjaConsulta(context, ref);
+    if (franja == null) return child;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Material(
-          color: c.rojoFondo,
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
+        franja,
+        Expanded(child: child),
+      ],
+    );
+  }
+
+  Widget? _franjaDisco(BuildContext context, WidgetRef ref) {
+    final conectado = ref.watch(discoConectadoProvider).value ?? true;
+    if (conectado) return null;
+    final disco = nombreDisco(ref.watch(carpetaRaizProvider));
+    return _Franja(
+      icono: Icons.usb_off_rounded,
+      texto:
+          '${disco[0].toUpperCase()}${disco.substring(1)} no está '
+          'conectado. Puedes seguir buscando en el catálogo; para '
+          'reproducir, conéctalo.',
+    );
+  }
+
+  Widget? _franjaConsulta(BuildContext context, WidgetRef ref) {
+    final e = ref.watch(consultaProvider);
+    if (e.fase == FaseCopia.contrasenaCambiada) {
+      return _Franja(
+        icono: Icons.key_off_outlined,
+        texto:
+            'La contraseña común ha cambiado. Puedes seguir viendo el '
+            'catálogo descargado; para recibir las novedades, vuelve a entrar.',
+        accion: 'Volver a entrar',
+        alPulsar: () => ref.read(sesionProvider)?.cerrar(),
+      );
+    }
+    // Lo demás, solo mientras no hay nada descargado.
+    if (e.copia.commit.isNotEmpty) return null;
+    if (e.fase == FaseCopia.error) {
+      return _Franja(
+        icono: e.sinInternet ? Icons.wifi_off_rounded : Icons.error_outline,
+        texto: 'No se ha podido descargar el catálogo. ${e.error ?? ''}',
+        accion: 'Reintentar',
+        alPulsar: () => ref.read(consultaProvider.notifier).comprobar(),
+      );
+    }
+    final p = e.progreso;
+    return _Franja(
+      icono: Icons.cloud_download_outlined,
+      destacada: true,
+      texto: p == null
+          ? 'Conectando con el tablón…'
+          : p.fase == 'fichas'
+          ? 'Descargando el catálogo… (${p.hechos} de ${p.total} paquetes de '
+                'fichas)'
+          : 'Descargando las carátulas… (${p.hechos} de ${p.total}). Ya '
+                'puedes buscar.',
+      progreso: p == null || p.total == 0 ? null : p.hechos / p.total,
+    );
+  }
+}
+
+/// Franja de aviso de la parte de arriba (roja, o dorada si [destacada]).
+class _Franja extends StatelessWidget {
+  const _Franja({
+    required this.icono,
+    required this.texto,
+    this.accion,
+    this.alPulsar,
+    this.destacada = false,
+    this.progreso,
+  });
+
+  final IconData icono;
+  final String texto;
+  final String? accion;
+  final VoidCallback? alPulsar;
+  final bool destacada;
+  final double? progreso;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final color = destacada ? c.doradoTexto : c.rojo;
+    return Material(
+      color: destacada ? c.doradoFondo : c.rojoFondo,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.usb_off_rounded, size: 18, color: c.rojo),
+                  Icon(icono, size: 18, color: color),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '${disco[0].toUpperCase()}${disco.substring(1)} no está '
-                      'conectado. Puedes seguir buscando en el catálogo; para '
-                      'reproducir, conéctalo.',
+                      texto,
                       style: TextStyle(fontSize: 13, color: c.texto),
                     ),
                   ),
+                  if (accion != null) ...[
+                    const SizedBox(width: 12),
+                    TextButton(onPressed: alPulsar, child: Text(accion!)),
+                  ],
                 ],
               ),
             ),
-          ),
+            if (destacada)
+              LinearProgressIndicator(
+                value: progreso,
+                minHeight: 2,
+                color: c.dorado,
+                backgroundColor: Colors.transparent,
+              ),
+          ],
         ),
-        Expanded(child: child),
-      ],
+      ),
     );
   }
 }
@@ -521,22 +656,28 @@ class _Estado extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: conectado ? c.verde : c.rojo,
-                  shape: BoxShape.circle,
+          if (!esAdministrador)
+            _EstadoCopia(estilo: estilo)
+          else
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: conectado ? c.verde : c.rojo,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(textoDisco, style: estilo.copyWith(color: c.texto)),
-              ),
-            ],
-          ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    textoDisco,
+                    style: estilo.copyWith(color: c.texto),
+                  ),
+                ),
+              ],
+            ),
           if (esAdministrador) ...[
             const SizedBox(height: 10),
             Row(
@@ -575,6 +716,61 @@ class _Estado extends ConsumerWidget {
           Text(
             esAdministrador ? 'Administrador · este PC' : 'Consulta',
             style: estilo.copyWith(color: c.textoSecundario),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Modo consulta: qué versión del catálogo hay descargada (pulsando, a
+/// Ajustes).
+class _EstadoCopia extends ConsumerWidget {
+  const _EstadoCopia({required this.estilo});
+
+  final TextStyle estilo;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final e = ref.watch(consultaProvider);
+    final version = e.copia.version;
+    final (icono, texto, color) = switch (e.fase) {
+      FaseCopia.buscando => (Icons.sync_rounded, 'Buscando novedades…', null),
+      FaseCopia.descargando => (
+        Icons.cloud_download_outlined,
+        'Descargando…',
+        null,
+      ),
+      FaseCopia.contrasenaCambiada => (
+        Icons.key_off_outlined,
+        'Hay que volver a entrar',
+        c.rojo,
+      ),
+      FaseCopia.error when version == 0 => (
+        Icons.cloud_off_outlined,
+        'Sin descargar',
+        c.rojo,
+      ),
+      FaseCopia.error => (
+        Icons.cloud_off_outlined,
+        e.sinInternet
+            ? 'Sin internet · v$version'
+            : 'Sin actualizar · v$version',
+        null,
+      ),
+      _ when version == 0 => (Icons.cloud_outlined, 'Sin descargar', null),
+      _ => (Icons.cloud_done_outlined, 'Catálogo v$version', null),
+    };
+    return InkWell(
+      onTap: () => context.go('/ajustes'),
+      borderRadius: BorderRadius.circular(6),
+      child: Row(
+        children: [
+          Icon(icono, size: 16, color: color ?? c.textoSuave),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(texto, style: estilo.copyWith(color: color ?? c.texto)),
           ),
         ],
       ),

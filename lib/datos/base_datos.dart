@@ -310,6 +310,22 @@ class BaseDatos extends _$BaseDatos {
     await (delete(peliculas)..where((p) => p.id.isIn(ids))).go();
   }
 
+  /// Modo consulta: cambia de golpe las películas con número entre [desde] y
+  /// [hasta] (un grupo del tablón) por [filas].
+  Future<void> reemplazarPeliculas(
+    int desde,
+    int hasta,
+    List<PeliculasCompanion> filas,
+  ) => transaction(() async {
+    await (delete(
+      peliculas,
+    )..where((p) => p.id.isBetweenValues(desde, hasta))).go();
+    await batch((b) => b.insertAll(peliculas, filas));
+  });
+
+  /// Modo consulta: vacía el catálogo (para descargar otro tablón).
+  Future<void> vaciarPeliculas() => delete(peliculas).go();
+
   // ── Registro de cambios ────────────────────────────────────────────────
 
   Future<int> anotarCambio(CambiosCompanion cambio) =>

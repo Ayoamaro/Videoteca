@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -96,6 +97,29 @@ Future<LlaveTablon> derivarLlave(String contrasena, ParametrosLlave p) async {
     nonce: p.sal,
   );
   return LlaveTablon(Uint8List.fromList(await llave.extractBytes()));
+}
+
+/// Como [derivarLlave], pero en otro hilo: lleva casi un segundo de cálculo
+/// y así no se congela la pantalla. (Función suelta: `Isolate.run` dentro de
+/// un método de una clase con estado falla, ver `edicion.dart`.)
+Future<LlaveTablon> derivarLlaveAparte(
+  String contrasena,
+  ParametrosLlave p,
+) async {
+  final sal = p.sal, memoria = p.memoria;
+  final iteraciones = p.iteraciones, paralelismo = p.paralelismo;
+  final bytes = await Isolate.run(
+    () async => (await derivarLlave(
+      contrasena,
+      ParametrosLlave(
+        sal: sal,
+        memoria: memoria,
+        iteraciones: iteraciones,
+        paralelismo: paralelismo,
+      ),
+    )).bytes,
+  );
+  return LlaveTablon(bytes);
 }
 
 /// La llave ya sacada de la contraseña: cifra y descifra los archivos.

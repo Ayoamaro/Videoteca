@@ -24,6 +24,20 @@ import '../pantallas/registro.dart';
 import '../utilidades.dart';
 import 'marco.dart';
 
+/// Pantallas que solo son del administrador.
+bool _deAdministracion(String ruta) =>
+    ruta.endsWith('/editar') ||
+    const [
+      '/bienvenida',
+      '/nuevas',
+      '/pendientes',
+      '/coleccion',
+      '/repaso',
+      '/registro',
+      '/lectura',
+      '/archivo',
+    ].any((r) => ruta == r || ruta.startsWith('$r/'));
+
 /// Mapa de pantallas de la app. Cada "ruta" es como la dirección de una web:
 /// `/catalogo`, `/pelicula/12`… Todas se muestran dentro del [Marco], menos el
 /// asistente de bienvenida.
@@ -38,6 +52,8 @@ final rutasProvider = Provider<GoRouter>((ref) {
       final sinCarpeta = ref.read(carpetaRaizProvider) == null;
       final enBienvenida = estado.uri.path == '/bienvenida';
       if (sinCarpeta && esAdministrador && !enBienvenida) return '/bienvenida';
+      // En el modo consulta no se llega a ninguna pantalla de administración.
+      if (!esAdministrador && _deAdministracion(estado.uri.path)) return '/';
       return null;
     },
     routes: [

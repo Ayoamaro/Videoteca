@@ -1,5 +1,5 @@
-# Al subir una etiqueta de versión (p. ej. `v0.1`), compila la app de Windows,
-# crea el instalador y lo publica en GitHub → Releases.
+# Al subir una etiqueta de versión (p. ej. `v0.1`), compila la app de Windows
+# (con su instalador) y la de Android (APK) y las publica en GitHub → Releases.
 name: Publicar versión
 
 on:
@@ -59,12 +59,62 @@ jobs:
           name: instalador-windows
           path: build/instalador/*.exe
 
-      - name: Publicar en Releases
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
+  apk:
+    name: APK de Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+
+      # La llave de firma va en los secretos del repositorio (en base64):
+      # siempre la misma, para que el móvil acepte las actualizaciones.
+      - name: Preparar la llave de firma
+        env:
+          LLAVE: ${{ secrets.ANDROID_LLAVE_BASE64 }}
+        run: |
+          if [ -z "$LLAVE" ]; then echo "Falta el secreto ANDROID_LLAVE_BASE64"; exit 1; fi
+          echo "$LLAVE" | base64 -d > "$RUNNER_TEMP/videoteca.jks"
+          echo "ANDROID_LLAVE_ARCHIVO=$RUNNER_TEMP/videoteca.jks" >> "$GITHUB_ENV"
+
+      # Solo para móviles de 64 bits (todos los de los últimos años).
+      - name: Compilar la APK
+        env:
+          ANDROID_LLAVE_CLAVE: ${{ secrets.ANDROID_LLAVE_CLAVE }}
+        run: |
+          flutter build apk --release --split-per-abi --target-platform android-arm64 \
+            --dart-define=TABLON=Ayoamaro/Videoteca_Tablon
+          version=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)
+          mkdir -p build/apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "build/apk/Videoteca-$version.apk"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: apk-android
+          path: build/apk/*.apk
+
+  publicar:
+    name: Publicar en Releases
+    needs: [instalador, apk]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: descargas
+      - name: Crear la versión
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" (Get-Item build\instalador\*.exe).FullName `
-            --title "Videoteca ${{ github.ref_name }}" `
+          gh release create "${{ github.ref_name }}" descargas/*/* \
+            --title "Videoteca ${{ github.ref_name }}" \
             --notes-file docs/novedades/${{ github.ref_name }}.md

@@ -87,23 +87,35 @@ class Marco extends StatelessWidget {
           );
         }
         final indice = _indiceMovil(ubicacion);
-        return Scaffold(
-          body: _ConAviso(child: child),
-          bottomNavigationBar: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: context.colores.borde)),
-            ),
-            child: NavigationBar(
-              selectedIndex: indice,
-              onDestinationSelected: (i) => context.go(destinosMovil[i].ruta),
-              destinations: [
-                for (final d in destinosMovil)
-                  NavigationDestination(icon: Icon(d.icono), label: d.etiqueta),
-              ],
-            ),
-          ),
+        // El botón «atrás» del móvil: si no hay nada a lo que volver dentro
+        // de la pestaña, lleva a Inicio; desde Inicio, sale de la app.
+        return PopScope(
+          canPop: ubicacion == '/',
+          onPopInvokedWithResult: (salio, _) {
+            if (!salio) context.go('/');
+          },
+          child: _movil(context, indice),
         );
       },
+    );
+  }
+
+  Widget _movil(BuildContext context, int indice) {
+    return Scaffold(
+      body: _ConAviso(child: child),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.colores.borde)),
+        ),
+        child: NavigationBar(
+          selectedIndex: indice,
+          onDestinationSelected: (i) => context.go(destinosMovil[i].ruta),
+          destinations: [
+            for (final d in destinosMovil)
+              NavigationDestination(icon: Icon(d.icono), label: d.etiqueta),
+          ],
+        ),
+      ),
     );
   }
 

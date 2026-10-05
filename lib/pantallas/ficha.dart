@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../fuentes/filmaffinity.dart' show busquedaFilmaffinity;
 import '../datos/buscador.dart';
 import '../datos/catalogo.dart';
+import '../disco/abrir_enlace.dart';
 import '../disco/acciones_windows.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
@@ -43,14 +43,20 @@ class PantallaFicha extends ConsumerWidget {
         final columnaCaratula = Column(
           children: [
             _CaratulaGrande(p),
-            const SizedBox(height: 14),
-            Text(
-              !p.tieneCaratula
-                  ? 'Sin carátula incrustada'
-                  : 'Carátula incrustada en el archivo',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: context.colores.textoTenue),
-            ),
+            // En el modo consulta no hay archivos: no se habla de ellos.
+            if (esAdministrador) ...[
+              const SizedBox(height: 14),
+              Text(
+                !p.tieneCaratula
+                    ? 'Sin carátula incrustada'
+                    : 'Carátula incrustada en el archivo',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.colores.textoTenue,
+                ),
+              ),
+            ],
           ],
         );
         return PaginaBase(
@@ -585,11 +591,8 @@ class _BotonWeb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: () {
-        // En Android se abrirá con el navegador del móvil (día 16).
-        if (!Platform.isWindows) {
-          avisoProximamente(context, 'Abrir enlaces en el móvil', 16);
-        } else if (!abrirConWindows(direccion)) {
+      onPressed: () async {
+        if (!await abrirEnlace(direccion) && context.mounted) {
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
             ..showSnackBar(

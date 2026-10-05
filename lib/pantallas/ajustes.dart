@@ -40,6 +40,8 @@ class PantallaAjustes extends ConsumerWidget {
               titulo: 'Apariencia',
               children: [
                 SegmentedButton<ThemeMode>(
+                  // Sin la marca, «Oscuro» cabe en el móvil.
+                  showSelectedIcon: false,
                   segments: const [
                     ButtonSegment(
                       value: ThemeMode.dark,

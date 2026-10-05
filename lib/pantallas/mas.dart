@@ -25,25 +25,29 @@ class PantallaMas extends StatelessWidget {
         const CabeceraPagina(titulo: 'Más'),
         Tarjeta(
           relleno: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (final d in destinos)
-                ListTile(
-                  leading: Icon(d.icono),
-                  title: Text(
-                    d.etiqueta,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+          // Para que se vea el efecto al pulsar cada opción.
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: [
+                for (final d in destinos)
+                  ListTile(
+                    leading: Icon(d.icono),
+                    title: Text(
+                      d.etiqueta,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    trailing: d.insignia != null
+                        ? Insignia(d.insignia!, destacada: d.insigniaDestacada)
+                        : Icon(
+                            Icons.chevron_right_rounded,
+                            color: context.colores.textoTenue,
+                          ),
+                    minTileHeight: 56,
+                    onTap: () => context.go(d.ruta),
                   ),
-                  trailing: d.insignia != null
-                      ? Insignia(d.insignia!, destacada: d.insigniaDestacada)
-                      : Icon(
-                          Icons.chevron_right_rounded,
-                          color: context.colores.textoTenue,
-                        ),
-                  minTileHeight: 56,
-                  onTap: () => context.go(d.ruta),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

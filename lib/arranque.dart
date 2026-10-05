@@ -144,6 +144,8 @@ class _ArranqueState extends State<Arranque> {
       locale: const Locale('es', 'ES'),
       supportedLocales: const [Locale('es', 'ES')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      scrollBehavior: const DesplazamientoApp(),
+      builder: (context, hijo) => BarrasSistema(child: hijo!),
       home: _abriendo
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : PantallaAcceso(

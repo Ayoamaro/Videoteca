@@ -188,11 +188,13 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Probado con tu tablón real** (en una carpeta temporal, sin tocar tus datos): primera descarga de las **5.526 fichas y 5.526 carátulas (57,5 MB) en 20 s**; abrir otra vez sin cambios no baja nada; con un paquete desactualizado bajó solo ese y avisó «5 películas nuevas». Contraseñas buenas y malas de los dos modos, cerrar sesión y reabrir la app (recuerda la sesión). Prueba desde la terminal: `dart run tool/probar_consulta.dart <carpeta> [repositorio] [contraseña]`.
 **Al instalar esta versión en tu PC:** la primera vez saldrá la pantalla de entrada → *Administrar este PC* → crea tu contraseña de administrador y sigues con tu colección como siempre.
 
-### ☐ Día 16 — Android · 🏷 v0.3
+### ☑ Día 16 — Android · 🏷 v0.3
 - Pantallas móviles: Acceso, Inicio, Buscar, Géneros y Ficha.
 - Generar la **APK** e instalarla en tu móvil.
 
 **Al terminar:** 🎉 **v0.3** — guardas una película en el PC y aparece en el móvil.
+**Hecho:** la app de Android es la misma que la del PC (un solo código) con la barra inferior **Inicio · Buscar · Géneros · Más**. **Acceso** con la pregunta del diseño («¿La tengo o no la tengo?») y solo la entrada de consulta; **Buscar** con cuadrícula de **3 columnas** y «Todo / Títulos / Actores / Directores» en una fila que se desliza; **Ficha** sin lo que solo tiene sentido en el PC; los enlaces de **FilmAffinity e IMDb** se abren en el navegador del móvil (código nativo propio, sin plugins); el **botón «atrás»** vuelve de la ficha a la lista, de cualquier pestaña a Inicio y desde Inicio sale de la app. **Icono nuevo** (la tira de película dorada del diseño) en Android —adaptable a la forma de cada móvil— y en Windows, que aún tenía el de Flutter; arranque en oscuro y barras del sistema a juego. **APK de 23,5 MB** (solo móviles de 64 bits, todos los actuales), **firmada con una llave propia** guardada fuera del repositorio en `Documents\Videoteca-firma` (**haz una copia**: sin ella, las actualizaciones no se instalan encima) y en los secretos de GitHub, así que cada versión publica ya el instalador de Windows **y** la APK. Prueba automática del recorrido en el móvil (detectó que en «Más» no se veía el efecto al pulsar).
+**Probado en tu móvil:** instalada la APK, entrada con la contraseña común (el teclado del móvil cambiaba una letra sin que se viera: con el ojo se comprueba), descarga del catálogo, todas las pantallas, enlaces, «atrás» y sin internet. Para comprobar la contraseña común desde el PC sin enseñarla: `tool/comprobar_contrasena.dart` (también como `.exe` suelto).
 
 ---
 

@@ -1,4 +1,9 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -12,6 +17,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Prepara los nombres de días y meses en español ("viernes, 3 de octubre").
   await initializeDateFormatting('es');
+
+  // Solo para probar en el PC cómo se ve en el móvil (compilación de
+  // depuración con VIDEOTECA_MOVIL=1): la app se comporta como en Android.
+  if (kDebugMode && Platform.environment['VIDEOTECA_MOVIL'] == '1') {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+  }
+  if (Platform.isAndroid) {
+    // La app se dibuja también detrás de las barras del sistema (la de la
+    // hora y la de los botones), que quedan transparentes.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
 
   // Primero, la pantalla de acceso (o, si ya se había entrado, la app con
   // la base de datos de ese modo).
@@ -33,6 +49,47 @@ class VideotecaApp extends ConsumerWidget {
       locale: const Locale('es', 'ES'),
       supportedLocales: const [Locale('es', 'ES')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      scrollBehavior: const DesplazamientoApp(),
+      builder: (context, hijo) => BarrasSistema(child: hijo!),
     );
   }
+}
+
+/// Iconos de las barras del sistema del móvil (hora, batería, botones) en
+/// claro sobre el tema oscuro y en oscuro sobre el claro.
+class BarrasSistema extends StatelessWidget {
+  const BarrasSistema({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final oscuro = Theme.of(context).brightness == Brightness.dark;
+    final iconos = oscuro ? Brightness.light : Brightness.dark;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: iconos,
+        statusBarBrightness: oscuro ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: iconos,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Cómo se desplazan las listas. Como siempre, salvo en las pruebas «como
+/// en el móvil» en el PC: ahí también se arrastran con el ratón, igual que
+/// con el dedo.
+class DesplazamientoApp extends MaterialScrollBehavior {
+  const DesplazamientoApp();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    ...super.dragDevices,
+    if (debugDefaultTargetPlatformOverride == TargetPlatform.android)
+      PointerDeviceKind.mouse,
+  };
 }

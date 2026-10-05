@@ -82,16 +82,24 @@ class PantallaAcceso extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
+                    // En el móvil, la pregunta del diseño.
                     puedeAdministrar
                         ? '¿Cómo quieres entrar?'
-                        : 'Entra con la contraseña común',
+                        : '¿La tengo o no la tengo?',
                     textAlign: TextAlign.center,
                     style: tema.titleMedium?.copyWith(color: c.textoSuave),
                   ),
                   const SizedBox(height: 28),
-                  if (!puedeAdministrar)
-                    consulta
-                  else
+                  if (!puedeAdministrar) ...[
+                    consulta,
+                    const SizedBox(height: 18),
+                    Text(
+                      'Solo se pide la primera vez. En el modo consulta no se '
+                      'puede cambiar nada de la colección.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12.5, color: c.textoTenue),
+                    ),
+                  ] else
                     LayoutBuilder(
                       builder: (context, medidas) => medidas.maxWidth < 700
                           ? Column(

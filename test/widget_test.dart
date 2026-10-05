@@ -7,11 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:videoteca/datos/catalogo.dart';
+import 'package:videoteca/datos/consulta.dart';
 import 'package:videoteca/datos/ejemplo.dart';
 import 'package:videoteca/datos/sesion.dart';
 import 'package:videoteca/main.dart';
 import 'package:videoteca/modelos/pelicula.dart';
 import 'package:videoteca/pantallas/acceso.dart';
+import 'package:videoteca/tablon/copia_local.dart';
 import 'package:videoteca/tema/tema.dart';
 import 'package:videoteca/utilidades.dart';
 
@@ -21,12 +23,28 @@ class _CatalogoEjemplo extends Catalogo {
   Future<List<Pelicula>> build() async => peliculasEjemplo;
 }
 
+/// Modo consulta con la copia ya descargada y al día (sin ir a internet).
+class _ConsultaAlDia extends Consulta {
+  @override
+  EstadoConsulta build() => EstadoConsulta(
+    copia: EstadoCopia(
+      repositorio: 'Ayoamaro/Videoteca_Tablon',
+      commit: 'abc',
+      version: 2,
+      fecha: DateTime(2026, 10, 4),
+      peliculas: peliculasEjemplo.length,
+    ),
+    comprobada: DateTime.now(),
+  );
+}
+
 /// Arranca la app con una ventana del tamaño indicado. Sin [carpetaRaiz],
 /// la app se comporta como en el primer arranque.
 Future<void> abrirApp(
   WidgetTester tester,
   Size tamano, {
   String? carpetaRaiz = r'D:\',
+  bool consulta = false,
 }) async {
   tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
@@ -39,6 +57,7 @@ Future<void> abrirApp(
         }),
         catalogoProvider.overrideWith(_CatalogoEjemplo.new),
         generosProvider.overrideWithValue(generosEjemplo),
+        if (consulta) consultaProvider.overrideWith(_ConsultaAlDia.new),
       ],
       child: const VideotecaApp(),
     ),
@@ -274,6 +293,55 @@ void main() {
     await abrirAcceso(tester, const Size(400, 850));
     expect(find.text('Consultar el catálogo'), findsOneWidget);
     expect(find.text('Administrar este PC'), findsNothing);
+  });
+
+  testWidgets('Recorrido en el móvil (consulta): nada se sale de la pantalla', (
+    tester,
+  ) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    // El tamaño del diseño del móvil (con la letra de un móvil corriente).
+    await abrirApp(tester, const Size(390, 844), consulta: true);
+    expect(find.text('Añadidas recientemente'), findsOneWidget);
+
+    // Buscar: tres columnas y la ficha entera, de arriba abajo.
+    await tester.tap(find.text('Buscar'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'infinity war');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Los Vengadores 3: Infinity War'));
+    await tester.pumpAndSettle();
+    expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
+    // En consulta no se habla de los archivos ni se puede editar.
+    expect(find.text('Carátula incrustada en el archivo'), findsNothing);
+    expect(find.text('Editar ficha'), findsNothing);
+    // Se baja hasta el final de la ficha, como con el dedo.
+    for (var i = 0; i < 8; i++) {
+      await tester.dragFrom(const Offset(195, 600), const Offset(0, -500));
+      await tester.pumpAndSettle();
+    }
+
+    // El botón «atrás» del móvil vuelve de la ficha a Buscar…
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('DÓNDE ESTÁ'), findsNothing);
+    expect(find.byType(TextField), findsWidgets);
+    // …y desde Buscar, a Inicio (no sale de la app).
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Añadidas recientemente'), findsOneWidget);
+
+    await tester.tap(find.text('Géneros').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Western'), findsOneWidget);
+
+    // Más → Ajustes (solo lo de consulta).
+    await tester.tap(find.text('Más'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Apariencia'), findsOneWidget);
+    expect(find.text('Publicación'), findsNothing);
   });
 
   test('Números con punto de miles y búsqueda sin tildes', () {

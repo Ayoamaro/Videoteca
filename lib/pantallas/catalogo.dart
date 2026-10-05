@@ -254,20 +254,26 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
                   alCambiar: _alEscribir,
                 ),
                 const SizedBox(height: 14),
-                // Dónde buscar (como en el diseño del móvil).
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final MapEntry(key: ambito, value: nombre)
-                        in _nombresAmbito.entries)
-                      ChoiceChip(
-                        label: Text(nombre),
-                        selected: _ambito == ambito,
-                        showCheckmark: false,
-                        onSelected: (_) => setState(() => _ambito = ambito),
-                      ),
-                  ],
+                // Dónde buscar (como en el diseño del móvil): en el móvil,
+                // en una sola fila que se desliza de lado.
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  clipBehavior: Clip.none,
+                  child: Row(
+                    children: [
+                      for (final MapEntry(key: ambito, value: nombre)
+                          in _nombresAmbito.entries)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(nombre),
+                            selected: _ambito == ambito,
+                            showCheckmark: false,
+                            onSelected: (_) => setState(() => _ambito = ambito),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Expanded(
@@ -455,8 +461,10 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
       builder: (context, medidas) {
         // Columnas que caben (como CuadriculaAdaptable), pero construyendo
         // cada fila solo cuando aparece en pantalla.
-        final separacion = ancha ? 22.0 : 14.0;
-        final anchoMinimo = ancha ? 150.0 : 130.0;
+        // En el móvil, 3 columnas (como en el diseño).
+        final movil = medidas.maxWidth < 500;
+        final separacion = ancha ? 22.0 : (movil ? 12.0 : 14.0);
+        final anchoMinimo = ancha ? 150.0 : (movil ? 100.0 : 130.0);
         final ancho = medidas.maxWidth - relleno.horizontal;
         final columnas = ((ancho + separacion) / (anchoMinimo + separacion))
             .floor()

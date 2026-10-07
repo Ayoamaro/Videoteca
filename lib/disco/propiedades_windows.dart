@@ -79,9 +79,21 @@ class PropiedadesException implements Exception {
   final int codigo;
 
   @override
-  String toString() =>
-      'Windows no pudo leer las propiedades de "$ruta" '
-      '(código 0x${(codigo & 0xFFFFFFFF).toRadixString(16).toUpperCase()}).';
+  String toString() {
+    final hex = (codigo & 0xFFFFFFFF).toRadixString(16).toUpperCase();
+    // Los más corrientes, explicados (0x8007xxxx = error de Windows xxxx).
+    final motivo = switch (codigo & 0xFFFFFFFF) {
+      0x80070002 || 0x80070003 => 'el archivo ya no está',
+      0x80070005 => 'falta permiso',
+      0x80070020 || 0x80070021 => 'lo está usando otro programa',
+      0x80070015 || 0x8007001E || 0x800703EE => 'el disco no responde',
+      _ => null,
+    };
+    final nombre = ruta.split(RegExp(r'[\\/]')).last;
+    return motivo == null
+        ? 'Windows no pudo leer las propiedades de «$nombre» (código 0x$hex).'
+        : 'Windows no pudo leer las propiedades de «$nombre»: $motivo.';
+  }
 }
 
 /// Pasa un valor de Windows (PROPVARIANT) a un valor de Dart.

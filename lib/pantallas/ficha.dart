@@ -672,12 +672,18 @@ class _NombrePulsableState extends State<_NombrePulsable> {
           ? 'Tienes 1 película más'
           : 'Tienes $otras películas más',
       waitDuration: const Duration(milliseconds: 500),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _encima = true),
-        onExit: (_) => setState(() => _encima = false),
-        child: GestureDetector(
-          onTap: widget.alPulsar,
+      // InkWell (y no solo un gesto): también se puede elegir con el
+      // tabulador y abrir con Intro, y el lector de pantalla lo anuncia
+      // como botón.
+      child: InkWell(
+        onTap: widget.alPulsar,
+        onHover: (si) => setState(() => _encima = si),
+        onFocusChange: (si) => setState(() => _encima = si),
+        borderRadius: BorderRadius.circular(4),
+        hoverColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        child: Semantics(
+          button: true,
           child: Text.rich(
             TextSpan(
               children: [

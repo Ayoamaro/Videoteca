@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
 
+import '../errores.dart';
 import '../datos/catalogo.dart';
 import '../datos/edicion.dart';
 import '../datos/fuentes.dart';
@@ -177,7 +178,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _errorLectura = '$e');
+      if (mounted) setState(() => _errorLectura = explicarError(e));
     }
   }
 
@@ -479,7 +480,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         await mostrarError(
           context,
           'No se ha guardado',
-          e is EscrituraException ? e.mensaje : '$e',
+          e is EscrituraException ? e.mensaje : explicarError(e),
         );
       }
     }

@@ -9,6 +9,7 @@ import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
 import '../utilidades.dart';
 import '../widgets/caratula.dart';
+import '../widgets/coleccion_vacia.dart';
 import '../widgets/comunes.dart';
 
 enum Orden { parecidas, recientes, titulo, anio, estrellas }
@@ -352,6 +353,10 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
     final filtros = _filtros.value;
     final activos = _activos(filtros);
     final sentido = _sentidos[_orden];
+    final ordenes = [
+      for (final o in Orden.values)
+        if (o != Orden.parecidas || _buscando) o,
+    ];
     final barra = Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -410,20 +415,35 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            DropdownButton<Orden>(
-              value: _orden,
-              underline: const SizedBox.shrink(),
-              borderRadius: BorderRadius.circular(10),
-              dropdownColor: c.superficieAlta,
-              items: [
-                for (final o in Orden.values)
-                  if (o != Orden.parecidas || _buscando)
+            // Su ancho natural, salvo que no quepa (letra muy grande en el
+            // móvil): entonces se acorta el texto con «…».
+            IntrinsicWidth(
+              child: DropdownButton<Orden>(
+                value: _orden,
+                isExpanded: true,
+                underline: const SizedBox.shrink(),
+                borderRadius: BorderRadius.circular(10),
+                dropdownColor: c.superficieAlta,
+                items: [
+                  for (final o in ordenes)
                     DropdownMenuItem(value: o, child: Text(_nombresOrden[o]!)),
-              ],
-              onChanged: (o) => setState(() {
-                _orden = o!;
-                _inverso = false;
-              }),
+                ],
+                selectedItemBuilder: (_) => [
+                  for (final o in ordenes)
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        _nombresOrden[o]!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (o) => setState(() {
+                  _orden = o!;
+                  _inverso = false;
+                }),
+              ),
             ),
             if (sentido != null)
               IconButton(
@@ -479,7 +499,9 @@ class _PantallaCatalogoState extends ConsumerState<PantallaCatalogo> {
               sliver: SliverToBoxAdapter(child: barra),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 18)),
-            if (resultados.isEmpty)
+            if (resultados.isEmpty && _base.isEmpty && !_buscando)
+              const SliverToBoxAdapter(child: ColeccionVacia(enTarjeta: false))
+            else if (resultados.isEmpty)
               SliverToBoxAdapter(
                 child: _SinResultados(
                   texto: _texto.text,
@@ -821,6 +843,7 @@ class _Casilla extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 formatoNumero(total),
                 style: TextStyle(fontSize: 12, color: c.textoTenue),
@@ -1319,31 +1342,20 @@ class _SinResultados extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colores;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 60),
-      child: Column(
-        children: [
-          Icon(Icons.search_off_rounded, size: 48, color: c.textoTenue),
-          const SizedBox(height: 12),
-          Text(
-            texto.trim().isEmpty
-                ? 'Ninguna película cumple los filtros.'
-                : conFiltros
-                ? 'Ninguna película con «$texto» cumple los filtros.'
-                : 'No hay ninguna película que coincida con «$texto».',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: c.textoSecundario),
-          ),
-          if (conFiltros) ...[
-            const SizedBox(height: 14),
-            OutlinedButton(
-              onPressed: alQuitarFiltros,
-              child: const Text('Quitar los filtros'),
-            ),
-          ],
-        ],
-      ),
+    final buscado = texto.trim();
+    return AvisoVacio(
+      icono: Icons.search_off_rounded,
+      titulo: buscado.isEmpty
+          ? 'Ninguna película cumple los filtros'
+          : conFiltros
+          ? 'Ninguna película con «$buscado» cumple los filtros'
+          : 'No hay ninguna película que coincida con «$buscado»',
+      texto: buscado.isEmpty
+          ? null
+          : 'Prueba con menos palabras, con el título original o con el '
+                'nombre de un actor o director.',
+      accion: conFiltros ? 'Quitar los filtros' : null,
+      alPulsar: alQuitarFiltros,
     );
   }
 }

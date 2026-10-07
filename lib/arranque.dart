@@ -11,6 +11,8 @@ import 'pantallas/acceso.dart';
 import 'tema/tema.dart';
 import 'utilidades.dart';
 
+import 'errores.dart';
+
 // El arranque de la app: si no hay sesión abierta, la pantalla de acceso; si
 // la hay, abre la base de datos de ese modo (la del administrador o la copia
 // del modo consulta) y arranca la app con ella.
@@ -137,7 +139,7 @@ class _ArranqueState extends State<Arranque> {
     try {
       aviso = await mientras();
     } catch (e) {
-      aviso = 'No se ha podido terminar: $e';
+      aviso = 'No se ha podido terminar: ${explicarError(e)}';
     }
     await _abrir(abierta.modo, const {}, aviso);
   }

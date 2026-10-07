@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../errores.dart';
 import '../tablon/cifrado.dart';
 import '../tablon/github.dart';
 import '../tablon/publicador.dart';
@@ -304,7 +305,7 @@ class Tablon extends Notifier<EstadoTablon> {
     } on Object catch (e) {
       state = state.copyWith(
         fase: FasePublicacion.error,
-        error: 'No se ha podido publicar: $e',
+        error: 'No se ha podido publicar: ${explicarError(e)}',
       );
     } finally {
       github.cerrar();

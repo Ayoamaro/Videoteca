@@ -23,6 +23,32 @@ class _CatalogoEjemplo extends Catalogo {
   Future<List<Pelicula>> build() async => peliculasEjemplo;
 }
 
+/// Modo consulta con la copia descargada pero sin internet.
+class _ConsultaSinInternet extends Consulta {
+  @override
+  EstadoConsulta build() => EstadoConsulta(
+    copia: EstadoCopia(
+      repositorio: 'Ayoamaro/Videoteca_Tablon',
+      commit: 'abc',
+      version: 2,
+      fecha: DateTime(2026, 10, 4),
+      peliculas: peliculasEjemplo.length,
+    ),
+    fase: FaseCopia.error,
+    sinInternet: true,
+    error: 'Sin conexión a internet.',
+  );
+
+  @override
+  Future<void> comprobar({bool siHaceRato = false}) async {}
+}
+
+/// Catálogo sin ninguna película.
+class _CatalogoVacio extends Catalogo {
+  @override
+  Future<List<Pelicula>> build() async => const [];
+}
+
 /// Modo consulta con la copia ya descargada y al día (sin ir a internet).
 class _ConsultaAlDia extends Consulta {
   @override
@@ -45,19 +71,29 @@ Future<void> abrirApp(
   Size tamano, {
   String? carpetaRaiz = r'D:\',
   bool consulta = false,
+  bool sinInternet = false,
+  bool vacio = false,
+  double letra = 1,
 }) async {
   tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
+  tester.platformDispatcher.textScaleFactorTestValue = letra;
   addTearDown(tester.view.reset);
+  addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         ajustesInicialesProvider.overrideWithValue({
           CarpetaRaiz.clave: ?carpetaRaiz,
         }),
-        catalogoProvider.overrideWith(_CatalogoEjemplo.new),
-        generosProvider.overrideWithValue(generosEjemplo),
-        if (consulta) consultaProvider.overrideWith(_ConsultaAlDia.new),
+        catalogoProvider.overrideWith(
+          vacio ? _CatalogoVacio.new : _CatalogoEjemplo.new,
+        ),
+        if (!vacio) generosProvider.overrideWithValue(generosEjemplo),
+        if (consulta)
+          consultaProvider.overrideWith(
+            sinInternet ? _ConsultaSinInternet.new : _ConsultaAlDia.new,
+          ),
       ],
       child: const VideotecaApp(),
     ),
@@ -377,6 +413,133 @@ void main() {
     expect(find.text('Apariencia'), findsOneWidget);
     expect(find.text('Publicación'), findsNothing);
   });
+
+  testWidgets('Con la letra al 200 % nada se sale en el PC', (tester) async {
+    await abrirApp(tester, const Size(1280, 800), letra: 2.0);
+    for (final menu in [
+      'Catálogo',
+      'Películas nuevas',
+      'Pendientes',
+      'Completar colección',
+      'Estadísticas',
+      'Ajustes',
+    ]) {
+      // Con la letra tan grande, el menú se desplaza para llegar al final.
+      await tester.ensureVisible(find.text(menu).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(menu).first);
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.text('Catálogo').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Catálogo').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'forrest');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Forrest Gump'));
+    await tester.pumpAndSettle();
+    expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
+  }, variant: windows);
+
+  testWidgets('Con la letra al máximo (200 %) nada se sale en el móvil', (
+    tester,
+  ) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    await abrirApp(tester, const Size(390, 844), consulta: true, letra: 2.0);
+    await tester.tap(find.text('Buscar'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'forrest');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Forrest Gump'));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 8; i++) {
+      await tester.dragFrom(const Offset(195, 600), const Offset(0, -500));
+      await tester.pumpAndSettle();
+    }
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    for (final menu in ['Géneros', 'Más']) {
+      await tester.tap(find.text(menu).last);
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text('Estadísticas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Por década'), findsOneWidget);
+  });
+
+  testWidgets('Botones con nombre y del tamaño de un dedo en el móvil', (
+    tester,
+  ) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    final semantica = tester.ensureSemantics();
+    await abrirApp(tester, const Size(390, 844), consulta: true);
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await tester.tap(find.text('Buscar'));
+    await tester.pumpAndSettle();
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await tester.enterText(find.byType(TextField).first, 'forrest');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Forrest Gump'));
+    await tester.pumpAndSettle();
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    semantica.dispose();
+  });
+
+  testWidgets('Los textos se leen bien (contraste) en oscuro y en claro', (
+    tester,
+  ) async {
+    final semantica = tester.ensureSemantics();
+    await abrirApp(tester, const Size(1440, 1000));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Claro'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Inicio').first);
+    await tester.pumpAndSettle();
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+    semantica.dispose();
+  }, variant: windows);
+
+  testWidgets('Consulta sin internet: se sigue viendo lo descargado', (
+    tester,
+  ) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    await abrirApp(
+      tester,
+      const Size(390, 844),
+      consulta: true,
+      sinInternet: true,
+    );
+    expect(
+      find.textContaining('Sin internet: estás viendo el catálogo descargado'),
+      findsOneWidget,
+    );
+    expect(find.text('Añadidas recientemente'), findsOneWidget);
+  });
+
+  testWidgets('Colección vacía: se explica qué hacer', (tester) async {
+    await abrirApp(tester, const Size(1440, 1000), vacio: true);
+    expect(find.text('Todavía no hay películas'), findsOneWidget);
+    await tester.tap(find.text('Catálogo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Todavía no hay películas'), findsOneWidget);
+    expect(find.text('Ninguna película cumple los filtros'), findsNothing);
+    await tester.enterText(find.byType(TextField).first, 'xyz');
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No hay ninguna película que coincida con «xyz»'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Estadísticas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Todavía no hay películas'), findsOneWidget);
+  }, variant: windows);
 
   test('Números con punto de miles y búsqueda sin tildes', () {
     expect(formatoNumero(5541), '5.541');

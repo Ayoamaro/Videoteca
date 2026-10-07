@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../errores.dart';
 import '../arranque.dart';
 import '../datos/catalogo.dart';
 import '../datos/consulta.dart';
@@ -644,24 +645,26 @@ class _FilaServicio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // Si no cabe en una línea (letra grande), el estado baja debajo.
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 8,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(nombre, style: const TextStyle(fontWeight: FontWeight.w700)),
-              Text(
-                uso,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: context.colores.textoSecundario,
-                ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(nombre, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(
+              uso,
+              style: TextStyle(
+                fontSize: 12,
+                color: context.colores.textoSecundario,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
         estado,
       ],
     );
@@ -724,7 +727,11 @@ class _EstadoCampoClave extends ConsumerState<_CampoClave> {
       if (mounted) setState(() => _error = e.mensaje);
     } catch (e) {
       // Cualquier otro fallo también se enseña (nunca en silencio).
-      if (mounted) setState(() => _error = 'No se ha podido comprobar: $e');
+      if (mounted) {
+        setState(
+          () => _error = 'No se ha podido comprobar: ${explicarError(e)}',
+        );
+      }
     } finally {
       if (mounted) setState(() => _probando = false);
     }
@@ -739,8 +746,10 @@ class _EstadoCampoClave extends ConsumerState<_CampoClave> {
       uso: widget.uso,
       estado: _editando
           ? const SizedBox.shrink()
-          : Row(
-              mainAxisSize: MainAxisSize.min,
+          : Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 hay
                     ? Pastilla('Funciona', color: c.verde, fondo: c.verdeFondo)
@@ -749,7 +758,6 @@ class _EstadoCampoClave extends ConsumerState<_CampoClave> {
                         color: c.naranja,
                         fondo: c.naranjaFondo,
                       ),
-                const SizedBox(width: 6),
                 TextButton(
                   onPressed: () => setState(() {
                     _editando = true;
@@ -890,7 +898,11 @@ class _EstadoSeccionTablon extends ConsumerState<_SeccionTablon> {
     } on TablonException catch (e) {
       if (mounted) setState(() => _error = e.mensaje);
     } catch (e) {
-      if (mounted) setState(() => _error = 'No se ha podido comprobar: $e');
+      if (mounted) {
+        setState(
+          () => _error = 'No se ha podido comprobar: ${explicarError(e)}',
+        );
+      }
     } finally {
       if (mounted) setState(() => _probando = false);
     }
@@ -912,14 +924,17 @@ class _EstadoSeccionTablon extends ConsumerState<_SeccionTablon> {
         titulo: 'Publicación (tablón en GitHub)',
         children: [
           explicacion,
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               Pastilla(
                 'Sin configurar',
                 color: c.naranja,
                 fondo: c.naranjaFondo,
               ),
-              const Spacer(),
               FilledButton(
                 onPressed: () => _editar(_Edicion.todo),
                 child: const Text('Configurar'),

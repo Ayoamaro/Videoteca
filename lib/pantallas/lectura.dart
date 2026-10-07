@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../errores.dart';
 import '../disco/dialogo_abrir.dart';
 import '../disco/lector_archivo.dart';
 import '../modelos/pelicula.dart';
@@ -52,7 +53,7 @@ class _PantallaLecturaState extends ConsumerState<PantallaLectura> {
       final datos = await Isolate.run(() => leerArchivo(ruta));
       ref.read(ultimaLecturaProvider.notifier).guardar(datos);
     } catch (e) {
-      _error = '$e';
+      _error = explicarError(e);
     } finally {
       if (mounted) setState(() => _leyendo = false);
     }

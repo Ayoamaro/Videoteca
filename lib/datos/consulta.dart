@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../errores.dart';
 import '../tablon/cifrado.dart';
 import '../tablon/copia_local.dart';
 import '../tablon/github.dart' show TablonException;
@@ -171,7 +172,7 @@ class Consulta extends Notifier<EstadoConsulta> {
     } on Object catch (e) {
       state = state.copyWith(
         fase: FaseCopia.error,
-        error: 'No se ha podido descargar el catálogo: $e',
+        error: 'No se ha podido descargar el catálogo: ${explicarError(e)}',
       );
     }
   }

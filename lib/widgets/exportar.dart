@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../errores.dart';
 import '../arranque.dart';
 import '../datos/buscador.dart' show limpiarParaBuscar;
 import '../datos/catalogo.dart';
@@ -182,7 +183,9 @@ Future<bool> _trabajando(
     await trabajo();
     return true;
   } catch (e) {
-    if (context.mounted) _avisar(context, 'No se ha podido terminar: $e');
+    if (context.mounted) {
+      _avisar(context, 'No se ha podido terminar: ${explicarError(e)}');
+    }
     return false;
   } finally {
     navegador.pop();

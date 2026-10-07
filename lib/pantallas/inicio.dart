@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../datos/catalogo.dart';
+import '../datos/consulta.dart';
 import '../datos/nuevas.dart';
 import '../modelos/pelicula.dart';
 import '../tema/colores.dart';
@@ -10,6 +11,7 @@ import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/buscador_sugerencias.dart';
 import '../widgets/caratula.dart';
+import '../widgets/coleccion_vacia.dart';
 import '../widgets/comunes.dart';
 
 /// Pantalla de Inicio: buscador, aviso de películas nuevas, añadidas
@@ -23,9 +25,7 @@ class PantallaInicio extends ConsumerWidget {
     final tema = Theme.of(context).textTheme;
     final todas = ref.watch(catalogoProvider).value ?? const <Pelicula>[];
     final generos = ref.watch(generosProvider);
-    final antiguo = DateTime(1900);
-    final recientes = [...todas]
-      ..sort((a, b) => (b.anadida ?? antiguo).compareTo(a.anadida ?? antiguo));
+    final recientes = ref.watch(recientesProvider);
     final nuevas = ref.watch(nuevasSinGuardarProvider);
 
     return LayoutBuilder(
@@ -88,69 +88,76 @@ class PantallaInicio extends ConsumerWidget {
               atajo: movil ? null : 'Ctrl K',
             ),
             if (esAdministrador && nuevas.isNotEmpty) _AvisoNuevas(nuevas),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TituloSeccion(
-                  'Añadidas recientemente',
-                  accion: 'Ver todas',
-                  alPulsar: () => context.go('/catalogo'),
-                ),
-                const SizedBox(height: 14),
-                if (movil)
-                  SizedBox(
-                    height: 260,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: recientes.length.clamp(0, 6),
-                      separatorBuilder: (_, _) => const SizedBox(width: 12),
-                      itemBuilder: (_, i) => SizedBox(
-                        width: 132,
-                        child: TarjetaPelicula(recientes[i]),
+            if (!esAdministrador) const _AvisoSinConexion(),
+            if (todas.isEmpty)
+              const ColeccionVacia()
+            else ...[
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TituloSeccion(
+                    'Añadidas recientemente',
+                    accion: 'Ver todas',
+                    alPulsar: () => context.go('/catalogo'),
+                  ),
+                  const SizedBox(height: 14),
+                  if (movil)
+                    SizedBox(
+                      // Carátula + dos líneas de título + el año: con la
+                      // letra más grande del móvil, más alto.
+                      height: 200 + MediaQuery.textScalerOf(context).scale(60),
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: recientes.length.clamp(0, 6),
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (_, i) => SizedBox(
+                          width: 132,
+                          child: TarjetaPelicula(recientes[i]),
+                        ),
                       ),
+                    )
+                  else
+                    CuadriculaAdaptable(
+                      anchoMinimo: 150,
+                      children: [
+                        for (final p in recientes.take(6)) TarjetaPelicula(p),
+                      ],
                     ),
-                  )
-                else
-                  CuadriculaAdaptable(
-                    anchoMinimo: 150,
-                    children: [
-                      for (final p in recientes.take(6)) TarjetaPelicula(p),
-                    ],
-                  ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TituloSeccion(movil ? 'Géneros' : 'Explorar por género'),
-                const SizedBox(height: 16),
-                if (movil)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final (nombre, _) in generos)
-                        ActionChip(
-                          label: Text(nombre),
-                          onPressed: () => _abrirGenero(context, nombre),
-                        ),
-                    ],
-                  )
-                else
-                  CuadriculaAdaptable(
-                    anchoMinimo: 200,
-                    separacion: 12,
-                    children: [
-                      for (final (nombre, total) in generos)
-                        BotonGenero(
-                          nombre: nombre,
-                          total: total,
-                          alPulsar: () => _abrirGenero(context, nombre),
-                        ),
-                    ],
-                  ),
-              ],
-            ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TituloSeccion(movil ? 'Géneros' : 'Explorar por género'),
+                  const SizedBox(height: 16),
+                  if (movil)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final (nombre, _) in generos)
+                          ActionChip(
+                            label: Text(nombre),
+                            onPressed: () => _abrirGenero(context, nombre),
+                          ),
+                      ],
+                    )
+                  else
+                    CuadriculaAdaptable(
+                      anchoMinimo: 200,
+                      separacion: 12,
+                      children: [
+                        for (final (nombre, total) in generos)
+                          BotonGenero(
+                            nombre: nombre,
+                            total: total,
+                            alPulsar: () => _abrirGenero(context, nombre),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ],
           ],
         );
       },
@@ -213,6 +220,41 @@ class BotonGenero extends StatelessWidget {
 }
 
 /// Banda dorada "3 películas nuevas detectadas".
+/// En consulta, si no se ha podido mirar si hay novedades (sin internet),
+/// una línea discreta que dice de cuándo es lo que se está viendo.
+class _AvisoSinConexion extends ConsumerWidget {
+  const _AvisoSinConexion();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final e = ref.watch(consultaProvider);
+    // Sin nada descargado ya avisa la franja de arriba.
+    if (e.fase != FaseCopia.error || e.copia.commit.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final fecha = e.copia.fecha;
+    return Row(
+      children: [
+        Icon(Icons.cloud_off_outlined, size: 18, color: c.textoSecundario),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            '${e.sinInternet ? 'Sin internet' : 'No se ha podido buscar novedades'}: '
+            'estás viendo el catálogo descargado'
+            '${fecha == null ? '' : ' (publicado el ${fechaCorta(fecha)})'}.',
+            style: TextStyle(fontSize: 13, color: c.textoSecundario),
+          ),
+        ),
+        TextButton(
+          onPressed: () => ref.read(consultaProvider.notifier).comprobar(),
+          child: const Text('Reintentar'),
+        ),
+      ],
+    );
+  }
+}
+
 class _AvisoNuevas extends StatelessWidget {
   const _AvisoNuevas(this.todas);
 

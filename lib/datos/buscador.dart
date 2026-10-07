@@ -49,28 +49,45 @@ class SugerenciaPersona {
 /// «¡Átame!» → «atame», «Spider-Man» → «spider man», «Ocean's» → «oceans»,
 /// «S.W.A.T.» → «swat». Los dos puntos especiales del disco (`꞉`) también.
 String limpiarParaBuscar(String texto) {
-  final buffer = StringBuffer();
+  // Los mismos nombres y títulos se limpian muchas veces (un actor sale en
+  // muchas películas y todo se vuelve a preparar cada vez que cambia el
+  // catálogo): se recuerdan los textos cortos ya limpiados.
+  if (texto.length > 120) return _limpiar(texto);
+  if (_limpios.length > 200000) _limpios.clear();
+  return _limpios[texto] ??= _limpiar(texto);
+}
+
+final _limpios = <String, String>{};
+
+String _limpiar(String texto) {
+  // Se trabaja con números de letra (y no con textos de una letra): con las
+  // 5.541 películas y sus repartos se llama decenas de miles de veces.
+  final salida = <int>[];
   var espacio = true; // para no poner dos espacios seguidos
   for (final runa in texto.toLowerCase().runes) {
-    final letra = String.fromCharCode(runa);
-    final i = _conTilde.indexOf(letra);
-    final limpia = i >= 0 ? _sinTilde[i] : letra;
-    if (_esLetraOCifra(runa) || i >= 0) {
-      buffer.write(limpia);
+    final sinTilde = _sinTilde[runa];
+    if (sinTilde != null || _esLetraOCifra(runa)) {
+      salida.add(sinTilde ?? runa);
       espacio = false;
-    } else if (_seQuitan.contains(letra)) {
+    } else if (_seQuitan.contains(runa)) {
       continue; // se pegan: «ocean's» → «oceans»
     } else if (!espacio) {
-      buffer.write(' ');
+      salida.add(0x20);
       espacio = true;
     }
   }
-  return buffer.toString().trimRight();
+  if (salida.isNotEmpty && salida.last == 0x20) salida.removeLast();
+  return String.fromCharCodes(salida);
 }
 
-const _conTilde = 'áàäâãåéèëêíìïîóòöôõøúùüûñçýÿæœ';
-const _sinTilde = 'aaaaaaeeeeiiiioooooouuuuncyyæœ';
-const _seQuitan = "'’´`.";
+/// Cada letra con tilde y la misma sin ella.
+final _sinTilde = {
+  for (var i = 0; i < _conTildes.length; i++)
+    _conTildes.codeUnitAt(i): _sinTildes.codeUnitAt(i),
+};
+const _conTildes = 'áàäâãåéèëêíìïîóòöôõøúùüûñçýÿæœ';
+const _sinTildes = 'aaaaaaeeeeiiiioooooouuuuncyyæœ';
+final _seQuitan = "'’´`.".codeUnits.toSet();
 
 bool _esLetraOCifra(int runa) =>
     (runa >= 0x30 && runa <= 0x39) || // 0-9
@@ -81,9 +98,11 @@ bool _esLetraOCifra(int runa) =>
 
 /// Separa la lista de nombres de un campo ("Tom Hanks, Robin Wright").
 List<String> separarNombres(String texto) => [
-  for (final n in texto.split(RegExp(r'[,;]')))
+  for (final n in texto.split(_separadorNombres))
     if (n.trim().isNotEmpty) n.trim(),
 ];
+
+final _separadorNombres = RegExp(r'[,;]');
 
 /// Un texto preparado para comparar: limpio y, aparte, sin espacios (para
 /// que «spiderman» encuentre «Spider-Man»).
@@ -130,13 +149,20 @@ class _Persona {
 }
 
 class _Ficha {
-  _Ficha(DatosBuscables d)
+  /// [personas]: las ya vistas en otras películas (cada actor se prepara
+  /// una sola vez aunque salga en muchas).
+  _Ficha(DatosBuscables d, Map<String, _Persona> personas)
     : id = d.id,
       anio = d.anio,
       titulo = _Texto(d.titulo),
       original = _Texto(d.tituloOriginal),
-      directores = [for (final n in separarNombres(d.direccion)) _Persona(n)],
-      actores = [for (final n in separarNombres(d.reparto)) _Persona(n)] {
+      directores = [
+        for (final n in separarNombres(d.direccion))
+          personas[n] ??= _Persona(n),
+      ],
+      actores = [
+        for (final n in separarNombres(d.reparto)) personas[n] ??= _Persona(n),
+      ] {
     todo = [
       titulo.compacto,
       original.compacto,
@@ -158,8 +184,11 @@ class _Ficha {
 }
 
 class Buscador {
-  Buscador(Iterable<DatosBuscables> peliculas)
-    : _fichas = [for (final d in peliculas) _Ficha(d)] {
+  Buscador(Iterable<DatosBuscables> peliculas) : _fichas = [] {
+    final vistas = <String, _Persona>{};
+    for (final d in peliculas) {
+      _fichas.add(_Ficha(d, vistas));
+    }
     // Lista de personas sin repetir, con su número de películas.
     final cuenta = <(String, Rol), int>{};
     final nombres = <(String, Rol), String>{};
@@ -178,7 +207,7 @@ class Buscador {
     }
     _personas = [
       for (final MapEntry(key: clave, value: total) in cuenta.entries)
-        (_Persona(nombres[clave]!), clave.$2, total),
+        (vistas[nombres[clave]!]!, clave.$2, total),
     ];
   }
 

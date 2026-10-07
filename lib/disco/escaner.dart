@@ -8,6 +8,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:ffi/ffi.dart';
 import 'package:image/image.dart' as img;
 
+import '../errores.dart';
 import '../datos/base_datos.dart';
 import '../datos/carpetas_app.dart';
 import 'lector_archivo.dart';
@@ -461,7 +462,7 @@ class Escaner {
     } catch (e) {
       progreso = progreso.copiar(
         fase: FaseEscaneo.error,
-        mensaje: 'Error inesperado: $e',
+        mensaje: 'Error inesperado: ${explicarError(e)}',
       );
     } finally {
       for (final i in isolates) {
@@ -540,7 +541,7 @@ LecturaCatalogo leerParaCatalogo(String raiz, ArchivoEncontrado archivo) {
     datos = leerArchivo(archivo.ruta);
   } catch (e) {
     // Se guarda igualmente con el título y el año del nombre del archivo.
-    error = '$e';
+    error = explicarError(e);
     datos = DatosArchivo(
       ruta: archivo.ruta,
       propiedades: const {},

@@ -406,6 +406,23 @@ class TarjetaPelicula extends StatelessWidget {
   Widget build(BuildContext context) {
     final tema = Theme.of(context).textTheme;
     final p = pelicula;
+    final texto = detalle ?? '${p.anio} · ${p.generoCarpeta}';
+    // El lector de pantalla dice «Origen, 2010 · Ciencia ficción, botón».
+    return Semantics(
+      button: true,
+      label: '${p.titulo}, $texto${p.nueva ? ', nueva' : ''}',
+      excludeSemantics: true,
+      onTap: () => context.push('/pelicula/${p.id}'),
+      child: _tarjeta(context, tema, p, texto),
+    );
+  }
+
+  Widget _tarjeta(
+    BuildContext context,
+    TextTheme tema,
+    Pelicula p,
+    String texto,
+  ) {
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () => context.push('/pelicula/${p.id}'),
@@ -425,7 +442,7 @@ class TarjetaPelicula extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            detalle ?? '${p.anio} · ${p.generoCarpeta}',
+            texto,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: tema.bodySmall,
@@ -483,5 +500,84 @@ class Contador extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Aviso centrado para cuando una pantalla no tiene nada que enseñar
+/// (colección vacía, búsqueda sin resultados…), con un botón opcional.
+class AvisoVacio extends StatelessWidget {
+  const AvisoVacio({
+    super.key,
+    required this.icono,
+    required this.titulo,
+    this.texto,
+    this.accion,
+    this.alPulsar,
+    this.enTarjeta = false,
+  });
+
+  final IconData icono;
+  final String titulo;
+  final String? texto;
+  final String? accion;
+  final VoidCallback? alPulsar;
+
+  /// Con fondo y borde (dentro de una página) o sin ellos (en una lista).
+  final bool enTarjeta;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final contenido = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        // Se lee de una vez con el lector de pantalla.
+        child: MergeSemantics(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ExcludeSemantics(
+                child: Icon(icono, size: 48, color: c.textoTenue),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                titulo,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: c.texto,
+                ),
+              ),
+              if (texto != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  texto!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: c.textoSecundario,
+                  ),
+                ),
+              ],
+              if (accion != null) ...[
+                const SizedBox(height: 16),
+                OutlinedButton(onPressed: alPulsar, child: Text(accion!)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+    return enTarjeta
+        ? Tarjeta(
+            relleno: const EdgeInsets.symmetric(vertical: 56, horizontal: 24),
+            child: contenido,
+          )
+        : Padding(
+            padding: const EdgeInsets.symmetric(vertical: 56, horizontal: 8),
+            child: contenido,
+          );
   }
 }

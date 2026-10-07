@@ -162,7 +162,7 @@ List<Pendiente>? _deUna(Pelicula p) {
   if (edad.trim().isNotEmpty && !_fraseEdad.hasMatch(edad)) {
     // Si no tiene ni un número, ni siquiera es una frase de edad.
     raros.add(
-      RegExp(r'\d|público').hasMatch(edad)
+      _numeroOPublico.hasMatch(edad)
           ? 'Frase de edad mal escrita: «$edad»'
           : 'La edad dice «$edad»',
     );
@@ -214,7 +214,7 @@ List<Pendiente> _duplicadas(List<Pelicula> catalogo) {
     if (p.titulo.trim().isNotEmpty && p.anio > 0) {
       unir('t:${limpiarParaBuscar(p.titulo)}:${p.anio}', i);
     }
-    final archivo = p.archivo.replaceFirst(RegExp(r'\.\w+$'), '');
+    final archivo = p.archivo.replaceFirst(_extension, '');
     unir('a:${limpiarParaBuscar(archivo)}', i);
   }
 
@@ -230,6 +230,9 @@ List<Pendiente> _duplicadas(List<Pelicula> catalogo) {
         ]),
   ];
 }
+
+final _extension = RegExp(r'\.\w+$');
+final _numeroOPublico = RegExp(r'\d|público');
 
 int _porRuta(Pelicula a, Pelicula b) => a.ruta.compareTo(b.ruta);
 

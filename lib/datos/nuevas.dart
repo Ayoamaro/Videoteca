@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../errores.dart';
 import '../fuentes/conexion.dart';
 import '../fuentes/datos_automaticos.dart';
 import '../fuentes/identificacion.dart';
@@ -176,7 +177,10 @@ class BusquedasNuevas extends Notifier<Map<int, BusquedaNueva>> {
     } catch (e) {
       _poner(
         id,
-        BusquedaNueva(EstadoBusqueda.error, mensaje: 'Ha fallado: $e'),
+        BusquedaNueva(
+          EstadoBusqueda.error,
+          mensaje: 'Ha fallado: ${explicarError(e)}',
+        ),
       );
     }
   }

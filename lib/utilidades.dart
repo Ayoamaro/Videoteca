@@ -35,6 +35,11 @@ String fechaLarga(DateTime fecha) {
   return texto[0].toUpperCase() + texto.substring(1);
 }
 
+/// "3 de octubre" (y el año si no es el actual: "3 de octubre de 2025").
+String fechaCorta(DateTime fecha) => fecha.year == DateTime.now().year
+    ? DateFormat("d 'de' MMMM", 'es').format(fecha)
+    : DateFormat("d 'de' MMMM 'de' y", 'es').format(fecha);
+
 /// Quita tildes y pasa a minúsculas para buscar sin importar cómo se escriba.
 String normalizar(String texto) {
   const con = 'áàäâéèëêíìïîóòöôúùüûñç';

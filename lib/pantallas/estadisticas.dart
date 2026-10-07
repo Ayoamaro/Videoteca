@@ -9,6 +9,7 @@ import '../modelos/pelicula.dart';
 import '../pantallas/nuevas.dart' show cuandoTexto;
 import '../tema/colores.dart';
 import '../utilidades.dart';
+import '../widgets/coleccion_vacia.dart';
 import '../widgets/comunes.dart';
 import '../widgets/exportar.dart';
 
@@ -45,7 +46,7 @@ class PantallaEstadisticas extends ConsumerWidget {
             child: Center(child: CircularProgressIndicator()),
           )
         else if (e.peliculas == 0)
-          const _SinPeliculas()
+          const ColeccionVacia()
         else ...[
           _Resumen(e),
           _Decadas(e.decadas),
@@ -84,29 +85,6 @@ class PantallaEstadisticas extends ConsumerWidget {
 
 String _catalogo(Map<String, String> filtro) =>
     Uri(path: '/catalogo', queryParameters: filtro).toString();
-
-class _SinPeliculas extends StatelessWidget {
-  const _SinPeliculas();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colores;
-    return Tarjeta(
-      relleno: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
-      child: Column(
-        children: [
-          Icon(Icons.bar_chart_rounded, size: 48, color: c.textoTenue),
-          const SizedBox(height: 12),
-          Text(
-            'Todavía no hay películas en el catálogo.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: c.textoSecundario),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── Resumen ──────────────────────────────────────────────────────────────
 

@@ -56,14 +56,28 @@ final catalogoProvider = AsyncNotifierProvider<Catalogo, List<Pelicula>>(
 );
 
 class Catalogo extends AsyncNotifier<List<Pelicula>> {
+  /// El buscador de la última lista cargada, preparado junto con ella.
+  ({List<Pelicula> lista, Buscador buscador})? _preparado;
+
   @override
   Future<List<Pelicula>> build() => _cargar();
 
   Future<List<Pelicula>> _cargar() async {
     final carpetas = ref.read(carpetasAppProvider);
     final filas = await ref.read(baseDatosProvider).todasLasPeliculas();
-    return [for (final f in filas) peliculaDesdeFila(f, carpetas)];
+    // Con toda la colección, las fichas y el buscador se preparan en otro
+    // hilo (unas décimas de segundo) para que la pantalla no se quede
+    // parada cada vez que se guarda algo.
+    final (lista, buscador) = filas.length < 500
+        ? _preparar(filas, carpetas)
+        : await _prepararAparte(filas, carpetas);
+    _preparado = (lista: lista, buscador: buscador);
+    return lista;
   }
+
+  /// El buscador ya preparado para [lista], si es la última cargada.
+  Buscador? buscadorDe(List<Pelicula> lista) =>
+      identical(_preparado?.lista, lista) ? _preparado!.buscador : null;
 
   /// Vuelve a leer la base de datos (p. ej. después de escanear). Con
   /// [olvidarImagenes] se descartan las miniaturas ya cargadas en memoria,
@@ -99,6 +113,34 @@ class Catalogo extends AsyncNotifier<List<Pelicula>> {
     await recargar();
   }
 }
+
+(List<Pelicula>, Buscador) _preparar(
+  List<FilaPelicula> filas,
+  CarpetasApp carpetas,
+) {
+  final lista = [for (final f in filas) peliculaDesdeFila(f, carpetas)];
+  return (lista, Buscador(datosBuscables(lista)));
+}
+
+// Función suelta (no un método): desde un método con `ref`, `Isolate.run`
+// falla («object is unsendable»).
+Future<(List<Pelicula>, Buscador)> _prepararAparte(
+  List<FilaPelicula> filas,
+  CarpetasApp carpetas,
+) => Isolate.run(() => _preparar(filas, carpetas));
+
+/// Lo que el buscador necesita de cada película.
+Iterable<DatosBuscables> datosBuscables(List<Pelicula> lista) => [
+  for (final p in lista)
+    (
+      id: p.id,
+      titulo: p.titulo,
+      tituloOriginal: p.tituloOriginal,
+      anio: p.anio,
+      direccion: p.direccion,
+      reparto: p.reparto,
+    ),
+];
 
 /// Películas que estaban en el catálogo y ya no están en el disco.
 final desaparecidasProvider = FutureProvider<List<Pelicula>>((ref) async {
@@ -174,20 +216,21 @@ final peliculaPorIdProvider = Provider.family<Pelicula?, int>(
   (ref, id) => ref.watch(peliculasPorIdProvider)[id],
 );
 
-/// El buscador, preparado de nuevo cada vez que cambia el catálogo.
-final buscadorProvider = Provider<Buscador>(
-  (ref) => Buscador([
-    for (final p in ref.watch(catalogoProvider).value ?? const <Pelicula>[])
-      (
-        id: p.id,
-        titulo: p.titulo,
-        tituloOriginal: p.tituloOriginal,
-        anio: p.anio,
-        direccion: p.direccion,
-        reparto: p.reparto,
-      ),
-  ]),
-);
+/// Las 6 últimas añadidas a la colección (para Inicio).
+final recientesProvider = Provider<List<Pelicula>>((ref) {
+  final antiguo = DateTime(1900);
+  final todas = [...ref.watch(catalogoProvider).value ?? const <Pelicula>[]]
+    ..sort((a, b) => (b.anadida ?? antiguo).compareTo(a.anadida ?? antiguo));
+  return todas.take(6).toList();
+});
+
+/// El buscador, preparado de nuevo cada vez que cambia el catálogo
+/// (normalmente ya viene hecho de la carga).
+final buscadorProvider = Provider<Buscador>((ref) {
+  final lista = ref.watch(catalogoProvider).value ?? const <Pelicula>[];
+  return ref.read(catalogoProvider.notifier).buscadorDe(lista) ??
+      Buscador(datosBuscables(lista));
+});
 
 /// El cuadro de búsqueda de Inicio, para poder llevar allí el cursor desde
 /// cualquier pantalla con Ctrl + K.

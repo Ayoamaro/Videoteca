@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../errores.dart';
 import '../datos/catalogo.dart';
 import '../datos/edicion.dart';
 import '../disco/escritor.dart';
@@ -41,7 +42,7 @@ class PantallaRegistro extends ConsumerWidget {
             ],
           ),
           AsyncError(:final error) => Text(
-            'No se pudo leer el registro: $error',
+            'No se pudo leer el registro: ${explicarError(error)}',
           ),
           _ => const Center(child: CircularProgressIndicator()),
         },
@@ -372,7 +373,7 @@ Future<void> deshacerCambio(
       await mostrarError(
         contexto,
         'No se ha podido deshacer',
-        e is EscrituraException ? e.mensaje : '$e',
+        e is EscrituraException ? e.mensaje : explicarError(e),
       );
     }
   }

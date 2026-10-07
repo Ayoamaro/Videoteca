@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../errores.dart';
 import '../disco/acciones_windows.dart';
 import '../disco/escritor.dart' show Campo;
 import '../fuentes/conexion.dart';
@@ -75,7 +76,9 @@ class _EstadoDialogoDatos extends State<_DialogoDatos> {
     } on FuenteException catch (e) {
       if (mounted) setState(() => _error = e.mensaje);
     } catch (e) {
-      if (mounted) setState(() => _error = 'Ha fallado la búsqueda: $e');
+      if (mounted) {
+        setState(() => _error = 'Ha fallado la búsqueda: ${explicarError(e)}');
+      }
     } finally {
       if (mounted) setState(() => _buscando = false);
     }

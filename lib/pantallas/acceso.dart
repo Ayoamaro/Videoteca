@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../errores.dart';
 import '../datos/sesion.dart';
 import '../tablon/cifrado.dart';
 import '../tablon/copia_local.dart';
@@ -326,7 +327,7 @@ class _TarjetaConsultaState extends State<_TarjetaConsulta> {
     } on TablonException catch (e) {
       _error = e.mensaje;
     } on Object catch (e) {
-      _error = 'No se ha podido entrar: $e';
+      _error = 'No se ha podido entrar: ${explicarError(e)}';
     } finally {
       lector.cerrar();
     }
@@ -441,7 +442,7 @@ class _TarjetaAdminState extends State<_TarjetaAdmin> {
     } on Object catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'No se ha podido entrar: $e';
+          _error = 'No se ha podido entrar: ${explicarError(e)}';
           _trabajando = null;
         });
       }

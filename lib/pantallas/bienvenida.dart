@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../errores.dart';
 import '../arranque.dart';
 import '../datos/catalogo.dart';
 import '../disco/dialogo_abrir.dart';
@@ -51,7 +52,7 @@ class _PantallaBienvenidaState extends ConsumerState<PantallaBienvenida> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'No se ha podido leer la carpeta: $e';
+        _error = 'No se ha podido leer la carpeta: ${explicarError(e)}';
         _paso = _Paso.inicio;
       });
     }

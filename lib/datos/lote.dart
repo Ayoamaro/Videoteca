@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../errores.dart';
 import '../disco/escritor.dart';
 import '../fuentes/conexion.dart';
 import '../fuentes/datos_automaticos.dart';
@@ -389,7 +390,7 @@ class Coleccion extends Notifier<EstadoColeccion> {
       }
       return fila(EstadoLote.error, '$e');
     } catch (e) {
-      return fila(EstadoLote.error, 'Ha fallado: $e');
+      return fila(EstadoLote.error, 'Ha fallado: ${explicarError(e)}');
     }
 
     if (plan.limiteOmdb && !state.sinOmdb) {
@@ -421,7 +422,7 @@ class Coleccion extends Notifier<EstadoColeccion> {
     } on EscrituraException catch (e) {
       return fila(EstadoLote.error, 'No se ha escrito: ${e.mensaje}');
     } catch (e) {
-      return fila(EstadoLote.error, 'No se ha escrito: $e');
+      return fila(EstadoLote.error, 'No se ha escrito: ${explicarError(e)}');
     }
   }
 

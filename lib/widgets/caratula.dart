@@ -45,6 +45,17 @@ class Caratula extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Para el lector de pantalla, una sola etiqueta (y no los textos de la
+    // provisional).
+    return Semantics(
+      image: true,
+      label: titulo.isEmpty ? 'Carátula' : 'Carátula de $titulo',
+      excludeSemantics: true,
+      child: _dibujo(),
+    );
+  }
+
+  Widget _dibujo() {
     return AspectRatio(
       aspectRatio: proporcion,
       child: LayoutBuilder(
@@ -66,28 +77,70 @@ class Caratula extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(radio),
-              child: imagen != null
-                  ? Image.memory(
-                      imagen!,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                    )
-                  : miniatura != null
-                  ? Image.file(
-                      File(miniatura!),
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                      // Si falta el archivo de la miniatura, la provisional.
-                      errorBuilder: (context, _, _) =>
-                          _provisional(context, ancho),
-                    )
-                  : _provisional(context, ancho),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _imagen(context, ancho),
+                  if (nueva && ancho >= 90) _marcaNueva(context),
+                ],
+              ),
             ),
           );
         },
       ),
     );
   }
+
+  Widget _imagen(BuildContext context, double ancho) {
+    // La imagen se descodifica al tamaño en que se ve (en la lista, las
+    // miniaturas miden 40 px: no hace falta tenerlas enteras en memoria).
+    final pixeles = (ancho * MediaQuery.devicePixelRatioOf(context)).ceil();
+    final reducir = pixeles > 0 && pixeles < 200 ? pixeles : null;
+    // Si la imagen está dañada o falta el archivo, la provisional.
+    Widget provisional(BuildContext context, Object _, StackTrace? _) =>
+        _provisional(context, ancho);
+    if (imagen != null) {
+      return Image.memory(
+        imagen!,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        cacheWidth: reducir,
+        errorBuilder: provisional,
+      );
+    }
+    if (miniatura != null) {
+      return Image.file(
+        File(miniatura!),
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        cacheWidth: reducir,
+        errorBuilder: provisional,
+      );
+    }
+    return _provisional(context, ancho);
+  }
+
+  Widget _marcaNueva(BuildContext context) => Positioned(
+    top: 10,
+    left: 10,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: context.colores.dorado,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        'NUEVA',
+        style: TextStyle(
+          fontFamily: fuenteTexto,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+          color: context.colores.sobreDorado,
+        ),
+      ),
+    ),
+  );
 
   Widget _provisional(BuildContext context, double ancho) {
     // Tamaños proporcionales al ancho (175 px de ancho → título de 19 px).
@@ -128,28 +181,6 @@ class Caratula extends StatelessWidget {
               ),
             ),
           ),
-          if (nueva && ancho >= 90)
-            Positioned(
-              top: 10,
-              left: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: context.colores.dorado,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'NUEVA',
-                  style: TextStyle(
-                    fontFamily: fuenteTexto,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: context.colores.sobreDorado,
-                  ),
-                ),
-              ),
-            ),
           if (conTexto)
             Positioned(
               left: margen,

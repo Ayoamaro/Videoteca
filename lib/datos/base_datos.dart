@@ -211,6 +211,10 @@ class BaseDatos extends _$BaseDatos {
     await m.addColumn(tabla, columna);
   }
 
+  /// Copia exacta de la base de datos en [ruta] (para la copia de
+  /// seguridad), aunque esté abierta y en uso.
+  Future<void> copiarA(String ruta) => customStatement('VACUUM INTO ?', [ruta]);
+
   // ── Películas ──────────────────────────────────────────────────────────
 
   /// Las películas que están en el disco.

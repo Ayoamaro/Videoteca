@@ -21,14 +21,23 @@ import 'utilidades.dart';
 /// Ajustes. `null` en las pruebas.
 final sesionProvider = Provider<ControlSesion?>((ref) => null);
 
+/// Mensaje que se enseña al abrir la app (p. ej. después de restaurar una
+/// copia de seguridad).
+final avisoAlAbrirProvider = Provider<String?>((ref) => null);
+
 class ControlSesion {
-  const ControlSesion(this.sesion, this._guardar, this.cerrar);
+  const ControlSesion(this.sesion, this._guardar, this.cerrar, this.reabrir);
 
   final Sesion sesion;
   final void Function() _guardar;
 
   /// Vuelve a la pantalla de acceso.
   final Future<void> Function() cerrar;
+
+  /// Cierra la base de datos, hace `mientras` (p. ej. cambiar los archivos
+  /// por los de una copia de seguridad) y vuelve a abrir la app en el mismo
+  /// modo, enseñando el mensaje que devuelva `mientras`.
+  final Future<void> Function(Future<String> Function() mientras) reabrir;
 
   Future<void> cambiarContrasenaAdmin(String nueva) async {
     sesion.contrasenaAdmin = await ContrasenaAdmin.crear(nueva);
@@ -42,6 +51,7 @@ typedef _Abierta = ({
   BaseDatos bd,
   CarpetasApp carpetas,
   Map<String, String> ajustes,
+  String? aviso,
 });
 
 class Arranque extends StatefulWidget {
@@ -90,6 +100,7 @@ class _ArranqueState extends State<Arranque> {
   Future<void> _abrir(
     ModoApp modo, [
     Map<String, String> ajustesNuevos = const {},
+    String? aviso,
   ]) async {
     if (!_abriendo) setState(() => _abriendo = true);
     final carpetas = modo == ModoApp.administrador
@@ -103,8 +114,32 @@ class _ArranqueState extends State<Arranque> {
     modoSesion = modo;
     setState(() {
       _abriendo = false;
-      _abierta = (modo: modo, bd: bd, carpetas: carpetas, ajustes: ajustes);
+      _abierta = (
+        modo: modo,
+        bd: bd,
+        carpetas: carpetas,
+        ajustes: ajustes,
+        aviso: aviso,
+      );
     });
+  }
+
+  Future<void> _reabrir(Future<String> Function() mientras) async {
+    final abierta = _abierta;
+    if (abierta == null) return;
+    setState(() {
+      _abierta = null;
+      _abriendo = true;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+    await abierta.bd.close();
+    String aviso;
+    try {
+      aviso = await mientras();
+    } catch (e) {
+      aviso = 'No se ha podido terminar: $e';
+    }
+    await _abrir(abierta.modo, const {}, aviso);
   }
 
   Future<void> _cerrar() async {
@@ -131,8 +166,9 @@ class _ArranqueState extends State<Arranque> {
           carpetasAppProvider.overrideWithValue(abierta.carpetas),
           ajustesInicialesProvider.overrideWithValue(abierta.ajustes),
           sesionProvider.overrideWithValue(
-            ControlSesion(_sesion, _guardar, _cerrar),
+            ControlSesion(_sesion, _guardar, _cerrar, _reabrir),
           ),
+          avisoAlAbrirProvider.overrideWithValue(abierta.aviso),
         ],
         child: const VideotecaApp(),
       );

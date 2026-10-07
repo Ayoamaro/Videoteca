@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'datos/sesion.dart';
@@ -46,11 +45,4 @@ String normalizar(String texto) {
     buffer.write(i < 0 ? letra : sin[i]);
   }
   return buffer.toString();
-}
-
-/// Aviso para los botones que todavía no hacen nada.
-void avisoProximamente(BuildContext context, String que, int dia) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text('$que llega el día $dia.')));
 }

@@ -3,6 +3,7 @@
 // ignore_for_file: constant_identifier_names, camel_case_types
 
 import 'dart:ffi';
+import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
@@ -25,15 +26,52 @@ String? elegirImagen({String? carpetaInicial}) => _elegirArchivo(
   carpetaInicial: carpetaInicial,
 );
 
+/// Abre el diálogo "Abrir" de Windows para elegir una copia de seguridad
+/// (`.zip`). Devuelve la ruta elegida o `null` si se cancela.
+String? elegirCopia({String? carpetaInicial}) => _elegirArchivo(
+  filtro: 'Copias de Videoteca (*.zip)\u0000*.zip\u0000',
+  titulo: 'Elige la copia de seguridad',
+  carpetaInicial: carpetaInicial,
+);
+
+/// Abre el diálogo "Guardar como" de Windows con el nombre [nombre]
+/// propuesto (p. ej. `Videoteca.xlsx`). Devuelve la ruta elegida o `null` si
+/// se cancela. Si el archivo ya existe, Windows pregunta antes si se cambia.
+String? elegirDondeGuardar({
+  required String nombre,
+  required String filtro,
+  required String titulo,
+  String? carpetaInicial,
+}) => _elegirArchivo(
+  filtro: filtro,
+  titulo: titulo,
+  carpetaInicial: carpetaInicial ?? carpetaDocumentos(),
+  guardarComo: nombre,
+);
+
+/// La carpeta Documentos del usuario.
+String carpetaDocumentos() =>
+    '${Platform.environment['USERPROFILE'] ?? 'C:'}\\Documents';
+
 String? _elegirArchivo({
   required String filtro,
   required String titulo,
   String? carpetaInicial,
+  String? guardarComo,
 }) {
   final memoria = Arena();
   try {
     const largoMaximo = 1024;
     final ruta = memoria<Uint16>(largoMaximo).cast<Utf16>();
+    if (guardarComo != null) {
+      final unidades = guardarComo.codeUnits;
+      final destino = ruta.cast<Uint16>();
+      for (var i = 0; i < unidades.length && i < largoMaximo - 1; i++) {
+        destino[i] = unidades[i];
+      }
+      destino[unidades.length.clamp(0, largoMaximo - 1)] = 0;
+    }
+    final punto = guardarComo?.lastIndexOf('.') ?? -1;
     final datos = memoria<_OPENFILENAMEW>();
     datos.ref
       ..lStructSize = sizeOf<_OPENFILENAMEW>()
@@ -45,12 +83,23 @@ String? _elegirArchivo({
       ..lpstrInitialDir = carpetaInicial == null
           ? nullptr
           : carpetaInicial.toNativeUtf16(allocator: memoria)
-      ..Flags =
-          _OFN_EXPLORER |
-          _OFN_FILEMUSTEXIST |
-          _OFN_PATHMUSTEXIST |
-          _OFN_NOCHANGEDIR;
-    if (_getOpenFileName(datos) == 0) return null;
+      // Extensión que se añade si no se escribe ninguna.
+      ..lpstrDefExt = punto < 0
+          ? nullptr
+          : guardarComo!.substring(punto + 1).toNativeUtf16(allocator: memoria)
+      ..Flags = guardarComo == null
+          ? _OFN_EXPLORER |
+                _OFN_FILEMUSTEXIST |
+                _OFN_PATHMUSTEXIST |
+                _OFN_NOCHANGEDIR
+          : _OFN_EXPLORER |
+                _OFN_OVERWRITEPROMPT |
+                _OFN_PATHMUSTEXIST |
+                _OFN_NOCHANGEDIR;
+    final elegido = guardarComo == null
+        ? _getOpenFileName(datos)
+        : _getSaveFileName(datos);
+    if (elegido == 0) return null;
     return ruta.toDartString();
   } finally {
     memoria.releaseAll();
@@ -163,6 +212,7 @@ Pointer<Void> _ventanaApp() {
   }
 }
 
+const _OFN_OVERWRITEPROMPT = 0x2;
 const _OFN_NOCHANGEDIR = 0x8;
 const _OFN_PATHMUSTEXIST = 0x800;
 const _OFN_FILEMUSTEXIST = 0x1000;
@@ -277,6 +327,11 @@ final _getOpenFileName = DynamicLibrary.open('comdlg32.dll')
       Int32 Function(Pointer<_OPENFILENAMEW>),
       int Function(Pointer<_OPENFILENAMEW>)
     >('GetOpenFileNameW');
+final _getSaveFileName = DynamicLibrary.open('comdlg32.dll')
+    .lookupFunction<
+      Int32 Function(Pointer<_OPENFILENAMEW>),
+      int Function(Pointer<_OPENFILENAMEW>)
+    >('GetSaveFileNameW');
 final _coInitializeEx = _ole32
     .lookupFunction<
       Int32 Function(Pointer<Void>, Uint32),

@@ -84,13 +84,34 @@ void main() {
       ('Pendientes', 'Nombre fuera de formato'),
       ('Completar colección', 'Completar mi colección'),
       ('Ajustes', 'Apariencia'),
-      ('Estadísticas', 'Esta pantalla llega el día 17.'),
+      ('Estadísticas', 'Por década'),
       ('Catálogo', 'Filtros'),
     ]) {
       await tester.tap(find.text(menu).first);
       await tester.pumpAndSettle();
       expect(find.text(titulo), findsOneWidget, reason: 'Pantalla $menu');
     }
+  }, variant: windows);
+
+  testWidgets('Estadísticas: cada barra lleva al Catálogo filtrado', (
+    tester,
+  ) async {
+    await abrirApp(tester, const Size(1440, 1000));
+    await tester.tap(find.text('Estadísticas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Exportar a Excel'), findsOneWidget);
+    expect(find.text('Directores con más películas'), findsOneWidget);
+    // Los Vengadores tiene la 1, 2, 3 y 4.
+    await tester.ensureVisible(find.text('Sagas incompletas'));
+    await tester.pumpAndSettle();
+    expect(find.text('¡Todas tus sagas están completas!'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Joss Whedon'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Joss Whedon'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dirección: Joss Whedon'), findsOneWidget);
+    expect(find.text('2 películas', findRichText: true), findsOneWidget);
   }, variant: windows);
 
   testWidgets('Buscar y abrir la ficha de una película', (tester) async {
@@ -334,6 +355,19 @@ void main() {
     await tester.tap(find.text('Géneros').last);
     await tester.pumpAndSettle();
     expect(find.text('Western'), findsOneWidget);
+
+    // Más → Estadísticas, de arriba abajo (sin exportar: es el móvil).
+    await tester.tap(find.text('Más'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Estadísticas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Por década'), findsOneWidget);
+    expect(find.text('Exportar a Excel'), findsNothing);
+    for (var i = 0; i < 8; i++) {
+      await tester.dragFrom(const Offset(195, 600), const Offset(0, -500));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Sagas incompletas'), findsOneWidget);
 
     // Más → Ajustes (solo lo de consulta).
     await tester.tap(find.text('Más'));

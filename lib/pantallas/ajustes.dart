@@ -18,6 +18,7 @@ import '../tema/colores.dart';
 import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/comunes.dart';
+import '../widgets/exportar.dart';
 import '../widgets/progreso_escaneo.dart';
 
 /// Ajustes de la app. Las secciones marcadas con «Día N» se activan ese día
@@ -141,27 +142,60 @@ class PantallaAjustes extends ConsumerWidget {
                     ),
                 ],
               ),
-              _Seccion(
-                titulo: 'Datos',
-                children: [
-                  for (final (texto, dia) in const [
-                    ('Exportar catálogo a Excel', 17),
-                    ('Copia de seguridad del catálogo', 17),
-                  ])
-                    OutlinedButton(
-                      onPressed: () => avisoProximamente(context, texto, dia),
-                      style: OutlinedButton.styleFrom(
-                        alignment: Alignment.centerLeft,
-                        minimumSize: const Size.fromHeight(46),
-                      ),
-                      child: Text(texto),
-                    ),
-                ],
-              ),
+              const _SeccionDatos(),
             ] else
               const _SeccionCopia(),
             const _SeccionSesion(),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Exportar a Excel, copia de seguridad y restaurar.
+class _SeccionDatos extends ConsumerWidget {
+  const _SeccionDatos();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    Widget boton(String texto, IconData icono, VoidCallback? alPulsar) =>
+        OutlinedButton.icon(
+          onPressed: alPulsar,
+          icon: Icon(icono, size: 18),
+          label: Text(texto),
+          style: OutlinedButton.styleFrom(
+            alignment: Alignment.centerLeft,
+            minimumSize: const Size.fromHeight(46),
+          ),
+        );
+    return _Seccion(
+      titulo: 'Datos',
+      children: [
+        boton(
+          'Exportar catálogo a Excel',
+          Icons.table_view_outlined,
+          () => exportarExcel(context, ref),
+        ),
+        boton(
+          'Copia de seguridad del catálogo',
+          Icons.save_alt_rounded,
+          () => hacerCopia(context, ref),
+        ),
+        boton(
+          'Restaurar una copia',
+          Icons.settings_backup_restore_rounded,
+          ref.watch(sesionProvider) == null
+              ? null
+              : () => restaurarDesdeCopia(context, ref),
+        ),
+        Text(
+          'La copia guarda las fichas, el registro de cambios (con las '
+          'carátulas para deshacerlos), los ajustes y las miniaturas. Tus '
+          'claves no van en la copia. Los datos de cada película también '
+          'están dentro de su archivo, en el disco.',
+          style: TextStyle(fontSize: 13, height: 1.5, color: c.textoSecundario),
         ),
       ],
     );

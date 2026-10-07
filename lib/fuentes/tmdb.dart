@@ -324,6 +324,37 @@ class Tmdb {
     return partes.indexWhere((p) => p.id == id) + 1;
   }
 
+  /// Sagas («colecciones» de TMDB) que se llaman como [nombre]: número y
+  /// nombre de cada una.
+  Future<List<(int, String)>> buscarSagas(String nombre) async {
+    final json = await _pedir('/search/collection', {'query': nombre});
+    return [
+      for (final r in json['results'] as List)
+        (r['id'] as int, (r['name'] as String?) ?? ''),
+    ];
+  }
+
+  /// Películas ya estrenadas (hasta [hoy]) de la saga [saga], por orden de
+  /// estreno: el mismo orden que el número dentro de la saga.
+  Future<List<({String titulo, int anio})>> partesSaga(
+    int saga, {
+    DateTime? hoy,
+  }) async {
+    final json = await _pedir('/collection/$saga');
+    final limite = (hoy ?? DateTime.now()).toIso8601String().substring(0, 10);
+    final partes = [
+      for (final p in (json['parts'] as List?) ?? const [])
+        if (((p['release_date'] as String?) ?? '') case final fecha
+            when fecha.isNotEmpty && fecha.compareTo(limite) <= 0)
+          (
+            fecha: fecha,
+            titulo: (p['title'] as String?) ?? '',
+            anio: _anio(fecha),
+          ),
+    ]..sort((a, b) => a.fecha.compareTo(b.fecha));
+    return [for (final p in partes) (titulo: p.titulo, anio: p.anio)];
+  }
+
   static int _anio(Object? fecha) => fecha is String && fecha.length >= 4
       ? int.tryParse(fecha.substring(0, 4)) ?? 0
       : 0;

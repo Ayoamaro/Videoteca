@@ -71,6 +71,9 @@ class CarpetasApp {
   String miniaturaTablon(int id) => '$miniaturasTablon$_sep$id.webp';
   String get estadoTablon => '$tablon${_sep}estado.json';
 
+  /// Lo comprobado en TMDB sobre las sagas (ver `fuentes/sagas.dart`).
+  String get sagas => '$raiz${_sep}sagas.json';
+
   /// Miniatura de la carátula de la película con número [id].
   String miniatura(int id) => '$miniaturas$_sep$id.$extensionMiniaturas';
 

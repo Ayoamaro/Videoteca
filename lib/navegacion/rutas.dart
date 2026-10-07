@@ -89,6 +89,8 @@ final rutasProvider = Provider<GoRouter>((ref) {
                     generos: uno('genero'),
                     grupos: uno('grupo'),
                     subcarpetas: uno('carpeta'),
+                    desde: int.tryParse(datos['desde'] ?? ''),
+                    hasta: int.tryParse(datos['hasta'] ?? ''),
                     paises: uno('pais'),
                     sagas: uno('saga'),
                     director: datos['director'],

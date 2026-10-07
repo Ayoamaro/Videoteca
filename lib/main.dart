@@ -50,9 +50,43 @@ class VideotecaApp extends ConsumerWidget {
       supportedLocales: const [Locale('es', 'ES')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       scrollBehavior: const DesplazamientoApp(),
-      builder: (context, hijo) => BarrasSistema(child: hijo!),
+      builder: (context, hijo) => BarrasSistema(
+        child: _AvisoAlAbrir(
+          aviso: ref.read(avisoAlAbrirProvider),
+          child: hijo!,
+        ),
+      ),
     );
   }
+}
+
+/// Enseña [aviso] (si lo hay) en cuanto se abre la app.
+class _AvisoAlAbrir extends StatefulWidget {
+  const _AvisoAlAbrir({required this.aviso, required this.child});
+
+  final String? aviso;
+  final Widget child;
+
+  @override
+  State<_AvisoAlAbrir> createState() => _AvisoAlAbrirState();
+}
+
+class _AvisoAlAbrirState extends State<_AvisoAlAbrir> {
+  @override
+  void initState() {
+    super.initState();
+    final aviso = widget.aviso;
+    if (aviso == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(aviso), duration: const Duration(seconds: 8)),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Iconos de las barras del sistema del móvil (hora, batería, botones) en

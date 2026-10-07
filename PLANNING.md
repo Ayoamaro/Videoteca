@@ -200,9 +200,11 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 ## Fase 4 · Cierre
 
-### ☐ Día 17 — Estadísticas y exportación
+### ☑ Día 17 — Estadísticas y exportación
 - Estadísticas: por género, década y país, directores y actores más presentes, sagas incompletas.
 - Exportar a Excel y copia de seguridad del catálogo.
+
+**Hecho:** pantalla **Estadísticas** (en el PC y en el móvil): resumen (películas, horas de cine, espacio en disco, media de estrellas, sagas), la más antigua y la más larga, **gráfico por décadas** y listas con barras de **géneros, países, directores y actores**; cada barra abre el Catálogo ya filtrado (la ruta del Catálogo acepta ahora `desde`/`hasta` para las décadas). **Sagas incompletas** («Tienes 3 de 4» y cuáles te faltan): sin más datos se deducen por el número de cada película; con el botón **Comprobar en TMDB** (solo en el PC) se mira cuántas tiene de verdad cada saga (solo las ya estrenadas) y se guarda en `sagas.json`. Con tu colección: 758 sagas comprobadas en 77 s, 755 reconocidas, 430 completas y 270 incompletas. Se cuenta bien aunque una ficha tenga el año mal (tu *Licencia para matar* dice **1985** y es de **1989**). **Exportar a Excel** (Estadísticas y Ajustes): un `.xlsx` hecho por la propia app, sin complementos, con una fila por película y 26 columnas, la primera fila fija, filtros y enlaces a FilmAffinity e IMDb (5.526 películas = 3 MB en menos de medio segundo; comprobado abriéndolo con Excel). **Copia de seguridad** (Ajustes): un `.zip` con las fichas, el registro de cambios (con las carátulas para deshacerlos), los ajustes y las miniaturas (136 MB en 4,5 s); **tus claves nunca van dentro**. **Restaurar una copia**: la app se cierra y se vuelve a abrir sola con los datos de la copia, conserva las claves y la conexión con el tablón de este PC y guarda antes la base de datos actual como `videoteca-antes-de-restaurar.sqlite`. Los diálogos «Guardar como» y «Abrir» son los de Windows (sin plugins).
 
 ### ☐ Día 18 — Pulido
 - Rendimiento con las 5.541 películas.

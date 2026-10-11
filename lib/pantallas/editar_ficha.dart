@@ -1243,7 +1243,7 @@ class _CampoEstrellas extends StatelessWidget {
             if (estrellas > 0)
               TextButton(
                 onPressed: () => alCambiar(0),
-                child: const Text('Sin estrellas'),
+                child: const Text('Quitar estrellas'),
               )
             else
               Text(

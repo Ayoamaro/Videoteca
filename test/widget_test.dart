@@ -16,6 +16,7 @@ import 'package:videoteca/pantallas/acceso.dart';
 import 'package:videoteca/tablon/copia_local.dart';
 import 'package:videoteca/tema/tema.dart';
 import 'package:videoteca/utilidades.dart';
+import 'package:videoteca/widgets/buscador_sugerencias.dart';
 
 /// Catálogo con los datos de ejemplo en lugar de la base de datos.
 class _CatalogoEjemplo extends Catalogo {
@@ -522,6 +523,18 @@ void main() {
     );
     expect(find.text('Añadidas recientemente'), findsOneWidget);
   });
+
+  testWidgets('Consulta al día: sin hueco de más bajo el buscador', (
+    tester,
+  ) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    await abrirApp(tester, const Size(1440, 1000), consulta: true);
+    final buscador = tester.getRect(find.byType(BuscadorConSugerencias));
+    final titulo = tester.getRect(find.text('Añadidas recientemente'));
+    // Una sola separación entre los dos (36 px en el PC), no dos.
+    expect(titulo.top - buscador.bottom, inInclusiveRange(36, 60));
+  }, variant: windows);
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {
     await abrirApp(tester, const Size(1440, 1000), vacio: true);

@@ -55,7 +55,7 @@ class Pelicula {
     anio: d.anio,
     ruta: d.ruta,
     generos: d.generos,
-    temas: d.lista('System.Keywords'),
+    temas: separarTemas(d.lista('System.Keywords').join(';')),
     sinopsis: d.texto('System.Comment'),
     direccion: d.texto('System.Video.Director'),
     guion: d.texto('System.Media.Writer'),
@@ -186,4 +186,26 @@ class Pelicula {
     final numero = RegExp(r'\d+').firstMatch(clasificacion);
     return numero?.group(0) ?? '';
   }
+}
+
+/// Los temas de [texto], uno por uno. La app los guarda separados por «;»
+/// (un valor por tema, como Windows), pero también se aceptan escritos como
+/// los géneros: «Biográfico. Años 60. Años 70». No se corta tras «Dr.»,
+/// «Mr.» y parecidos.
+List<String> separarTemas(String texto) => [
+  for (final t in texto.split(_separadorTemas).map(_limpiarTema))
+    if (t.isNotEmpty) t,
+];
+
+final _separadorTemas = RegExp(
+  r';|(?<!\b(?:Dr|Dra|Mr|Mrs|Ms|Sr|Sra|Srta|Jr|St))\.\s+',
+);
+
+/// Sin espacios alrededor ni punto final («Crimen.» → «Crimen»; «EE.UU.» se
+/// queda igual).
+String _limpiarTema(String t) {
+  t = t.trim();
+  return t.endsWith('.') && t.indexOf('.') == t.length - 1
+      ? t.substring(0, t.length - 1).trim()
+      : t;
 }

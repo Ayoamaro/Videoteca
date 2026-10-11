@@ -89,6 +89,47 @@ void main() {
     expect(p.tamanoTexto, '1,0 GB');
   });
 
+  test('Temas: uno por valor o escritos como los géneros', () {
+    // Como los guarda la app (un valor por tema, separados por «;»).
+    expect(separarTemas('Mafia; Años 40;  ; Crimen'), [
+      'Mafia',
+      'Años 40',
+      'Crimen',
+    ]);
+    // Como los escribes tú, con puntos.
+    expect(separarTemas('Biográfico. Años 60. Años 70'), [
+      'Biográfico',
+      'Años 60',
+      'Años 70',
+    ]);
+    expect(separarTemas('Superhéroes. MCU. Secuela.'), [
+      'Superhéroes',
+      'MCU',
+      'Secuela',
+    ]);
+    // Sin cortar abreviaturas ni siglas.
+    expect(separarTemas('Dr. Seuss. Guerra de Secesión (EE.UU.)'), [
+      'Dr. Seuss',
+      'Guerra de Secesión (EE.UU.)',
+    ]);
+    expect(separarTemas('Robos & Atracos'), ['Robos & Atracos']);
+    expect(separarTemas(''), isEmpty);
+    // Leídos del archivo: cada valor de Windows, también troceado.
+    final d = DatosArchivo(
+      ruta: r'D:\Drama y Musical\Drama\Factory Girl (2006).mp4',
+      propiedades: {
+        'System.Keywords': ['Biográfico. Años 60', 'Años 70'],
+      },
+      caratula: null,
+      tamanoBytes: 0,
+    );
+    expect(Pelicula.desdeArchivo(d).temas, [
+      'Biográfico',
+      'Años 60',
+      'Años 70',
+    ]);
+  });
+
   testWidgets('La pantalla de lectura enseña los datos leídos', (tester) async {
     tester.view.physicalSize = const Size(1400, 1600);
     tester.view.devicePixelRatio = 1;

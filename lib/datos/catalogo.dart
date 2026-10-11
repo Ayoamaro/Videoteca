@@ -163,7 +163,7 @@ Pelicula peliculaDesdeFila(FilaPelicula f, CarpetasApp carpetas) {
     ruta: f.ruta,
     grupo: f.grupo,
     generos: trocear(f.generos, '.'),
-    temas: trocear(f.temas, ';'),
+    temas: separarTemas(f.temas),
     sinopsis: f.sinopsis,
     direccion: f.direccion,
     guion: f.guion,

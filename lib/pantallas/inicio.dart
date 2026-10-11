@@ -92,7 +92,11 @@ class PantallaInicio extends ConsumerWidget {
             if (ref.watch(actualizacionProvider.select((e) => e.avisar)))
               const AvisoVersionNueva(),
             if (esAdministrador && nuevas.isNotEmpty) _AvisoNuevas(nuevas),
-            if (!esAdministrador) const _AvisoSinConexion(),
+            // Solo si hay algo que decir: un aviso vacío dejaría el doble de
+            // espacio entre el buscador y lo siguiente.
+            if (!esAdministrador &&
+                ref.watch(consultaProvider.select(_hayAvisoSinConexion)))
+              const _AvisoSinConexion(),
             if (todas.isEmpty)
               const ColeccionVacia()
             else ...[
@@ -224,6 +228,11 @@ class BotonGenero extends StatelessWidget {
 }
 
 /// Banda dorada "3 películas nuevas detectadas".
+/// En consulta, si no se ha podido mirar si hay novedades (sin internet) y ya
+/// hay algo descargado (si no, ya avisa la franja de arriba).
+bool _hayAvisoSinConexion(EstadoConsulta e) =>
+    e.fase == FaseCopia.error && e.copia.commit.isNotEmpty;
+
 /// En consulta, si no se ha podido mirar si hay novedades (sin internet),
 /// una línea discreta que dice de cuándo es lo que se está viendo.
 class _AvisoSinConexion extends ConsumerWidget {
@@ -233,10 +242,6 @@ class _AvisoSinConexion extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colores;
     final e = ref.watch(consultaProvider);
-    // Sin nada descargado ya avisa la franja de arriba.
-    if (e.fase != FaseCopia.error || e.copia.commit.isEmpty) {
-      return const SizedBox.shrink();
-    }
     final fecha = e.copia.fecha;
     return Row(
       children: [

@@ -50,7 +50,8 @@ class _PantallaCompletarColeccionState
         if (!hayClave) _sinClave(context),
         _campos(context, estado),
         _progreso(context, estado, hayClave: hayClave),
-        _dudosas(context, estado),
+        if (ref.watch(colaDudosasProvider).isNotEmpty)
+          _dudosas(context, estado),
         if (estado.filas.isNotEmpty) _resultados(context, estado),
         if (estado.filas.isNotEmpty) _tandas(context, estado),
         const _Repaso(),
@@ -423,7 +424,6 @@ class _PantallaCompletarColeccionState
   Widget _dudosas(BuildContext context, EstadoColeccion estado) {
     final c = context.colores;
     final cola = ref.watch(colaDudosasProvider);
-    if (cola.isEmpty) return const SizedBox.shrink();
     return Tarjeta(
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,

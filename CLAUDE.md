@@ -3,7 +3,7 @@
 App de catálogo de películas para **Windows (administrador) y Android (consulta)**. El usuario habla en **español**, no conoce Flutter y quiere entender cada paso con explicaciones sencillas. Claude hace todo el desarrollo.
 
 ## Cómo trabajamos
-- El plan está en [PLANNING.md](PLANNING.md): 20 "días" = sesiones de trabajo. El usuario dice "vamos con el día X".
+- El plan está en [PLANNING.md](PLANNING.md): "días" = sesiones de trabajo (1–20 → v1.0; **Fase 5, días 21–24 → v1.1: red de casa**). El usuario dice "vamos con el día X".
 - **Al empezar una sesión:** leer `PLANNING.md` y ver qué días están marcados (☑) y el `git log`.
 - **Al terminar cada día:** marcar el día como ☑ en `PLANNING.md`, hacer commit (mensajes en español) y push.
 - Hasta el día 9 la app **solo lee** el disco. Cualquier escritura en `.mp4` se prueba antes con **copias**, nunca con los originales.
@@ -15,6 +15,7 @@ App de catálogo de películas para **Windows (administrador) y Android (consult
 - **Escribir con `IPropertyStore` (Windows) NO sirve** (comprobado el día 9 con copias): textos de más de 255 caracteres no se guardan aunque `Commit` dice que sí (con el reparto largo, lo **borró**), y reescribe el archivo entero (~10 s en el HDD). Por eso la app escribe ella misma las cajas `moov › udta › meta › ilst` (estándar iTunes) y `moov › udta › Xtra` (Microsoft, textos UTF-16) con el mismo formato que Windows, y **Windows lo vuelve a leer** para comprobarlo. Las sinopsis largas existentes las puso otro programa; la de *El Caballero Oscuro 3* (cortada a media palabra) probablemente se editó en el Explorador.
 - En tus archivos `moov` va al principio seguida de una caja `free` (3–60 KB): la `moov` nueva se escribe en su sitio (≈0,2 s, el vídeo no se mueve); si no cabe, va al final del archivo y la vieja pasa a `free`. Algunos archivos acaban en una caja `mdat` vacía de tamaño 0 (p. ej. *Superfrikis*).
 - La app debe ser **genérica**: carpeta raíz configurable y géneros detectados de las carpetas, sin nada fijo a este disco.
+- **Red de casa (visto el 2026-10-11, para la Fase 5):** el PC1 es `AYO-PC` (red privada). Comparte `Multimedia` = `D:\!Multimedia` (carpeta **oculta**: el escáner no entra en ocultas ni sigue uniones, así no hay duplicadas); dentro, `Películas\` = **uniones** (junctions) a cada grupo de `D:\`, y `Series`/`Documentales`/`Programas de TV` → `E:\Vídeos\…`. Ruta de red de una película = `\\AYO-PC\Multimedia\Películas\` + la ruta relativa que ya lleva el tablón (comprobado con *Factory Girl*). Cuenta *Invitado* activada; NTFS: *Todos*/*Invitado* lectura (RX), pero las carpetas de `D:\` dan **Modificar** a *Usuarios autentificados*: lo que impide escribir por la red es el permiso del recurso compartido (no se puede leer sin administrador). Los PC2/PC3 entran por red solo para leer; Windows 11 24H2+ bloquea al invitado → en esos PC, credenciales guardadas una vez. Decidido: en el **móvil**, «Dónde está» = solo la carpeta (`Drama y Musical › Drama`), sin ruta de red ni botones; copiar **una** película cada vez (varias → *Ideas*).
 
 ## Asignación de campos (Windows → significado)
 | Propiedad de Windows | Dato | Estado | Caja en el `.mp4` |

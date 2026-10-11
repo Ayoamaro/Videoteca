@@ -12,7 +12,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
   - hay algo que **se puede ver o probar**;
   - se hace **commit y push** a GitHub;
   - se marca el día como completado en este archivo (☐ → ☑).
-- Las versiones se etiquetan en GitHub: `v0.1`, `v0.2`… hasta `v1.0`.
+- Las versiones se etiquetan en GitHub: `v0.1`, `v0.2`… hasta `v1.0`; después, `v1.1`, `v1.2`…
 - **Regla de seguridad:** hasta el día 9 la app **solo lee** el disco. Antes de escribir en archivos reales, todo se prueba con copias.
 
 ## Stack
@@ -35,6 +35,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 | 2 · Escritura y datos automáticos | 9–13 | **v0.2**: completar fichas nuevas y toda la colección |
 | 3 · Publicación y móvil | 14–16 | **v0.3**: consulta desde Android |
 | 4 · Cierre | 17–20 | **v1.0**: estadísticas, pulido, instaladores y documentación |
+| 5 · Red de casa | 21–24 | **v1.1**: reproducir, abrir y copiar películas desde cualquier PC de casa |
 
 ---
 
@@ -232,6 +233,62 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 ---
 
+## Fase 5 · Red de casa
+
+**Objetivo:** que en **cualquier PC de casa** (no solo en el PC1, que tiene el disco) se pueda **reproducir, abrir la carpeta, copiar la ruta y copiar la película** a un disco o pendrive de ese PC, entrando al disco por la red y **solo para leer**. El móvil sigue siendo para consultar: dice en qué carpeta está cada película.
+
+**Cómo está montado en tu casa (visto el 11/10/2026):** el PC1 se llama `AYO-PC` y comparte `Multimedia` (= `D:\!Multimedia`, carpeta oculta). Dentro, `Películas` tiene una unión (un «atajo» de Windows) a cada carpeta de grupo de `D:\`; `Series`, `Documentales` y `Programas de TV` llevan a `E:\Vídeos`. Así, *Factory Girl* es `D:\Drama y Musical\Drama\Factory Girl (2006).mp4` en el PC1 y `\\AYO-PC\Multimedia\Películas\Drama y Musical\Drama\Factory Girl (2006).mp4` desde los demás: **la parte final es la misma** y el tablón ya la lleva; solo cambia el principio. La cuenta *Invitado* está activada y las carpetas dan a *Todos* permiso de solo lectura. Como `!Multimedia` está oculta, la app del PC1 no cuenta las películas dos veces (no hay que quitarle la marca de oculta).
+
+**Antes de empezar (tarea tuya, sin programar):**
+- En el PC1: *Panel de control → Redes e Internet → Centro de redes y recursos compartidos → Cambiar configuración de uso compartido avanzado → Todas las redes → Desactivar el uso compartido con protección por contraseña* (Windows pide permiso de administrador). Así se entra sin usuario ni contraseña.
+- Comprobar que el recurso compartido solo deja leer: *`D:\!Multimedia` → Propiedades → Compartir → Uso compartido avanzado → Permisos → Todos: solo «Leer»*. Es lo que impide modificar por la red (en las carpetas de `D:\`, Windows deja modificar a cualquier usuario con cuenta).
+- Mirar qué Windows tienen el PC2 y el PC3 (*Configuración → Sistema → Información*). Windows 11 reciente (24H2 o posterior) bloquea por seguridad la entrada como invitado: en esos PC no se baja la seguridad; se guarda la contraseña **una vez** («Recordar mis credenciales») y nadie vuelve a escribirla.
+
+### ☐ Día 21 — La ruta de red
+**Objetivo:** que cada PC sepa por dónde ve él las películas.
+- **PC1 (administrador):** en Ajustes, sección nueva **Red de casa** con la ruta para los demás PC. La app la **propone sola** buscando entre las carpetas compartidas del PC la que lleva a las películas (en tu caso `\\AYO-PC\Multimedia\Películas`); se puede cambiar o dejar vacía. Antes de aceptarla comprueba unas cuantas películas del catálogo por esa ruta.
+- La ruta viaja **cifrada en el tablón**, sin romper nada en las apps 1.0 ya instaladas (simplemente no la usan).
+- **PC2/PC3 (consulta en Windows):** en Ajustes, **Películas en la red**: usa la del tablón si funciona; si no, se elige la carpeta a mano (vale `\\…` o una letra como `Z:`). Comprueba que es la buena («Encontradas 20 de 20»). Cada PC guarda la suya.
+- Estado de la red **sin que la app se quede colgada** (la comprobación va aparte y con tiempo límite): disponible, PC1 apagado o sin red, o pide contraseña.
+- Todo genérico: nada fijo a `AYO-PC` ni a `Multimedia`.
+
+**Al terminar:** en un PC de consulta, Ajustes dice «Películas en la red: `\\AYO-PC\Multimedia\Películas` · disponible».
+**Cómo se prueba:** desde este PC, con una carpeta de datos aparte en modo consulta y la ruta de red real (solo leer, sin tocar tus películas).
+
+### ☐ Día 22 — La ficha en todos los aparatos
+**Objetivo:** Reproducir, Abrir carpeta y Copiar ruta funcionando igual en el PC1 y en los PC de la red.
+- **PC2/PC3 con la red disponible:** «Dónde está» con la ruta **de ese PC**, **Reproducir** (con el reproductor de ese PC), **Abrir carpeta** (el Explorador con la película ya seleccionada) y **Copiar ruta**. La **carátula grande** se lee del archivo por la red, como en el PC1 (ahora en consulta solo se ve la miniatura).
+- **Avisos claros:** PC1 apagado → botones desactivados y explicación; pide contraseña → botón **Abrir en el Explorador** (Windows la pide y la recuerda) y después todo funciona; película que ya no está en esa ruta (movida o borrada en el PC1 y el catálogo aún sin actualizar) → lo dice.
+- **PC fuera de casa o sin la red configurada:** como el móvil.
+- **Móvil:** «Dónde está» más sencillo, solo la carpeta: **Drama y Musical › Drama** (con la calidad y el tamaño, como ahora). Sin ruta de red ni botones.
+- Pruebas automáticas de la ficha en los tres casos (PC1, PC de la red y móvil).
+
+**Al terminar:** desde un PC de consulta, *Factory Girl* se reproduce con un clic.
+
+### ☐ Día 23 — Copiar película
+**Objetivo:** copiar una película a cualquier disco o pendrive del PC donde estás.
+- Botón **Copiar película** en la ficha (PC1 y PC de la red).
+- Ventana **¿Dónde quieres guardarla?** con las unidades de ese PC: nombre, si es disco interno o USB y espacio libre. Oculta las que no tienen nada dentro (lectores de tarjetas vacíos) y, en el PC1, el propio disco de la colección (una copia dentro saldría como película nueva duplicada).
+- Se guarda en una carpeta **Películas** en la raíz de la unidad elegida (se crea si no existe), o donde digas con **Elegir otra carpeta…**.
+- **Avisos antes de empezar:** no cabe; pendrive en formato FAT32 con una película de más de 4 GB (no la admite aunque haya espacio); ya existe en el destino (pregunta si reemplazarla).
+- **Copia en segundo plano** con barra de progreso, velocidad y tiempo restante (también en el menú); se puede seguir usando la app. **Cancelar** borra el trozo a medias. Al terminar comprueba que la copia está completa y ofrece **Abrir carpeta**. Si se quita el pendrive o se apaga el PC1 a mitad, lo explica y no deja un archivo roto.
+- **Una película cada vez** (copiar varias de golpe queda en *Ideas*).
+- El disco de las películas **solo se lee**: nunca se escribe en él.
+
+**Al terminar:** *Factory Girl* → Copiar película → pendrive → en unos segundos está en `E:\Películas`.
+**Cómo se prueba:** copiando películas pequeñas por la red a una carpeta temporal (también cancelar a mitad, destino lleno y «ya existe»).
+
+### ☐ Día 24 — Pruebas en casa · 🏷 v1.1
+- **Recorrido real:** instalar la 1.1 en el PC1 (propone y publica la ruta), en el PC2/PC3 (Reproducir, Abrir carpeta, Copiar ruta y Copiar película a un pendrive) y en el móvil («Dónde está»).
+- Casos: PC1 apagado, con y sin contraseña, Windows 10 y 11.
+- **Documentación:** en la [guía](docs/guia.md), «Usar Videoteca en otros PC de casa» (compartir la carpeta solo para leer y sin contraseña, y qué hacer si Windows la pide), y las novedades `docs/novedades/v1.1.md`.
+- 🎉 **v1.1** publicada en GitHub (instalador y APK).
+
+**Necesito de ti:** estar delante del PC2 o el PC3 y tener a mano un pendrive.
+**Al terminar:** 🎉 **v1.1** — cualquier PC de casa ve, reproduce y copia tus películas.
+
+---
+
 ## Decisiones pendientes
 
 | Decisión | Se resuelve el |
@@ -241,6 +298,9 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 | ~~Temas y premios de FilmAffinity en lote o solo en nuevas~~ | ☑ Día 13: repaso aparte, contigo delante |
 | ~~Contraseña común para los usuarios~~ | ☑ Día 14: la eliges tú en Ajustes (no se guarda) |
 | ~~Publicar la APK en Google Play (25 €, opcional)~~ | ☑ Día 19: no, se sigue con la APK de GitHub |
+| ~~Qué enseña «Dónde está» en el móvil~~ | ☑ 11/10: solo la carpeta (Drama y Musical › Drama), sin ruta de red ni botones |
+| ~~Copiar varias películas de golpe~~ | ☑ 11/10: de momento una a una; varias, en *Ideas* |
+| Red de casa: entrar como invitado o con la contraseña guardada en cada PC | Antes del día 21 (depende del Windows del PC2 y el PC3) |
 
 ## Ideas para después de la v1.0
 
@@ -250,3 +310,5 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 - Marcar películas como vistas y nota personal.
 - Varios discos o colecciones.
 - Publicar también en el tablón las sagas comprobadas en TMDB, para que el móvil cuente igual que el PC (ahora las deduce por el número de cada película).
+- Copiar varias películas de golpe: marcarlas mientras se navega y copiarlas una detrás de otra (no va más lento que de una en una).
+- Probar a reproducir en el móvil desde la red de casa con VLC para Android (solo en casa y con el PC1 encendido).

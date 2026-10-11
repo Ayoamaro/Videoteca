@@ -104,8 +104,12 @@ jobs:
           $app = "$carpeta\videoteca.exe"
           $datos = "$env:LOCALAPPDATA\Videoteca"
 
-          Start-Process $instalador -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
-          if (-not (Test-Path $app)) { Falla "No se ha instalado en $carpeta" }
+          $registroInstalar = "$env:RUNNER_TEMP\instalar.log"
+          $p = Start-Process $instalador -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$registroInstalar`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0 -or -not (Test-Path $app)) {
+            Get-Content $registroInstalar -ErrorAction SilentlyContinue | Select-Object -Last 60
+            Falla "No se ha instalado en $carpeta (código $($p.ExitCode))"
+          }
           $info = (Get-Item $app).VersionInfo
           Write-Output "Instalada: $($info.ProductName) $($info.ProductVersion) ($($info.CompanyName))"
           if (-not $info.ProductVersion.StartsWith($env:NUMERO)) { Falla "El .exe dice ser la versión $($info.ProductVersion)" }

@@ -1,6 +1,6 @@
 # Guía de uso de Videoteca
 
-Esta guía explica cómo montar tu propia colección con Videoteca, desde ordenar las películas hasta consultarlas en el móvil. No hace falta saber programar.
+Esta guía explica cómo montar tu propia colección con Videoteca, desde ordenar las películas hasta consultarlas en el móvil y verlas desde los demás PC de casa. No hace falta saber programar.
 
 **Índice**
 
@@ -15,8 +15,9 @@ Esta guía explica cómo montar tu propia colección con Videoteca, desde ordena
 9. [Pendientes, estadísticas, Excel y copias de seguridad](#9-pendientes-estadísticas-excel-y-copias-de-seguridad)
 10. [Publicar el catálogo para el móvil](#10-publicar-el-catálogo-para-el-móvil)
 11. [El móvil y otros PC (modo consulta)](#11-el-móvil-y-otros-pc-modo-consulta)
-12. [Actualizar y desinstalar](#12-actualizar-y-desinstalar)
-13. [Preguntas frecuentes](#13-preguntas-frecuentes)
+12. [Usar Videoteca en otros PC de casa](#12-usar-videoteca-en-otros-pc-de-casa)
+13. [Actualizar y desinstalar](#13-actualizar-y-desinstalar)
+14. [Preguntas frecuentes](#14-preguntas-frecuentes)
 
 ---
 
@@ -72,7 +73,7 @@ Los datos de la app (catálogo, miniaturas de las carátulas, ajustes) se guarda
 
 - **Inicio**: el buscador (también con **Ctrl + K** desde cualquier pantalla), las añadidas recientemente y los géneros. Busca por título (el español o el original), actor o director, sin importar tildes ni mayúsculas, con palabras a medias y en cualquier orden. «origen 2010» busca título y año.
 - **Catálogo**: cuadrícula o lista, con filtros que se combinan (género, carpeta, año, país, estrellas, edad, saga, dirección, reparto) y orden por fecha añadida, título, año o estrellas.
-- **Ficha**: todos los datos, con *Dónde está* (ruta, calidad y tamaño) y los botones **Reproducir** (con tu reproductor de Windows), **Abrir carpeta** y **Copiar ruta**. Pulsa un actor o un director para ver sus otras películas de tu colección.
+- **Ficha**: todos los datos, con *Dónde está* (ruta, calidad y tamaño) y los botones **Reproducir** (con tu reproductor de Windows), **Abrir carpeta**, **Copiar ruta** y **Copiar película** (a un pendrive u otro disco, [apartado 12](#copiar-una-película)). Pulsa un actor o un director para ver sus otras películas de tu colección.
 - **El disco, vigilado**: mientras la app está abierta, en cuanto copias, mueves o borras una película lo detecta. Las nuevas van a **Películas nuevas**; las movidas o renombradas conservan su ficha; las que desaparecen no se borran solas (salen en Pendientes). Si el disco se desconecta, el buscador sigue funcionando y la app avisa.
 
 ## 6. Las claves gratuitas de TMDB y OMDb
@@ -174,16 +175,58 @@ Si un día quieres que alguien deje de tener acceso, usa **Cambiar contraseña c
 3. En **Consultar el catálogo** escribe el **tablón** (`usuario/nombre`, o su enlace de GitHub) y la **contraseña común**. Ojo: algunos teclados cambian letras al escribir contraseñas; toca el ojo para comprobarla.
 4. La primera vez se descarga el catálogo con sus carátulas (unos segundos o minutos, según la colección). Queda guardado: se puede consultar **sin internet**, y cada vez que abres la app solo se bajan los cambios.
 
-**Otro PC con Windows**: instala la app igual que en el [apartado 3](#3-instala-la-app-en-el-pc) y elige **Consultar el catálogo**.
+**Otro PC con Windows**: instala la app igual que en el [apartado 3](#3-instala-la-app-en-el-pc) y elige **Consultar el catálogo**. Si ese PC está en la misma red de casa que el de las películas, también puede reproducirlas y copiarlas ([apartado 12](#12-usar-videoteca-en-otros-pc-de-casa)).
 
-En el modo consulta solo se busca y se miran fichas: no se puede cambiar nada.
+En el modo consulta no se puede cambiar nada: se busca, se miran fichas y, en los PC de casa, se ven y se copian películas. En el móvil, *Dónde está* dice solo la carpeta de cada película (por ejemplo, «Drama y Musical › Drama»).
 
-## 12. Actualizar y desinstalar
+## 12. Usar Videoteca en otros PC de casa
+
+En los demás PC de casa (en modo consulta), además de buscar, puedes **reproducir** las películas, **abrir su carpeta** y **copiarlas** a un pendrive o un disco de ese PC. Entran al disco del PC de las películas por la red de casa y **solo para leer**: desde ellos no se puede cambiar ni borrar nada.
+
+### En el PC de las películas (una sola vez)
+
+1. **La red de casa, como privada.** *Configuración → Red e Internet →* tu red (Wi-Fi o Ethernet) *→ Perfil de red: Privada*. En una red «pública», Windows no deja que los demás PC vean las carpetas compartidas.
+2. **Comparte la carpeta de las películas, solo para leer.** Lo más sencillo es compartir la carpeta principal de la colección (o el disco entero): en el Explorador, clic derecho → *Propiedades → Compartir → Uso compartido avanzado…* → marca *Compartir esta carpeta* → *Permisos* → para *Todos*, deja marcado solo **Leer** (quita *Cambiar* y *Control total*) → *Aceptar*. Ese permiso es el que impide cambiar o borrar películas desde otro PC.
+3. **Entrar sin contraseña** (recomendado): *Panel de control → Redes e Internet → Centro de redes y recursos compartidos → Cambiar configuración de uso compartido avanzado → Todas las redes → Desactivar el uso compartido con protección por contraseña* (en Windows 11: *Configuración → Red e Internet → Configuración de red avanzada → Configuración de uso compartido avanzado*). Windows pide permiso de administrador. Así los demás PC entran sin usuario ni contraseña (salvo los que tienen Windows 11 reciente: mira [Si Windows pide usuario y contraseña](#si-windows-pide-usuario-y-contraseña)).
+4. **En Videoteca, *Ajustes → Red de casa***. La app busca sola, entre las carpetas que comparte el PC, la que lleva a las películas, y prueba 20 de ellas: «encontradas 20 de 20 películas de prueba». Pulsa **Usar esta ruta**. Se publica **cifrada** en el tablón junto con el catálogo, y los demás PC la usan sin que tengas que hacer nada en ellos. Si no la encuentra, *Escribir la ruta…* (por ejemplo, `\\NOMBRE-DEL-PC\Películas`).
+
+### En los demás PC
+
+1. Instala Videoteca y entra con **Consultar el catálogo** ([apartado 11](#11-el-móvil-y-otros-pc-modo-consulta)).
+2. *Ajustes → Películas en la red* dice si este PC llega a las películas y lo vuelve a mirar cada minuto:
+   - **Disponible**: todo listo.
+   - **Sin conexión**: el PC de las películas está apagado o este PC no está en la red de casa. La app no se queda esperando: lo sabe en unos 3 segundos.
+   - **Pide contraseña**: mira el apartado siguiente.
+   - **No se encuentra**: se llega al PC, pero en esa carpeta no están las películas.
+
+   Si este PC ve las películas por otro camino (por ejemplo, una unidad de red `Z:`), pulsa *Cambiar…* y elígela; cada PC guarda la suya.
+3. En la ficha, *Dónde está* enseña la ruta de la película **desde ese PC** y los botones **Reproducir** (con el reproductor de ese PC), **Abrir carpeta** (el Explorador con la película ya seleccionada), **Copiar ruta** y **Copiar película**. La carátula grande se lee del archivo por la red. Si el PC de las películas está apagado, los botones se desactivan y lo explica; si la película se ha movido o borrado y el catálogo aún no se ha actualizado, también lo dice.
+
+### Si Windows pide usuario y contraseña
+
+Pasa si el PC de las películas tiene la protección por contraseña activada o si el otro PC tiene **Windows 11 24H2 o posterior** (por seguridad, ya no deja entrar «como invitado», sin contraseña). No hace falta bajar la seguridad de nada; se hace **una vez** en cada PC:
+
+1. En *Ajustes → Películas en la red* (o en la ficha), pulsa **Abrir en el Explorador**.
+2. Windows pide usuario y contraseña: escribe los de una cuenta del PC de las películas, con el nombre de ese PC delante (`NOMBRE-DEL-PC\usuario`), y marca **Recordar mis credenciales**.
+3. Vuelve a Videoteca: lo comprueba sola y pasa a **Disponible**. Windows recuerda la contraseña y nadie tiene que volver a escribirla.
+
+La cuenta tiene que tener contraseña (Windows no deja entrar por la red con una cuenta sin contraseña). Si no quieres usar la tuya, crea una solo para esto en el PC de las películas: *Configuración → Cuentas → Familia y otros usuarios → Agregar otra persona* (o *Agregar cuenta*) *→ No tengo los datos de inicio de sesión de esta persona → Agregar un usuario sin cuenta Microsoft*. Como la carpeta se comparte solo para leer, con esa cuenta tampoco se puede cambiar nada por la red.
+
+### Copiar una película
+
+En la ficha, **Copiar película** abre *¿Dónde quieres guardarla?* con las unidades de ese PC: pendrives, discos USB, tarjetas y discos internos, con su espacio libre. Elige una y la película se guarda en la carpeta **Películas** de esa unidad (se crea sola), o donde quieras con *Elegir otra carpeta…*.
+
+- Antes de empezar avisa si **no cabe**, si la película **ya está copiada** ahí (pregunta si reemplazarla) o si el pendrive está en formato **FAT32** y la película pasa de 4 GB: ese formato no admite archivos tan grandes aunque haya sitio. Para usarlo, formatéalo en **exFAT** (clic derecho en el pendrive → *Formatear…*; **borra lo que tenga**).
+- La copia va **en segundo plano**, con su avance, velocidad y tiempo restante en la ficha y en el menú: puedes seguir usando la app. **Una película cada vez.** *Cancelar* borra lo copiado.
+- Mientras se copia, el archivo se llama «… .mp4.parcial»; solo al terminar, y **comprobado** que es igual que el original, pasa a llamarse como la película. Si se quita el pendrive o se corta la red a mitad, la app lo explica y nunca deja una película rota.
+- En el PC de las películas también funciona, a cualquier otro disco o pendrive. El disco de la colección no sale en la lista: en él no se escribe nada (y una copia dentro saldría como película nueva repetida).
+
+## 13. Actualizar y desinstalar
 
 - La app **avisa sola** cuando hay una versión nueva (en Inicio, y en *Ajustes → Acerca de Videoteca*). *Novedades y descarga* enseña lo que cambia y baja el instalador (en el PC) o la APK (en el móvil). Se instalan **encima** de la versión que tienes y no se pierde nada; en el PC, el instalador cierra la app y la vuelve a abrir.
 - **Desinstalar en Windows**: *Configuración → Aplicaciones → Videoteca → Desinstalar*. Al final pregunta si quieres borrar también los datos de la app (catálogo, miniaturas, registro de cambios, ajustes); si piensas volver a instalarla, di que no. **Tus películas no se tocan nunca.**
 
-## 13. Preguntas frecuentes
+## 14. Preguntas frecuentes
 
 **¿La app cambia mis películas?**
 Solo escribe dentro de un archivo cuando tú guardas una ficha (o lanzas *Completar mi colección*), y solo los datos: el vídeo no se toca. Después de cada escritura se comprueba que el vídeo y la carátula siguen intactos; si algo falla, el archivo vuelve a quedar byte a byte como estaba. Todo queda en el Registro de cambios y se puede deshacer.
@@ -205,6 +248,9 @@ No se puede recuperar (no se guarda en ningún sitio). Pon una nueva con *Ajuste
 
 **El disco está desconectado.**
 La app lo indica con una franja y un punto rojo en el menú. Puedes seguir buscando; *Reproducir* y *Abrir carpeta* esperan a que vuelva.
+
+**Otro PC de casa dice «Sin conexión» con el PC de las películas encendido.**
+Comprueba que los dos PC están en la misma red, que en el de las películas la red es **privada** y que la carpeta sigue compartida (en el otro PC, escribe `\\NOMBRE-DEL-PC` en la barra del Explorador: tiene que salir la carpeta). Si el PC de las películas está en suspensión, los demás tampoco llegan: tiene que estar encendido.
 
 **¿Se puede abrir la app dos veces?**
 No: si ya está abierta, al abrirla otra vez se trae al frente la que hay.

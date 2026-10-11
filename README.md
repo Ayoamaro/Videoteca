@@ -5,7 +5,7 @@
 Videoteca recorre la carpeta (o el disco) donde guardas tus películas `.mp4`, lee los datos y la carátula que lleva cada archivo y te deja buscarlas al instante: por título, título original, actor o director. Rellena las fichas que faltan con datos de internet, los guarda **dentro de cada archivo** (como hace Windows en *Propiedades → Detalles*) y publica el catálogo, **cifrado**, para consultarlo desde el móvil sin servidores ni cuotas.
 
 - **Windows** (administrador): escanea el disco, vigila las películas nuevas, completa fichas, publica.
-- **Android** y otros PC (consulta): ¿la tengo o no la tengo? Buscar, ver fichas y carátulas, también sin internet.
+- **Android** y otros PC (consulta): ¿la tengo o no la tengo? Buscar, ver fichas y carátulas, también sin internet. En los PC de casa, además, reproducir y copiar las películas por la red.
 
 Es gratis, de código abierto (licencia [MIT](LICENSE)) y está en español.
 
@@ -36,12 +36,13 @@ La guía completa, paso a paso, está en **[docs/guia.md](docs/guia.md)**.
 
 - **Buscador instantáneo** (Ctrl + K): sin importar tildes ni mayúsculas, con palabras a medias, «spiderman» = «Spider-Man».
 - **Catálogo con filtros** combinables: género, carpeta, año, país, estrellas, edad, saga, dirección y reparto.
-- **Ficha** con sinopsis, reparto, premios, enlaces a FilmAffinity e IMDb y *Dónde está* (reproducir, abrir la carpeta).
+- **Ficha** con sinopsis, reparto, premios, enlaces a FilmAffinity e IMDb y *Dónde está* (reproducir, abrir la carpeta, copiar la película a un pendrive u otro disco).
 - **Vigila el disco**: las películas nuevas aparecen solas con sus datos ya buscados; las movidas conservan su ficha.
 - **Completa las fichas** con TMDB, OMDb (Rotten Tomatoes), Wikidata y FilmAffinity, y las guarda dentro del `.mp4` comprobando después que el vídeo y la carátula quedan intactos. **Registro de cambios** con deshacer.
 - **Pendientes**: duplicadas, sin carátula, incompletas y nombres fuera de formato.
 - **Estadísticas** (géneros, décadas, países, directores, actores, sagas incompletas), **exportar a Excel** y **copia de seguridad**.
 - **Modo consulta** en el móvil y en otros PC: el catálogo se descarga cifrado y se guarda para usarlo sin internet; después solo se bajan los cambios.
+- **Red de casa**: desde cualquier PC de casa, reproducir una película, abrir su carpeta o **copiarla a un pendrive**, entrando por la red al disco de las películas solo para leer. La app encuentra sola la carpeta compartida y avisa si el PC de las películas está apagado o pide contraseña.
 
 ## Privacidad y seguridad
 
@@ -52,7 +53,7 @@ La guía completa, paso a paso, está en **[docs/guia.md](docs/guia.md)**.
 
 ## Más documentación
 
-- [Guía de uso](docs/guia.md): preparar la colección, instalar, completar fichas, publicar, el móvil y preguntas frecuentes.
+- [Guía de uso](docs/guia.md): preparar la colección, instalar, completar fichas, publicar, el móvil, los demás PC de casa y preguntas frecuentes.
 - [Tu propia versión](docs/tu-propia-version.md): compilar la app, publicar tus instaladores con GitHub Actions y firmar tu APK.
 - [Novedades de cada versión](docs/novedades/) y [cómo se ha hecho, día a día](PLANNING.md).
 

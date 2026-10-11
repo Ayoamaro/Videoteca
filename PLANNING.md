@@ -244,7 +244,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 - Comprobar que el recurso compartido solo deja leer: *`D:\!Multimedia` → Propiedades → Compartir → Uso compartido avanzado → Permisos → Todos: solo «Leer»*. Es lo que impide modificar por la red (en las carpetas de `D:\`, Windows deja modificar a cualquier usuario con cuenta).
 - Mirar qué Windows tienen el PC2 y el PC3 (*Configuración → Sistema → Información*). Windows 11 reciente (24H2 o posterior) bloquea por seguridad la entrada como invitado: en esos PC no se baja la seguridad; se guarda la contraseña **una vez** («Recordar mis credenciales») y nadie vuelve a escribirla.
 
-### ☐ Día 21 — La ruta de red
+### ☑ Día 21 — La ruta de red
 **Objetivo:** que cada PC sepa por dónde ve él las películas.
 - **PC1 (administrador):** en Ajustes, sección nueva **Red de casa** con la ruta para los demás PC. La app la **propone sola** buscando entre las carpetas compartidas del PC la que lleva a las películas (en tu caso `\\AYO-PC\Multimedia\Películas`); se puede cambiar o dejar vacía. Antes de aceptarla comprueba unas cuantas películas del catálogo por esa ruta.
 - La ruta viaja **cifrada en el tablón**, sin romper nada en las apps 1.0 ya instaladas (simplemente no la usan).
@@ -254,6 +254,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 **Al terminar:** en un PC de consulta, Ajustes dice «Películas en la red: `\\AYO-PC\Multimedia\Películas` · disponible».
 **Cómo se prueba:** desde este PC, con una carpeta de datos aparte en modo consulta y la ruta de red real (solo leer, sin tocar tus películas).
+**Hecho:** **en el PC1**, *Ajustes → Red de casa* busca sola entre las carpetas que comparte el PC y **propone `\\AYO-PC\Multimedia\Películas`** («encontradas 20 de 20 películas de prueba», en menos de 1 s); con «Usar esta ruta» queda guardada y se publica **cifrada dentro del índice del tablón** (2 s después; si solo cambia la ruta, se sube solo el índice). Una carpeta de este PC (`D:\…`) no se acepta: los demás no la ven así. Las apps 1.0 ya instaladas leen el tablón igual que antes (el formato no cambia; simplemente no ven la ruta). **En un PC de consulta**, *Ajustes → Películas en la red* usa la del tablón y la comprueba sola (y cada minuto); también se puede elegir otra (`\\…` o una unidad como `Z:`) y volver a la del administrador. Estados: **Disponible**, **Sin conexión** (PC1 apagado o sin red), **Pide contraseña** (con el botón «Abrir en el Explorador» y qué hacer) y **No se encuentra** (la carpeta no es la buena). La comprobación va aparte: primero se «llama» al PC con un límite de 3 s, así un PC apagado nunca deja la app esperando (Windows tardaría hasta medio minuto). **Probado con tu red real** y una copia de tus datos en modo consulta: «`\\AYO-PC\Multimedia\Películas` · Disponible · Publicada por el administrador · encontradas 20 de 20»; con un PC que no existe, «Comprobando…» y a los 3 s «Sin conexión», sin que la app se pare. Lo que no se puede probar desde aquí es «Pide contraseña» (este PC entra con tu propio usuario): queda para el día 24 en el PC2/PC3. Herramienta para probarlo desde la terminal: `dart run tool/probar_red.dart D:\ [ruta]`.
 
 ### ☐ Día 22 — La ficha en todos los aparatos
 **Objetivo:** Reproducir, Abrir carpeta y Copiar ruta funcionando igual en el PC1 y en los PC de la red.

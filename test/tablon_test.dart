@@ -161,14 +161,16 @@ void main() {
       temporal.deleteSync(recursive: true);
     });
 
-    Future<ResultadoPublicacion> publicar() async => publicarTablon(
-      github: GitHub('yo/tablon', 'llave', cliente: falso.cliente),
-      llave: llave,
-      parametros: parametros,
-      filas: await bd.todasLasPeliculas(),
-      raiz: 'D:\\',
-      carpetas: carpetas,
-    );
+    Future<ResultadoPublicacion> publicar({String red = ''}) async =>
+        publicarTablon(
+          github: GitHub('yo/tablon', 'llave', cliente: falso.cliente),
+          llave: llave,
+          parametros: parametros,
+          filas: await bd.todasLasPeliculas(),
+          raiz: 'D:\\',
+          carpetas: carpetas,
+          red: red,
+        );
 
     test(
       'la primera vez lo sube todo y se puede leer con la contraseña',
@@ -234,6 +236,61 @@ void main() {
       // El grupo 001 del catálogo y el índice; las carátulas no cambian.
       expect(r.subidos, 2);
       expect(falso.commits, 2);
+    });
+
+    test('la ruta de red va cifrada en el índice; cambiarla publica', () async {
+      final lector = LectorTablon('yo/tablon', cliente: falso.cliente);
+      Future<String> redPublicada() async =>
+          (await lector.indice(await lector.ultimoCommit(), llave)).red;
+
+      await publicar();
+      expect(await redPublicada(), '');
+      // Solo cambia la ruta: se publica una versión nueva con solo el índice.
+      final r = await publicar(red: r'\\CASA-PC\Pelis\Películas');
+      expect(r.sinCambios, isFalse);
+      expect(r.version, 2);
+      expect(r.subidos, 1);
+      expect(await redPublicada(), r'\\CASA-PC\Pelis\Películas');
+      // La misma ruta otra vez: nada que publicar.
+      expect(
+        (await publicar(red: r'\\CASA-PC\Pelis\Películas')).sinCambios,
+        isTrue,
+      );
+      // Quitarla también se publica.
+      expect((await publicar()).version, 3);
+      expect(await redPublicada(), '');
+    });
+
+    test('un índice con la ruta de red se lee igual que uno sin ella', () {
+      // Así lo leen las apps 1.0, que no conocen la ruta: el formato es el
+      // mismo y lo demás no cambia.
+      final indice = IndiceTablon(
+        version: 7,
+        fecha: DateTime.utc(2026, 10, 11),
+        peliculas: 3,
+        catalogo: const {'000': 'a'},
+        caratulas: const {},
+        red: r'\\CASA-PC\Pelis',
+      );
+      final json = jsonDecode(
+        utf8.decode(gzip.decode(indice.aBytes())),
+      ) as Map<String, dynamic>;
+      expect(json['formato'], formatoTablon);
+      expect(json['red'], r'\\CASA-PC\Pelis');
+      final leido = IndiceTablon.desdeBytes(indice.aBytes());
+      expect(
+        (leido.version, leido.peliculas, leido.red),
+        (7, 3, r'\\CASA-PC\Pelis'),
+      );
+      // Sin ruta, ni siquiera aparece.
+      final sinRed = IndiceTablon(
+        version: 1,
+        fecha: DateTime.utc(2026),
+        peliculas: 0,
+        catalogo: const {},
+        caratulas: const {},
+      );
+      expect(utf8.decode(gzip.decode(sinRed.aBytes())), isNot(contains('red')));
     });
 
     test('al quitar una película desaparece su grupo vacío', () async {

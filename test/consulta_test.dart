@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -73,7 +74,7 @@ void main() {
     });
 
     var version = 0;
-    Future<void> publicar() async {
+    Future<void> publicar({String red = ''}) async {
       final r = await publicarTablon(
         github: GitHub('yo/tablon', 'llave', cliente: falso.cliente),
         llave: llave,
@@ -82,6 +83,7 @@ void main() {
         raiz: 'D:\\',
         carpetas: carpetasPc,
         versionAnterior: version,
+        red: red,
       );
       version = r.version;
     }
@@ -166,6 +168,47 @@ void main() {
       expect(filas, hasLength(4));
       expect(filas.firstWhere((f) => f.id == 150).pais, 'Francia');
     });
+
+    test('la ruta de red del PC llega con el catálogo', () async {
+      version = 0;
+      await publicar(red: r'\\CASA-PC\Pelis\Películas');
+      final r = await descargar();
+      expect(r.estado.red, r'\\CASA-PC\Pelis\Películas');
+      // Se guarda con la copia.
+      expect(
+        EstadoCopia.deAjustes(await movil.todosLosAjustes()).red,
+        r'\\CASA-PC\Pelis\Películas',
+      );
+      // Si el administrador la quita, también se quita aquí.
+      await publicar();
+      expect((await descargar()).estado.red, '');
+    });
+
+    test(
+      'una copia de la versión 1.0 (sin la ruta) lee el índice una vez',
+      () async {
+        version = 0;
+        await publicar(red: r'\\CASA-PC\Pelis');
+        await descargar();
+        // Como la dejaba la 1.0: sin «red».
+        final copia = EstadoCopia.deAjustes(await movil.todosLosAjustes());
+        final json = copia.toJson()..remove('red');
+        await movil.guardarAjuste(AjusteConsulta.copia, jsonEncode(json));
+        expect(
+          EstadoCopia.deAjustes(await movil.todosLosAjustes()).red,
+          isNull,
+        );
+
+        final antes = falso.descargas;
+        final r = await descargar();
+        expect(r.alDia, isTrue);
+        expect(r.estado.red, r'\\CASA-PC\Pelis');
+        expect(falso.descargas, antes + 1); // solo el índice
+        // La siguiente vez ya no hace falta.
+        await descargar();
+        expect(falso.descargas, antes + 1);
+      },
+    );
 
     test('las películas quitadas en el PC desaparecen de la copia', () async {
       version = 0;

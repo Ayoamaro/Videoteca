@@ -8,6 +8,7 @@ import '../tablon/cifrado.dart';
 import '../tablon/github.dart';
 import '../tablon/publicador.dart';
 import 'catalogo.dart';
+import 'red_casa.dart';
 
 // La publicación del catálogo en el tablón de GitHub, desde el PC del
 // administrador.
@@ -157,6 +158,10 @@ class Tablon extends Notifier<EstadoTablon> {
     ref.listen(catalogoProvider, (antes, ahora) {
       if (antes?.value != null && ahora.value != null) _programar();
     });
+    // La ruta de red va en el índice: al cambiarla se publica enseguida.
+    ref.listen(rutaRedProvider, (antes, ahora) {
+      if (antes != ahora) _programar(espera: const Duration(seconds: 2));
+    });
     if (estado.configurado) {
       // Al abrir la app, por si quedó algo sin publicar la otra vez.
       if (estado.automatico) {
@@ -277,6 +282,7 @@ class Tablon extends Notifier<EstadoTablon> {
         raiz: raiz,
         carpetas: ref.read(carpetasAppProvider),
         versionAnterior: state.version,
+        red: ref.read(rutaRedProvider) ?? '',
         alAvanzar: (p) => state = state.copyWith(
           fase: FasePublicacion.publicando,
           progreso: p,

@@ -19,6 +19,10 @@ bool get esAdministrador =>
 /// En el móvil solo se puede consultar: el administrador trabaja en el PC.
 bool get puedeAdministrar => defaultTargetPlatform != TargetPlatform.android;
 
+/// Los PC de casa ven las películas por la red (el móvil no: solo dice en
+/// qué carpeta está cada una).
+bool get hayRedDeCasa => defaultTargetPlatform == TargetPlatform.windows;
+
 /// 5541 → "5.541" (con punto de miles también en números de 4 cifras).
 String formatoNumero(int n) {
   final s = n.abs().toString();

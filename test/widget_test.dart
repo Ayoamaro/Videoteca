@@ -9,6 +9,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:videoteca/datos/catalogo.dart';
 import 'package:videoteca/datos/consulta.dart';
 import 'package:videoteca/datos/ejemplo.dart';
+import 'package:videoteca/datos/red_casa.dart';
+import 'package:videoteca/disco/red.dart';
 import 'package:videoteca/datos/sesion.dart';
 import 'package:videoteca/main.dart';
 import 'package:videoteca/modelos/pelicula.dart';
@@ -60,9 +62,46 @@ class _ConsultaAlDia extends Consulta {
       version: 2,
       fecha: DateTime(2026, 10, 4),
       peliculas: peliculasEjemplo.length,
+      red: r'\\CASA-PC\Pelis\Películas',
     ),
     comprobada: DateTime.now(),
   );
+}
+
+/// Red de casa de mentira: en `\\CASA-PC\Pelis\Películas` están todas.
+class _RedFalsa extends ServicioRed {
+  const _RedFalsa();
+
+  @override
+  Future<ComprobacionRed> comprobar(String ruta, List<String> muestras) async =>
+      ruta.startsWith(r'\\CASA-PC\Pelis\Películas')
+      ? ComprobacionRed(
+          EstadoRed.disponible,
+          encontradas: muestras.length,
+          probadas: muestras.length,
+        )
+      : ruta.startsWith(r'\\OTRO-PC')
+      ? const ComprobacionRed(EstadoRed.contrasena, codigo: 1272)
+      : ComprobacionRed(EstadoRed.noEncontrada, probadas: muestras.length);
+
+  @override
+  Future<PropuestaRed?> buscar(String raiz, List<String> muestras) async => (
+    ruta: r'\\CASA-PC\Pelis\Películas',
+    encontradas: muestras.length,
+    probadas: muestras.length,
+  );
+
+  @override
+  bool esDeEstePc(String ruta) => !ruta.startsWith(r'\\');
+}
+
+/// La ruta de red guardada solo en memoria (sin base de datos).
+class _RutaRedEnMemoria extends RutaRed {
+  @override
+  String? build() => null;
+
+  @override
+  Future<void> cambiar(String ruta) async => state = ruta;
 }
 
 /// Arranca la app con una ventana del tamaño indicado. Sin [carpetaRaiz],
@@ -95,6 +134,8 @@ Future<void> abrirApp(
           consultaProvider.overrideWith(
             sinInternet ? _ConsultaSinInternet.new : _ConsultaAlDia.new,
           ),
+        servicioRedProvider.overrideWithValue(const _RedFalsa()),
+        rutaRedProvider.overrideWith(_RutaRedEnMemoria.new),
       ],
       child: const VideotecaApp(),
     ),
@@ -535,6 +576,111 @@ void main() {
     // Una sola separación entre los dos (36 px en el PC), no dos.
     expect(titulo.top - buscador.bottom, inInclusiveRange(36, 60));
   }, variant: windows);
+
+  testWidgets('Red de casa en el PC: la app propone la ruta y se guarda', (
+    tester,
+  ) async {
+    final n = peliculasEjemplo.length;
+    await abrirApp(tester, const Size(1440, 1000));
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Red de casa'));
+    await tester.pumpAndSettle();
+    // La busca sola y la propone.
+    expect(find.text(r'\\CASA-PC\Pelis\Películas'), findsOneWidget);
+    expect(
+      find.text('Encontradas $n de $n películas de prueba por esa ruta.'),
+      findsOneWidget,
+    );
+
+    // Una carpeta de este PC no vale: los demás no la ven.
+    await tester.tap(find.text('Elegir otra…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, r'D:\Películas');
+    await tester.tap(find.text('Comprobar y guardar'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Esa carpeta es de este PC'), findsOneWidget);
+    await tester.tap(find.text('Cancelar').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Usar esta ruta'));
+    await tester.pumpAndSettle();
+    expect(find.text('Disponible'), findsOneWidget);
+    expect(
+      find.text(
+        'Encontradas $n de $n películas de prueba · comprobado: ahora mismo.',
+      ),
+      findsOneWidget,
+    );
+
+    // Se puede dejar sin ruta (los demás PC solo consultan).
+    await tester.tap(find.text('Quitar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sin ruta de red'), findsOneWidget);
+    expect(find.text('Buscar la ruta'), findsOneWidget);
+  }, variant: windows);
+
+  testWidgets('PC de consulta: usa la ruta de red del tablón si se llega', (
+    tester,
+  ) async {
+    final n = peliculasEjemplo.length;
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    await abrirApp(tester, const Size(1440, 1000), consulta: true);
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Películas en la red'), findsOneWidget);
+    expect(find.text(r'\\CASA-PC\Pelis\Películas'), findsOneWidget);
+    expect(find.text('Disponible'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Publicada por el administrador · encontradas $n de $n',
+      ),
+      findsOneWidget,
+    );
+
+    // Otra carpeta en la que no están las películas no se guarda.
+    await tester.tap(find.text('Cambiar…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, r'\\CASA-PC\Fotos');
+    await tester.tap(find.text('Comprobar y guardar'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('no está ninguna de las $n películas'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Cancelar').last);
+    await tester.pumpAndSettle();
+    expect(find.text(r'\\CASA-PC\Pelis\Películas'), findsOneWidget);
+
+    // Un PC que pide contraseña: se guarda y se explica qué hacer.
+    await tester.tap(find.text('Cambiar…'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, r'\\OTRO-PC\Pelis');
+    await tester.tap(find.text('Comprobar y guardar'));
+    await tester.pumpAndSettle();
+    expect(find.text(r'\\OTRO-PC\Pelis'), findsOneWidget);
+    expect(find.text('Pide contraseña'), findsOneWidget);
+    expect(find.text('Abrir en el Explorador'), findsOneWidget);
+    expect(find.textContaining('Elegida en este PC'), findsOneWidget);
+
+    // Y se puede volver a la del administrador.
+    await tester.tap(find.text('Usar la del administrador'));
+    await tester.pumpAndSettle();
+    expect(find.text(r'\\CASA-PC\Pelis\Películas'), findsOneWidget);
+    expect(find.text('Disponible'), findsOneWidget);
+  }, variant: windows);
+
+  testWidgets('En el móvil no hay ruta de red', (tester) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    await abrirApp(tester, const Size(390, 844), consulta: true);
+    await tester.tap(find.text('Más'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Películas en la red'), findsNothing);
+  });
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {
     await abrirApp(tester, const Size(1440, 1000), vacio: true);

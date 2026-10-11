@@ -48,6 +48,10 @@ Future<ResultadoPublicacion> publicarTablon({
   required String raiz,
   required CarpetasApp carpetas,
   int versionAnterior = 0,
+
+  /// Ruta de red de las películas para los demás PC de casa (vacía = sin
+  /// red). Va dentro del índice.
+  String red = '',
   void Function(ProgresoPublicacion progreso)? alAvanzar,
 }) async {
   void avanzar(String fase, [int hechos = 0, int total = 0]) =>
@@ -87,14 +91,15 @@ Future<ResultadoPublicacion> publicarTablon({
   );
   final archivos = armado.huellas;
 
-  // ¿Ha cambiado algo?
+  // ¿Ha cambiado algo? (Los paquetes o la ruta de red.)
+  final indiceRemoto = await _indiceRemoto(github, llave, remoto);
   final mismos =
-      remoto.containsKey(rutaIndice) &&
+      indiceRemoto != null &&
+      indiceRemoto.red == red &&
       remoto.length == archivos.length + 1 &&
       archivos.entries.every((e) => remotas[e.key] == e.value);
   if (mismos) {
-    final version =
-        await _versionRemota(github, llave, remoto) ?? versionAnterior;
+    final version = indiceRemoto.version;
     return (
       version: version,
       peliculas: filas.length,
@@ -105,7 +110,7 @@ Future<ResultadoPublicacion> publicarTablon({
   }
 
   // 4. Índice nuevo y subida.
-  final anterior = await _versionRemota(github, llave, remoto) ?? 0;
+  final anterior = indiceRemoto?.version ?? 0;
   final version = (anterior > versionAnterior ? anterior : versionAnterior) + 1;
   final indice = IndiceTablon(
     version: version,
@@ -119,6 +124,7 @@ Future<ResultadoPublicacion> publicarTablon({
       for (final MapEntry(:key, :value) in archivos.entries)
         if (key.startsWith('caratulas/')) _grupoDeRuta(key): value,
     },
+    red: red,
   );
   final indiceCifrado = llave.cifrar(rutaIndice, indice.aBytes());
   final nuevos = {...armado.nuevos, rutaIndice: indiceCifrado};
@@ -156,9 +162,9 @@ Future<ResultadoPublicacion> publicarTablon({
 String _grupoDeRuta(String ruta) =>
     ruta.substring(ruta.indexOf('/') + 1, ruta.lastIndexOf('.'));
 
-/// La versión publicada ahora en GitHub, o `null` si no hay o no se puede
+/// El índice publicado ahora en GitHub, o `null` si no hay o no se puede
 /// leer (p. ej. porque se ha cambiado la contraseña común).
-Future<int?> _versionRemota(
+Future<IndiceTablon?> _indiceRemoto(
   GitHub github,
   LlaveTablon llave,
   Map<String, ArchivoRemoto> remoto,
@@ -170,7 +176,7 @@ Future<int?> _versionRemota(
       rutaIndice,
       await github.descargar(archivo.huella),
     );
-    return IndiceTablon.desdeBytes(datos).version;
+    return IndiceTablon.desdeBytes(datos);
   } on ContrasenaIncorrecta {
     return null;
   } on FormatException {

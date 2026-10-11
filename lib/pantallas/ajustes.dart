@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,8 +12,10 @@ import '../datos/consulta.dart';
 import '../datos/sesion.dart' show largoMinimoContrasena;
 import '../datos/fuentes.dart';
 import '../datos/publicacion.dart';
+import '../datos/red_casa.dart';
 import '../disco/abrir_enlace.dart';
 import '../disco/acciones_windows.dart';
+import '../disco/dialogo_abrir.dart' show elegirCarpeta;
 import '../fuentes/actualizaciones.dart';
 import '../fuentes/conexion.dart';
 import '../fuentes/conversiones.dart';
@@ -74,6 +78,7 @@ class PantallaAjustes extends ConsumerWidget {
             if (esAdministrador) ...[
               const _SeccionColeccion(),
               const _SeccionTablon(),
+              if (hayRedDeCasa) const _SeccionRed(),
               const _SeccionServicios(),
               _Seccion(
                 titulo: 'Rotten Tomatoes → estrellas',
@@ -148,8 +153,10 @@ class PantallaAjustes extends ConsumerWidget {
                 ],
               ),
               const _SeccionDatos(),
-            ] else
+            ] else ...[
               const _SeccionCopia(),
+              if (hayRedDeCasa) const _SeccionRed(),
+            ],
             const _SeccionSesion(),
             const _SeccionAcercaDe(),
           ],
@@ -1282,6 +1289,459 @@ class _EstadoSeccionTablon extends ConsumerState<_SeccionTablon> {
     ];
   }
 }
+
+/// La red de casa. En el PC del administrador: la carpeta compartida por la
+/// que los demás PC ven las películas (la app la propone sola y se publica
+/// en el tablón). En un PC de consulta: por dónde las ve este PC (la del
+/// tablón u otra elegida aquí) y si se llega ahora.
+class _SeccionRed extends ConsumerStatefulWidget {
+  const _SeccionRed();
+
+  @override
+  ConsumerState<_SeccionRed> createState() => _EstadoSeccionRed();
+}
+
+class _EstadoSeccionRed extends ConsumerState<_SeccionRed> {
+  final _texto = TextEditingController();
+  var _editando = false;
+  var _probando = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _texto.dispose();
+    super.dispose();
+  }
+
+  void _editar() {
+    final e = ref.read(redCasaProvider);
+    setState(() {
+      _editando = true;
+      _error = null;
+      _texto.text = e.ruta.isNotEmpty ? e.ruta : e.propuesta?.ruta ?? '';
+    });
+  }
+
+  /// Prueba la ruta y, si sirve, la guarda.
+  Future<void> _usar(String ruta) async {
+    setState(() {
+      _probando = true;
+      _error = null;
+    });
+    final error = await ref.read(redCasaProvider.notifier).usar(ruta);
+    if (!mounted) return;
+    setState(() {
+      _probando = false;
+      _error = error;
+      if (error == null) _editando = false;
+    });
+    if (error != null) return;
+    final e = ref.read(redCasaProvider);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            e.probadas == 0
+                ? 'Ruta de red guardada.'
+                : 'Ruta de red guardada: encontradas ${e.encontradas} de '
+                      '${e.probadas} películas de prueba.',
+          ),
+        ),
+      );
+  }
+
+  /// El diálogo de Windows para elegir la carpeta (también las de red).
+  void _elegirCarpeta() {
+    final e = ref.read(redCasaProvider);
+    final elegida = elegirCarpeta(
+      // Una carpeta de red que no contesta haría esperar al diálogo: se
+      // empieza por una que se sabe que responde.
+      carpetaInicial: e.disponible
+          ? e.ruta
+          : esAdministrador
+          ? '\\\\${Platform.environment['COMPUTERNAME'] ?? 'localhost'}'
+          : _carpetaRedWindows,
+      titulo: 'Elige la carpeta de las películas en la red',
+    );
+    if (elegida == null) return;
+    _texto.text = elegida;
+    _usar(elegida);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final e = ref.watch(redCasaProvider);
+    return _Seccion(
+      titulo: esAdministrador ? 'Red de casa' : 'Películas en la red',
+      children: [
+        Text(
+          esAdministrador
+              ? 'La carpeta compartida por la que los demás PC de casa ven '
+                    'las películas, para reproducirlas y copiarlas. Va cifrada '
+                    'en el tablón; el móvil no la usa.'
+              : 'La carpeta por la que este PC ve las películas del PC de la '
+                    'colección, para reproducirlas y copiarlas.',
+          style: TextStyle(fontSize: 13, height: 1.5, color: c.textoSecundario),
+        ),
+        if (_editando)
+          ..._formulario(context)
+        else if (e.ruta.isEmpty)
+          ..._sinRuta(context, e)
+        else
+          ..._conRuta(context, e),
+        if (_probando && !_editando) const LinearProgressIndicator(),
+        if (_error != null && !_editando)
+          Text(
+            _error!,
+            style: TextStyle(fontSize: 13, height: 1.5, color: c.rojo),
+          ),
+      ],
+    );
+  }
+
+  /// Fila con la ruta en letra de rutas (o, sin ruta, un texto normal) y su
+  /// estado.
+  Widget _filaRuta(String ruta, Widget? estado, {bool esRuta = true}) => Row(
+    children: [
+      Icon(Icons.lan_outlined, color: context.colores.doradoTexto),
+      const SizedBox(width: 10),
+      Expanded(
+        child: esRuta
+            ? SelectableText(
+                ruta,
+                style: TextStyle(
+                  fontFamily: fuenteRutas,
+                  fontSize: 15,
+                  color: context.colores.texto,
+                ),
+              )
+            : Text(
+                ruta,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: context.colores.textoSuave,
+                ),
+              ),
+      ),
+      ?estado,
+    ],
+  );
+
+  List<Widget> _conRuta(BuildContext context, EstadoRedCasa e) {
+    final c = context.colores;
+    final notificador = ref.read(redCasaProvider.notifier);
+    final (pastilla, color, fondo) = switch (e.fase) {
+      _ when e.comprobando => ('Comprobando…', c.azul, c.azulFondo),
+      FaseRed.disponible => ('Disponible', c.verde, c.verdeFondo),
+      FaseRed.sinConexion => ('Sin conexión', c.rojo, c.rojoFondo),
+      FaseRed.contrasena => ('Pide contraseña', c.naranja, c.naranjaFondo),
+      FaseRed.noEncontrada => ('No se encuentra', c.rojo, c.rojoFondo),
+      _ => ('Sin comprobar', c.textoSecundario, c.seleccion),
+    };
+    // (En el PC del administrador no hay copia del tablón que mirar.)
+    final hayDelTablon =
+        !esAdministrador &&
+        ref.watch(
+          consultaProvider.select((x) => (x.copia.red ?? '').isNotEmpty),
+        );
+    final comprobada = e.comprobada;
+    final detalles = [
+      if (!esAdministrador)
+        e.deTablon ? 'Publicada por el administrador' : 'Elegida en este PC',
+      if (e.probadas > 0 &&
+          (e.fase == FaseRed.disponible || e.fase == FaseRed.noEncontrada))
+        'encontradas ${e.encontradas} de ${e.probadas} películas de prueba',
+      if (comprobada != null)
+        'comprobado: ${cuandoTexto(comprobada).toLowerCase()}',
+    ];
+    final explicacion = switch (e.fase) {
+      _ when e.comprobando => null,
+      FaseRed.sinConexion =>
+        esAdministrador
+            ? 'No se llega a esa carpeta por la red: comprueba que sigue '
+                  'compartida.'
+            : 'No se llega al PC de las películas: puede que esté apagado o '
+                  'que este PC no esté en la red de casa. Se vuelve a mirar '
+                  'cada minuto.',
+      FaseRed.contrasena =>
+        esAdministrador
+            ? 'Windows pide usuario y contraseña para entrar en esa carpeta.'
+            : 'Windows pide usuario y contraseña para entrar en ese PC. '
+                  'Pulsa «Abrir en el Explorador», escribe el usuario y la '
+                  'contraseña del PC de las películas, marca «Recordar mis '
+                  'credenciales» y después pulsa «Comprobar».',
+      FaseRed.noEncontrada =>
+        'Se llega al PC, pero en esa carpeta no están las películas: puede '
+            'que se haya movido o que la ruta no sea la buena.',
+      FaseRed.disponible
+          when esAdministrador && !ref.watch(tablonProvider).configurado =>
+        'Se publicará cuando configures la publicación en el tablón.',
+      _ => null,
+    };
+    return [
+      _filaRuta(e.ruta, Pastilla(pastilla, color: color, fondo: fondo)),
+      if (detalles.isNotEmpty)
+        Text(
+          '${detalles.join(' · ')}.'.replaceFirstMapped(
+            RegExp('^.'),
+            (m) => m[0]!.toUpperCase(),
+          ),
+          style: TextStyle(fontSize: 13, height: 1.5, color: c.textoSuave),
+        ),
+      if (explicacion != null)
+        Text(
+          explicacion,
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.5,
+            color: switch (e.fase) {
+              FaseRed.disponible => c.textoSecundario,
+              FaseRed.contrasena => c.naranja,
+              _ => c.rojo,
+            },
+          ),
+        ),
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          if (e.fase == FaseRed.contrasena && !e.comprobando)
+            FilledButton.icon(
+              onPressed: () {
+                if (!abrirConWindows(e.ruta)) {
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      const SnackBar(
+                        content: Text('No se ha podido abrir el Explorador.'),
+                      ),
+                    );
+                }
+              },
+              icon: const Icon(Icons.folder_open_outlined, size: 18),
+              label: const Text('Abrir en el Explorador'),
+            ),
+          OutlinedButton.icon(
+            onPressed: e.comprobando || _probando
+                ? null
+                : () => notificador.comprobar(),
+            icon: const Icon(Icons.sync_rounded, size: 18),
+            label: const Text('Comprobar'),
+          ),
+          OutlinedButton(
+            onPressed: _probando ? null : _editar,
+            child: const Text('Cambiar…'),
+          ),
+          if (esAdministrador || !e.deTablon)
+            TextButton(
+              onPressed: _probando ? null : notificador.quitar,
+              child: Text(
+                !esAdministrador && hayDelTablon
+                    ? 'Usar la del administrador'
+                    : 'Quitar',
+              ),
+            ),
+        ],
+      ),
+    ];
+  }
+
+  List<Widget> _sinRuta(BuildContext context, EstadoRedCasa e) {
+    final c = context.colores;
+    final notificador = ref.read(redCasaProvider.notifier);
+    final sinDecidir = ref.watch(rutaRedProvider) == null;
+    final propuesta = e.propuesta;
+    TextStyle estilo(Color color) =>
+        TextStyle(fontSize: 13, height: 1.5, color: color);
+    final noUsar = TextButton(
+      onPressed: _probando ? null : notificador.quitar,
+      child: const Text('No usar la red'),
+    );
+    final escribir = OutlinedButton(
+      onPressed: _probando ? null : _editar,
+      child: const Text('Escribir la ruta…'),
+    );
+
+    if (!esAdministrador) {
+      return [
+        _filaRuta(
+          'Sin ruta de red',
+          Pastilla('Sin configurar', color: c.naranja, fondo: c.naranjaFondo),
+          esRuta: false,
+        ),
+        Text(
+          'El administrador no ha publicado la ruta de red de las películas. '
+          'Si este PC las ve por la red de casa, elige la carpeta.',
+          style: estilo(c.textoSuave),
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.icon(
+              onPressed: _probando ? null : _elegirCarpeta,
+              icon: const Icon(Icons.folder_open_outlined, size: 18),
+              label: const Text('Elegir carpeta…'),
+            ),
+            escribir,
+          ],
+        ),
+      ];
+    }
+    if (e.buscando) {
+      return [
+        Text(
+          'Buscando entre las carpetas que comparte este PC la que lleva a '
+          'las películas…',
+          style: estilo(c.textoSuave),
+        ),
+        const LinearProgressIndicator(),
+      ];
+    }
+    if (propuesta != null) {
+      return [
+        Text(
+          'La app ha encontrado esta carpeta compartida:',
+          style: estilo(c.textoSuave),
+        ),
+        _filaRuta(
+          propuesta.ruta,
+          Pastilla('Propuesta', color: c.doradoTexto, fondo: c.doradoFondo),
+        ),
+        Text(
+          'Encontradas ${propuesta.encontradas} de ${propuesta.probadas} '
+          'películas de prueba por esa ruta.',
+          style: estilo(c.textoSuave),
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.icon(
+              onPressed: _probando ? null : () => _usar(propuesta.ruta),
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Usar esta ruta'),
+            ),
+            OutlinedButton(
+              onPressed: _probando ? null : _editar,
+              child: const Text('Elegir otra…'),
+            ),
+            if (sinDecidir) noUsar,
+          ],
+        ),
+      ];
+    }
+    if (e.buscada) {
+      return [
+        Text(
+          'No se ha encontrado ninguna carpeta compartida de este PC que '
+          'lleve a las películas. Comparte en la red, solo para leer, la '
+          'carpeta que las contiene (o una que lleve a ellas) y vuelve a '
+          'buscar, o escribe la ruta.',
+          style: estilo(c.naranja),
+        ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            FilledButton.icon(
+              onPressed: _probando ? null : notificador.buscar,
+              icon: const Icon(Icons.search_rounded, size: 18),
+              label: const Text('Buscar otra vez'),
+            ),
+            escribir,
+            if (sinDecidir) noUsar,
+          ],
+        ),
+      ];
+    }
+    return [
+      _filaRuta(
+        'Sin ruta de red',
+        Pastilla('Sin ruta', color: c.naranja, fondo: c.naranjaFondo),
+        esRuta: false,
+      ),
+      Text(
+        'Los demás PC de casa solo pueden consultar el catálogo, como el '
+        'móvil.',
+        style: estilo(c.textoSuave),
+      ),
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          FilledButton.icon(
+            onPressed: _probando ? null : notificador.buscar,
+            icon: const Icon(Icons.search_rounded, size: 18),
+            label: const Text('Buscar la ruta'),
+          ),
+          escribir,
+        ],
+      ),
+    ];
+  }
+
+  List<Widget> _formulario(BuildContext context) {
+    final c = context.colores;
+    return [
+      TextField(
+        controller: _texto,
+        enabled: !_probando,
+        autofocus: true,
+        style: const TextStyle(fontFamily: fuenteRutas, fontSize: 14),
+        decoration: InputDecoration(
+          labelText: esAdministrador
+              ? 'Ruta de red de las películas'
+              : 'Carpeta de las películas en la red',
+          hintText: r'\\PC\Carpeta\Películas',
+          errorText: _error,
+          errorMaxLines: 4,
+        ),
+        onSubmitted: (_) => _usar(_texto.text),
+      ),
+      Text(
+        esAdministrador
+            ? r'Tal como la ven los demás PC: empieza por \\ y el nombre de '
+                  'este PC. Antes de guardarla se prueban unas cuantas '
+                  'películas.'
+            : r'Una carpeta de red (\\PC\Carpeta) o una unidad de red (Z:). '
+                  'Antes de guardarla se prueban unas cuantas películas.',
+        style: TextStyle(fontSize: 12, height: 1.5, color: c.textoSecundario),
+      ),
+      if (_probando) const LinearProgressIndicator(),
+      Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          TextButton.icon(
+            onPressed: _probando ? null : _elegirCarpeta,
+            icon: const Icon(Icons.folder_open_outlined, size: 16),
+            label: const Text('Elegir carpeta…'),
+          ),
+          TextButton(
+            onPressed: _probando
+                ? null
+                : () => setState(() {
+                    _editando = false;
+                    _error = null;
+                  }),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: _probando ? null : () => _usar(_texto.text),
+            child: Text(_probando ? 'Comprobando…' : 'Comprobar y guardar'),
+          ),
+        ],
+      ),
+    ];
+  }
+}
+
+/// La carpeta «Red» del Explorador (los PC de casa).
+const _carpetaRedWindows = '::{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}';
 
 /// Página de GitHub para crear una llave «fine-grained», ya rellena con el
 /// nombre y el permiso que hace falta (el repositorio se elige allí).

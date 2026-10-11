@@ -6,13 +6,15 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:image/image.dart' as img;
 
 import '../datos/base_datos.dart';
+import '../disco/red.dart' show rutaRelativa;
 
 // Qué hay en el tablón y cómo se guarda. Lo usan el PC (al publicar) y el
 // móvil (al descargar).
 //
 //   tablon.json            sin cifrar: formato y parámetros de la llave
 //   README.md              sin cifrar: qué es este repositorio
-//   indice.bin             cifrado: versión, fecha y huella de cada paquete
+//   indice.bin             cifrado: versión, fecha, huella de cada paquete y
+//                          ruta de red de las películas (para los PC de casa)
 //   catalogo/000.bin …     cifrados: fichas de las películas 0–99, 100–199…
 //   caratulas/000.bin …    cifrados: miniaturas WebP de esas mismas películas
 //
@@ -88,6 +90,7 @@ class IndiceTablon {
     required this.peliculas,
     required this.catalogo,
     required this.caratulas,
+    this.red = '',
   });
 
   factory IndiceTablon.desdeBytes(Uint8List datos) {
@@ -105,6 +108,7 @@ class IndiceTablon {
       peliculas: json['peliculas'] as int,
       catalogo: mapa(json['catalogo']),
       caratulas: mapa(json['caratulas']),
+      red: json['red'] as String? ?? '',
     );
   }
 
@@ -117,6 +121,11 @@ class IndiceTablon {
   final Map<String, String> catalogo;
   final Map<String, String> caratulas;
 
+  /// Por dónde ven las películas los demás PC de casa
+  /// (`\\AYO-PC\Multimedia\Películas`; vacía = sin red). Las apps 1.0 no la
+  /// conocen y no la leen, por eso el formato sigue siendo el mismo.
+  final String red;
+
   Uint8List aBytes() => _comprimirJson({
     'formato': formatoTablon,
     'version': version,
@@ -124,6 +133,7 @@ class IndiceTablon {
     'peliculas': peliculas,
     'catalogo': catalogo,
     'caratulas': caratulas,
+    if (red.isNotEmpty) 'red': red,
   });
 }
 
@@ -137,11 +147,7 @@ Map<String, Object> fichaTablon(
   required String raiz,
   required bool caratula,
 }) {
-  var ruta = f.ruta;
-  if (raiz.isNotEmpty && ruta.toLowerCase().startsWith(raiz.toLowerCase())) {
-    ruta = ruta.substring(raiz.length);
-    if (ruta.startsWith(r'\') || ruta.startsWith('/')) ruta = ruta.substring(1);
-  }
+  final ruta = rutaRelativa(f.ruta, raiz) ?? f.ruta;
   final ficha = <String, Object>{
     'id': f.id,
     'titulo': f.titulo,

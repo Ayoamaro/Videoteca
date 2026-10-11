@@ -54,6 +54,7 @@ class EstadoCopia {
     this.peliculas = 0,
     this.catalogo = const {},
     this.caratulas = const {},
+    this.red,
   });
 
   factory EstadoCopia.desdeJson(Map<String, dynamic> json) {
@@ -67,6 +68,7 @@ class EstadoCopia {
       peliculas: json['peliculas'] as int? ?? 0,
       catalogo: mapa(json['catalogo']),
       caratulas: mapa(json['caratulas']),
+      red: json['red'] as String?,
     );
   }
 
@@ -96,6 +98,10 @@ class EstadoCopia {
   final Map<String, String> catalogo;
   final Map<String, String> caratulas;
 
+  /// Ruta de red de las películas publicada por el administrador (vacía =
+  /// no hay). `null` si todavía no se ha leído (copias de la versión 1.0).
+  final String? red;
+
   bool get vacia => commit.isEmpty && catalogo.isEmpty;
 
   EstadoCopia copyWith({
@@ -105,6 +111,7 @@ class EstadoCopia {
     int? peliculas,
     Map<String, String>? catalogo,
     Map<String, String>? caratulas,
+    String? red,
   }) => EstadoCopia(
     repositorio: repositorio,
     commit: commit ?? this.commit,
@@ -113,6 +120,7 @@ class EstadoCopia {
     peliculas: peliculas ?? this.peliculas,
     catalogo: catalogo ?? this.catalogo,
     caratulas: caratulas ?? this.caratulas,
+    red: red ?? this.red,
   );
 
   Map<String, Object?> toJson() => {
@@ -123,6 +131,7 @@ class EstadoCopia {
     'peliculas': peliculas,
     'catalogo': catalogo,
     'caratulas': caratulas,
+    'red': red,
   };
 }
 
@@ -195,6 +204,17 @@ Future<ResultadoDescarga> actualizarCopia({
 
   final commit = await lector.ultimoCommit();
   if (commit == estado.commit) {
+    // Copia de la versión 1.0, que no guardaba la ruta de red: se lee el
+    // índice una vez.
+    if (estado.red == null) {
+      try {
+        final indice = await lector.indice(commit, llave);
+        estado = estado.copyWith(red: indice.red);
+        await _guardar(bd, estado);
+      } on ContrasenaIncorrecta {
+        // Se verá al publicarse la próxima versión.
+      }
+    }
     return (
       estado: estado,
       alDia: true,
@@ -324,6 +344,7 @@ Future<ResultadoDescarga> actualizarCopia({
     fecha: indice.fecha,
     peliculas: indice.peliculas,
     caratulas: caratulas,
+    red: indice.red,
   );
   await _guardar(bd, estado);
   return (

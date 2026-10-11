@@ -36,6 +36,8 @@ const ajustesDelEquipo = {
   'parametrosTablon',
   'versionTablon',
   'fechaTablon',
+  // La carpeta compartida es de este PC.
+  'rutaRed',
 };
 
 const _info = 'videoteca-copia.json';

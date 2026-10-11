@@ -158,9 +158,13 @@ class Pelicula {
     return i < 0 ? ruta : ruta.substring(i + 1);
   }
 
+  /// Las carpetas de la ruta, de fuera adentro, p. ej. `[Dramas, Drama]`.
+  List<String> get carpetas =>
+      carpeta.split(r'\').where((p) => p.isNotEmpty).toList();
+
   /// Género según la carpeta (último nivel), p. ej. "Thriller".
   String get generoCarpeta {
-    final partes = carpeta.split(r'\').where((p) => p.isNotEmpty).toList();
+    final partes = carpetas;
     return partes.isEmpty ? '' : partes.last;
   }
 

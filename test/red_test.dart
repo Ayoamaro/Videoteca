@@ -165,6 +165,19 @@ void main() {
       expect(reloj.elapsed, lessThan(const Duration(seconds: 6)));
     });
 
+    test('si una película sigue en su sitio (o no se sabe)', () async {
+      final peliculas = '${temporal.path}\\Multimedia\\Películas';
+      expect(await archivoEsta(unirRuta(peliculas, muestras[0])), isTrue);
+      expect(await archivoEsta('$peliculas\\Comedias\\Otra (2002).mp4'), false);
+      // De un PC que no contesta no se sabe, y no se espera de más.
+      final reloj = Stopwatch()..start();
+      expect(
+        await archivoEsta(r'\\NOEXISTE-VIDEOTECA\Pelis\Uno (2000).mp4'),
+        isNull,
+      );
+      expect(reloj.elapsed, lessThan(const Duration(seconds: 6)));
+    });
+
     test('las carpetas compartidas de este PC se pueden leer', () {
       // No se sabe cuáles hay; solo que Windows contesta y que no salen las
       // de los administradores (C$, ADMIN$…).

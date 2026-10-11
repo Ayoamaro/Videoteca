@@ -1509,8 +1509,11 @@ class _EstadoSeccionRed extends ConsumerState<_SeccionRed> {
         children: [
           if (e.fase == FaseRed.contrasena && !e.comprobando)
             FilledButton.icon(
-              onPressed: () {
-                if (!abrirConWindows(e.ruta)) {
+              onPressed: () async {
+                final abierto = await ref
+                    .read(servicioRedProvider)
+                    .abrirEnExplorador(e.ruta);
+                if (!abierto && context.mounted) {
                   ScaffoldMessenger.of(context)
                     ..hideCurrentSnackBar()
                     ..showSnackBar(

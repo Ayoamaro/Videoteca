@@ -9,6 +9,7 @@ import '../datos/consulta.dart';
 import '../datos/lote.dart';
 import '../datos/nuevas.dart';
 import '../datos/publicacion.dart';
+import '../datos/red_casa.dart';
 import '../datos/vigilancia.dart';
 import '../disco/escaner.dart';
 import '../tema/colores.dart';
@@ -187,7 +188,8 @@ class _AtajoBuscarState extends ConsumerState<_AtajoBuscar> {
 /// Vigila el disco mientras la app está abierta y avisa abajo de la pantalla
 /// cuando aparecen, se mueven o desaparecen películas. En el modo consulta,
 /// pone al día la copia del catálogo (al abrir y al volver a la app) y avisa
-/// de las novedades.
+/// de las novedades; en un PC, además, mira desde el principio si se llega a
+/// las películas por la red de casa (y otra vez al volver a la app).
 class _Vigilancia extends ConsumerStatefulWidget {
   const _Vigilancia({required this.child});
 
@@ -205,8 +207,10 @@ class _VigilanciaState extends ConsumerState<_Vigilancia> {
     super.initState();
     if (!esAdministrador) {
       _ciclo = AppLifecycleListener(
-        onResume: () =>
-            ref.read(consultaProvider.notifier).comprobar(siHaceRato: true),
+        onResume: () {
+          ref.read(consultaProvider.notifier).comprobar(siHaceRato: true);
+          if (hayRedDeCasa) ref.read(redCasaProvider.notifier).alVolver();
+        },
       );
     }
   }
@@ -241,6 +245,7 @@ class _VigilanciaState extends ConsumerState<_Vigilancia> {
       // Publica sola en el tablón los cambios del catálogo.
       ref.listen(tablonProvider, (_, _) {});
     } else {
+      if (hayRedDeCasa) ref.listen(redCasaProvider, (_, _) {});
       // Avisa cuando llega una versión nueva del catálogo (no la primera
       // descarga).
       ref.listen(consultaProvider.select((e) => e.ultimo), (_, r) {

@@ -10,6 +10,7 @@ import 'package:videoteca/datos/catalogo.dart';
 import 'package:videoteca/datos/consulta.dart';
 import 'package:videoteca/datos/ejemplo.dart';
 import 'package:videoteca/datos/red_casa.dart';
+import 'package:videoteca/disco/acciones_windows.dart';
 import 'package:videoteca/disco/red.dart';
 import 'package:videoteca/datos/sesion.dart';
 import 'package:videoteca/main.dart';
@@ -46,6 +47,49 @@ class _ConsultaSinInternet extends Consulta {
   Future<void> comprobar({bool siHaceRato = false}) async {}
 }
 
+/// El catálogo de ejemplo como lo descarga el modo consulta: las rutas, sin
+/// la raíz (`Dramas\Drama\Joy (2015).mp4`).
+class _CatalogoConsulta extends Catalogo {
+  @override
+  Future<List<Pelicula>> build() async => [
+    for (final p in peliculasEjemplo) _sinRaiz(p),
+  ];
+}
+
+Pelicula _sinRaiz(Pelicula p) => Pelicula(
+  id: p.id,
+  titulo: p.titulo,
+  anio: p.anio,
+  ruta: rutaRelativa(p.ruta, r'D:\')!,
+  tituloOriginal: p.tituloOriginal,
+  generos: p.generos,
+  temas: p.temas,
+  sinopsis: p.sinopsis,
+  direccion: p.direccion,
+  guion: p.guion,
+  reparto: p.reparto,
+  musica: p.musica,
+  fotografia: p.fotografia,
+  productora: p.productora,
+  pais: p.pais,
+  premios: p.premios,
+  clasificacion: p.clasificacion,
+  estrellas: p.estrellas,
+  rottenTomatoes: p.rottenTomatoes,
+  duracionMin: p.duracionMin,
+  resolucion: p.resolucion,
+  tamanoBytes: p.tamanoBytes,
+  saga: p.saga,
+  numeroSaga: p.numeroSaga,
+  anadida: p.anadida,
+  nueva: p.nueva,
+  tono: p.tono,
+  tieneCaratula: p.tieneCaratula,
+  grupo: p.grupo,
+  enlaceFilmaffinity: p.enlaceFilmaffinity,
+  enlaceImdb: p.enlaceImdb,
+);
+
 /// Catálogo sin ninguna película.
 class _CatalogoVacio extends Catalogo {
   @override
@@ -68,17 +112,29 @@ class _ConsultaAlDia extends Consulta {
   );
 }
 
-/// Red de casa de mentira: en `\\CASA-PC\Pelis\Películas` están todas.
+/// Red de casa de mentira: en `\\CASA-PC\Pelis\Películas` están todas
+/// menos *Joy*, que se ha movido; [casa] es lo que contesta ese PC. Apunta lo
+/// que se abre en vez de abrirlo.
 class _RedFalsa extends ServicioRed {
-  const _RedFalsa();
+  _RedFalsa();
+
+  static const rutaCasa = r'\\CASA-PC\Pelis\Películas';
+
+  var casa = EstadoRed.disponible;
+
+  /// Películas reproducidas (`false`) o abiertas en su carpeta (`true`).
+  final abiertas = <(String, bool)>[];
+
+  /// Carpetas abiertas en el Explorador.
+  final exploradas = <String>[];
 
   @override
   Future<ComprobacionRed> comprobar(String ruta, List<String> muestras) async =>
-      ruta.startsWith(r'\\CASA-PC\Pelis\Películas')
+      ruta.startsWith(rutaCasa)
       ? ComprobacionRed(
-          EstadoRed.disponible,
-          encontradas: muestras.length,
-          probadas: muestras.length,
+          casa,
+          encontradas: casa == EstadoRed.disponible ? muestras.length : 0,
+          probadas: casa == EstadoRed.disponible ? muestras.length : 0,
         )
       : ruta.startsWith(r'\\OTRO-PC')
       ? const ComprobacionRed(EstadoRed.contrasena, codigo: 1272)
@@ -93,6 +149,25 @@ class _RedFalsa extends ServicioRed {
 
   @override
   bool esDeEstePc(String ruta) => !ruta.startsWith(r'\\');
+
+  @override
+  Future<bool?> existe(String ruta) async =>
+      casa != EstadoRed.disponible ? null : !ruta.contains('Joy (2015)');
+
+  @override
+  Future<ResultadoAbrir> abrir(String ruta, {bool enCarpeta = false}) async {
+    if (ruta.startsWith(rutaCasa) && casa != EstadoRed.disponible) {
+      return ResultadoAbrir.sinConexion;
+    }
+    abiertas.add((ruta, enCarpeta));
+    return ResultadoAbrir.hecho;
+  }
+
+  @override
+  Future<bool> abrirEnExplorador(String carpeta) async {
+    exploradas.add(carpeta);
+    return true;
+  }
 }
 
 /// La ruta de red guardada solo en memoria (sin base de datos).
@@ -114,6 +189,7 @@ Future<void> abrirApp(
   bool sinInternet = false,
   bool vacio = false,
   double letra = 1,
+  ServicioRed? red,
 }) async {
   tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
@@ -127,14 +203,24 @@ Future<void> abrirApp(
           CarpetaRaiz.clave: ?carpetaRaiz,
         }),
         catalogoProvider.overrideWith(
-          vacio ? _CatalogoVacio.new : _CatalogoEjemplo.new,
+          vacio
+              ? _CatalogoVacio.new
+              : consulta
+              ? _CatalogoConsulta.new
+              : _CatalogoEjemplo.new,
+        ),
+        // El disco del administrador: conectado y con todas las películas
+        // menos *Joy*, que se ha movido.
+        discoConectadoProvider.overrideWith((ref) => Stream.value(true)),
+        archivoExisteProvider.overrideWith(
+          (ref, ruta) async => !ruta.contains('Joy (2015)'),
         ),
         if (!vacio) generosProvider.overrideWithValue(generosEjemplo),
         if (consulta)
           consultaProvider.overrideWith(
             sinInternet ? _ConsultaSinInternet.new : _ConsultaAlDia.new,
           ),
-        servicioRedProvider.overrideWithValue(const _RedFalsa()),
+        servicioRedProvider.overrideWithValue(red ?? _RedFalsa()),
         rutaRedProvider.overrideWith(_RutaRedEnMemoria.new),
       ],
       child: const VideotecaApp(),
@@ -680,6 +766,196 @@ void main() {
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
     expect(find.text('Películas en la red'), findsNothing);
+  });
+
+  /// Abre la ficha de [titulo] buscándola (en el PC, en el Catálogo; en el
+  /// móvil, en Buscar).
+  Future<void> abrirFicha(
+    WidgetTester tester,
+    String busqueda,
+    String titulo, {
+    String menu = 'Catálogo',
+  }) async {
+    await tester.tap(find.text(menu).last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, busqueda);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(titulo).first);
+    await tester.pumpAndSettle();
+    expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
+  }
+
+  /// El botón con el texto [texto] (también los que llevan icono).
+  ButtonStyleButton boton(WidgetTester tester, String texto) =>
+      tester.widget<ButtonStyleButton>(
+        find.ancestor(
+          of: find.text(texto),
+          matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+        ),
+      );
+
+  /// Lo que la app copia al portapapeles.
+  List<String> portapapeles(WidgetTester tester) {
+    final copiado = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (llamada) async {
+        if (llamada.method == 'Clipboard.setData') {
+          copiado.add((llamada.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    return copiado;
+  }
+
+  testWidgets('Ficha en el PC del administrador: la película del disco', (
+    tester,
+  ) async {
+    final red = _RedFalsa();
+    final copiado = portapapeles(tester);
+    await abrirApp(tester, const Size(1440, 1000), red: red);
+    await abrirFicha(tester, 'forrest', 'Forrest Gump');
+    const ruta = r'D:\Dramas\Drama\Forrest Gump (1994).mp4';
+    expect(find.text('D:\\Dramas\\Drama\\\nForrest Gump (1994).mp4'), findsOne);
+
+    await tester.tap(find.text('Reproducir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abrir carpeta'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Copiar ruta'));
+    await tester.pumpAndSettle();
+    expect(red.abiertas, [(ruta, false), (ruta, true)]);
+    expect(copiado, [ruta]);
+    expect(find.text('Ruta copiada.'), findsOneWidget);
+
+    // Una película que ya no está en el disco no se puede reproducir.
+    await abrirFicha(tester, 'joy', 'Joy');
+    expect(
+      find.textContaining('No se encuentra el archivo en esta ruta'),
+      findsOneWidget,
+    );
+    expect(boton(tester, 'Reproducir').enabled, isFalse);
+    expect(boton(tester, 'Abrir carpeta').enabled, isFalse);
+    // En el PC del administrador la ficha no toca la red de casa (ponerla
+    // en marcha buscaría la ruta entre las carpetas compartidas).
+    final contenedor = ProviderScope.containerOf(
+      tester.element(find.byType(VideotecaApp)),
+    );
+    expect(contenedor.exists(redCasaProvider), isFalse);
+  }, variant: windows);
+
+  testWidgets('Ficha en un PC de la red: la película por la red de casa', (
+    tester,
+  ) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    final red = _RedFalsa();
+    final copiado = portapapeles(tester);
+    await abrirApp(tester, const Size(1440, 1000), consulta: true, red: red);
+    await abrirFicha(tester, 'forrest', 'Forrest Gump');
+    const ruta =
+        r'\\CASA-PC\Pelis\Películas\Dramas\Drama\Forrest Gump (1994).mp4';
+    expect(
+      find.text(
+        '\\\\CASA-PC\\Pelis\\Películas\\Dramas\\Drama\\\n'
+        'Forrest Gump (1994).mp4',
+      ),
+      findsOne,
+    );
+    await tester.tap(find.text('Reproducir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abrir carpeta'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Copiar ruta'));
+    await tester.pumpAndSettle();
+    expect(red.abiertas, [(ruta, false), (ruta, true)]);
+    expect(copiado, [ruta]);
+
+    final contenedor = ProviderScope.containerOf(
+      tester.element(find.byType(VideotecaApp)),
+    );
+
+    // Se apaga el PC de las películas: se explica y no se puede reproducir.
+    red.casa = EstadoRed.sinConexion;
+    contenedor.read(redCasaProvider.notifier).comprobar();
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('No se llega al PC de las películas'),
+      findsOneWidget,
+    );
+    expect(boton(tester, 'Reproducir').enabled, isFalse);
+    expect(boton(tester, 'Abrir carpeta').enabled, isFalse);
+    // La ruta se puede copiar igual.
+    expect(boton(tester, 'Copiar ruta').enabled, isTrue);
+
+    // Pide contraseña: el Explorador la pide y la recuerda…
+    red.casa = EstadoRed.contrasena;
+    await tester.tap(find.text('Comprobar'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Windows pide usuario y contraseña'), findsOne);
+    await tester.tap(find.text('Abrir en el Explorador'));
+    await tester.pumpAndSettle();
+    expect(red.exploradas, [_RedFalsa.rutaCasa]);
+    // …y al volver a la app ya funciona todo.
+    red.casa = EstadoRed.disponible;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Windows pide usuario'), findsNothing);
+    expect(boton(tester, 'Reproducir').enabled, isTrue);
+
+    // Una película que se ha movido en el PC de las películas.
+    await abrirFicha(tester, 'joy', 'Joy');
+    expect(
+      find.textContaining('No se encuentra la película en esta ruta'),
+      findsOneWidget,
+    );
+    expect(boton(tester, 'Reproducir').enabled, isFalse);
+  }, variant: windows);
+
+  testWidgets('PC sin la red de casa: la ficha, como en el móvil', (
+    tester,
+  ) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    // (La copia de «sin internet» no trae ruta de red.)
+    await abrirApp(
+      tester,
+      const Size(1440, 1000),
+      consulta: true,
+      sinInternet: true,
+    );
+    await abrirFicha(tester, 'forrest', 'Forrest Gump');
+    expect(find.text('Dramas  ›  Drama'), findsOneWidget);
+    expect(find.text('Reproducir'), findsNothing);
+    expect(find.text('Copiar ruta'), findsNothing);
+  }, variant: windows);
+
+  testWidgets('En el móvil, «Dónde está» solo dice la carpeta', (tester) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    await abrirApp(tester, const Size(390, 844), consulta: true);
+    await abrirFicha(
+      tester,
+      'infinity war',
+      'Los Vengadores 3: Infinity War',
+      menu: 'Buscar',
+    );
+    expect(find.text('Aventuras y Fantasía  ›  Fantasía'), findsOneWidget);
+    expect(find.text('1080p · 1918 × 816'), findsOneWidget);
+    expect(find.text('4,1 GB'), findsOneWidget);
+    expect(find.textContaining('CASA-PC'), findsNothing);
+    expect(find.textContaining('Infinity War (2018).mp4'), findsNothing);
+    for (final texto in ['Reproducir', 'Abrir carpeta', 'Copiar ruta']) {
+      expect(find.text(texto), findsNothing);
+    }
   });
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {

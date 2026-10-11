@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../disco/acciones_windows.dart';
 import '../disco/red.dart';
 import '../modelos/pelicula.dart';
 import '../utilidades.dart';
@@ -35,10 +36,19 @@ class RutaRed extends Notifier<String?> {
   }
 }
 
-/// Lo que se hace de verdad con la red (en las pruebas se cambia por uno de
-/// mentira).
+/// Lo que se hace de verdad con la red y con los archivos de las películas
+/// (en las pruebas se cambia por uno de mentira).
 class ServicioRed {
   const ServicioRed();
+
+  /// ¿Está el archivo? `null` si el PC de las películas no contesta.
+  Future<bool?> existe(String ruta) => archivoEsta(ruta);
+
+  /// Reproduce la película o abre su carpeta (ver [abrirArchivo]).
+  Future<ResultadoAbrir> abrir(String ruta, {bool enCarpeta = false}) =>
+      abrirArchivo(ruta, enCarpeta: enCarpeta);
+
+  Future<bool> abrirEnExplorador(String carpeta) => explorarCarpeta(carpeta);
 
   Future<ComprobacionRed> comprobar(String ruta, List<String> muestras) =>
       _comprobarAparte(ruta, muestras);
@@ -118,6 +128,10 @@ class RedCasa extends Notifier<EstadoRedCasa> {
 
   /// Lo más que se espera a una comprobación o a una búsqueda.
   static const limite = Duration(seconds: 40);
+
+  /// Al volver a la app, no se vuelve a mirar una ruta disponible
+  /// comprobada hace menos de esto.
+  static const margenAlVolver = Duration(seconds: 20);
 
   Timer? _temporizador;
 
@@ -202,6 +216,19 @@ class RedCasa extends Notifier<EstadoRedCasa> {
       probadas: r.probadas,
       comprobada: DateTime.now(),
     );
+  }
+
+  /// Al volver a la app (p. ej. del Explorador, después de escribir la
+  /// contraseña), se mira otra vez la red, salvo que esté disponible y se
+  /// haya mirado hace nada.
+  void alVolver() {
+    final comprobada = state.comprobada;
+    if (state.disponible &&
+        comprobada != null &&
+        DateTime.now().difference(comprobada) < margenAlVolver) {
+      return;
+    }
+    comprobar(enSilencio: true);
   }
 
   /// Administrador: busca entre las carpetas compartidas de este PC la que

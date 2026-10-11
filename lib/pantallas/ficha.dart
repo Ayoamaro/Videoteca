@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../fuentes/filmaffinity.dart' show busquedaFilmaffinity;
 import '../datos/buscador.dart';
 import '../datos/catalogo.dart';
+import '../datos/red_casa.dart';
+import '../datos/ubicacion.dart';
 import '../disco/abrir_enlace.dart';
 import '../disco/acciones_windows.dart';
 import '../modelos/pelicula.dart';
@@ -98,8 +100,9 @@ class PantallaFicha extends ConsumerWidget {
   }
 }
 
-/// Carátula de la ficha: la completa leída del `.mp4`; mientras se lee (o si
-/// el disco no está conectado), la miniatura.
+/// Carátula de la ficha: la completa leída del `.mp4` (en un PC de la red de
+/// casa, por la red); mientras se lee, o si no se llega al archivo (el móvil,
+/// un PC sin la red, el disco desconectado…), la miniatura.
 class _CaratulaGrande extends ConsumerWidget {
   const _CaratulaGrande(this.p);
 
@@ -107,10 +110,12 @@ class _CaratulaGrande extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // En el modo consulta no hay archivo: solo la miniatura descargada.
-    final completa = p.caratula != null || !p.tieneCaratula || !esAdministrador
+    final u = p.caratula != null || !p.tieneCaratula
         ? null
-        : ref.watch(caratulaCompletaProvider(p.ruta)).value;
+        : ref.watch(ubicacionProvider(p.ruta));
+    final completa = u == null || !u.disponible
+        ? null
+        : ref.watch(caratulaCompletaProvider(u.ruta!)).value;
     return Caratula(
       titulo: p.titulo,
       anio: p.anio,
@@ -413,16 +418,78 @@ class InsigniaEdad extends StatelessWidget {
   }
 }
 
-/// Bloque dorado "Dónde está": ruta, calidad, tamaño y botones. Avisa si el
-/// disco no está conectado o si el archivo ya no está en esa ruta.
-class _DondeEsta extends ConsumerWidget {
+/// Bloque dorado "Dónde está". Donde se llega a los archivos (el PC del
+/// administrador y los PC de la red de casa): la ruta, la calidad, el tamaño
+/// y los botones, con un aviso si no se puede llegar a la película. En el
+/// móvil (o en un PC sin la red de casa): solo la carpeta.
+class _DondeEsta extends ConsumerStatefulWidget {
   const _DondeEsta(this.p);
 
   final Pelicula p;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DondeEsta> createState() => _EstadoDondeEsta();
+}
+
+class _EstadoDondeEsta extends ConsumerState<_DondeEsta> {
+  /// Se está abriendo la película (`false`) o su carpeta (`true`).
+  bool? _abriendo;
+
+  void _mensaje(String texto) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(texto)));
+
+  /// Reproduce la película de [ruta] o abre su carpeta. Antes se mira que se
+  /// llega a ella (aparte y con tiempo límite).
+  Future<void> _abrir(String ruta, {required bool enCarpeta}) async {
+    if (_abriendo != null) return;
+    setState(() => _abriendo = enCarpeta);
+    final r = await ref
+        .read(servicioRedProvider)
+        .abrir(ruta, enCarpeta: enCarpeta);
+    if (!mounted) return;
+    setState(() => _abriendo = null);
+    switch (r) {
+      case ResultadoAbrir.hecho:
+        break;
+      case ResultadoAbrir.sinConexion:
+        if (esAdministrador) {
+          _mensaje(
+            'No se llega a ${nombreDisco(ref.read(carpetaRaizProvider))}.',
+          );
+        } else {
+          _mensaje(
+            'No se llega al PC de las películas: puede que se haya apagado.',
+          );
+          ref.read(redCasaProvider.notifier).comprobar();
+        }
+      case ResultadoAbrir.noEsta:
+        _mensaje('La película ya no está en esa ruta.');
+        ref
+          ..invalidate(archivoExisteProvider(ruta))
+          ..invalidate(archivoEnRedProvider(ruta));
+      case ResultadoAbrir.error:
+        _mensaje(
+          enCarpeta
+              ? 'No se ha podido abrir la carpeta.'
+              : 'Windows no ha podido abrir la película.',
+        );
+    }
+  }
+
+  Future<void> _abrirExplorador(String carpeta) async {
+    if (!await ref.read(servicioRedProvider).abrirEnExplorador(carpeta) &&
+        mounted) {
+      _mensaje('No se ha podido abrir el Explorador.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.p;
     final c = context.colores;
+    final u = ref.watch(ubicacionProvider(p.ruta));
+    final ruta = u.ruta;
     final datos = [
       p.resolucion,
       p.tamanoTexto,
@@ -430,154 +497,263 @@ class _DondeEsta extends ConsumerWidget {
         'Añadida el ${p.anadida!.day}/${p.anadida!.month}/${p.anadida!.year}',
     ].where((t) => t.isNotEmpty);
 
-    // Mientras se comprueba, se da por bueno (así no parpadea el aviso).
-    final conectado = ref.watch(discoConectadoProvider).value ?? true;
-    final existe = ref.watch(archivoExisteProvider(p.ruta)).value ?? true;
-    final disponible = conectado && existe;
-    final disco = nombreDisco(ref.watch(carpetaRaizProvider));
-    final aviso = !esAdministrador
-        ? null
-        : !conectado
-        ? 'No se puede reproducir: $disco no está conectado.'
-        : !existe
-        ? 'No se encuentra el archivo en esta ruta: puede que se haya movido, '
-              'renombrado o borrado. Ajustes → Buscar cambios pone el catálogo '
-              'al día.'
-        : null;
+    final cabecera = Row(
+      children: [
+        Icon(Icons.folder_outlined, size: 18, color: c.doradoTexto),
+        const SizedBox(width: 10),
+        Etiqueta('Dónde está', color: c.doradoTexto),
+      ],
+    );
+    final lineaDatos = Wrap(
+      spacing: 18,
+      runSpacing: 6,
+      children: [
+        for (final d in datos)
+          Text(d, style: TextStyle(fontSize: 13, color: c.textoSuave)),
+      ],
+    );
 
-    void error(String texto) => ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(texto)));
-
-    return Tarjeta(
+    Widget tarjeta(List<Widget> children) => Tarjeta(
       fondo: c.doradoFondo,
       borde: c.doradoBorde,
       relleno: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        children: [cabecera, ...children],
+      ),
+    );
+
+    // Desde aquí no se llega a los archivos: solo en qué carpeta está.
+    if (ruta == null) {
+      final carpetas = p.carpetas;
+      return tarjeta([
+        const SizedBox(height: 12),
+        Text(
+          carpetas.isEmpty
+              ? 'En la carpeta principal de la colección'
+              : carpetas.join('  ›  '),
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+            color: c.texto,
+          ),
+        ),
+        const SizedBox(height: 10),
+        lineaDatos,
+      ]);
+    }
+
+    final i = ruta.lastIndexOf(r'\');
+    final aviso = _aviso(context, u);
+    return tarjeta([
+      const SizedBox(height: 12),
+      SelectableText.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: ruta.substring(0, i + 1),
+              style: TextStyle(color: c.textoSecundario),
+            ),
+            const TextSpan(text: '\n'),
+            TextSpan(text: ruta.substring(i + 1)),
+          ],
+        ),
+        style: TextStyle(
+          fontFamily: fuenteRutas,
+          fontFamilyFallback: const ['Cascadia Mono', 'monospace'],
+          fontSize: 15,
+          height: 1.5,
+          color: c.texto,
+        ),
+      ),
+      const SizedBox(height: 12),
+      lineaDatos,
+      if (aviso != null) ...[const SizedBox(height: 14), aviso],
+      const SizedBox(height: 14),
+      Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          FilledButton.icon(
+            onPressed: !u.disponible || _abriendo != null
+                ? null
+                : () => _abrir(ruta, enCarpeta: false),
+            icon: _abriendo == false
+                ? const _Girando()
+                : const Icon(Icons.play_arrow_rounded, size: 18),
+            label: const Text('Reproducir'),
+          ),
+          OutlinedButton.icon(
+            onPressed: !u.disponible || _abriendo != null
+                ? null
+                : () => _abrir(ruta, enCarpeta: true),
+            icon: _abriendo == true
+                ? const _Girando()
+                : const Icon(Icons.folder_open_outlined, size: 16),
+            label: const Text('Abrir carpeta'),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: c.doradoBorde),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: ruta));
+              _mensaje('Ruta copiada.');
+            },
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Copiar ruta'),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: c.doradoBorde),
+            ),
+          ),
+        ],
+      ),
+    ]);
+  }
+
+  /// Por qué no se puede reproducir la película (y qué hacer), o `null` si
+  /// se puede.
+  Widget? _aviso(BuildContext context, Ubicacion u) {
+    if (u.acceso == AccesoArchivo.disponible) return null;
+    final c = context.colores;
+    // Solo en los PC de la red de casa (en el del administrador no se usa).
+    Widget comprobar() {
+      final comprobando = ref.watch(redCasaProvider).comprobando;
+      return TextButton(
+        onPressed: comprobando
+            ? null
+            : ref.read(redCasaProvider.notifier).comprobar,
+        child: Text(comprobando ? 'Comprobando…' : 'Comprobar'),
+      );
+    }
+
+    final (icono, color, fondo, texto, botones) = switch (u.acceso) {
+      AccesoArchivo.disponible || AccesoArchivo.comprobando => (
+        null,
+        c.texto,
+        c.azulFondo,
+        'Comprobando si se llega al PC de las películas…',
+        <Widget>[],
+      ),
+      AccesoArchivo.sinDisco => (
+        Icons.usb_off_rounded,
+        c.rojo,
+        c.rojoFondo,
+        'No se puede reproducir: '
+            '${nombreDisco(ref.watch(carpetaRaizProvider))} no está '
+            'conectado.',
+        <Widget>[],
+      ),
+      AccesoArchivo.sinConexion => (
+        Icons.link_off_rounded,
+        c.rojo,
+        c.rojoFondo,
+        'No se llega al PC de las películas: puede que esté apagado o que '
+            'este PC no esté en la red de casa. Se vuelve a mirar cada '
+            'minuto.',
+        [comprobar()],
+      ),
+      AccesoArchivo.contrasena => (
+        Icons.lock_outline_rounded,
+        c.naranja,
+        c.naranjaFondo,
+        'Windows pide usuario y contraseña para entrar en el PC de las '
+            'películas. Pulsa «Abrir en el Explorador», escribe el usuario y '
+            'la contraseña de ese PC y marca «Recordar mis credenciales»: '
+            'después ya funciona todo.',
+        [
+          if (u.red != null)
+            FilledButton.icon(
+              onPressed: () => _abrirExplorador(u.red!),
+              icon: const Icon(Icons.folder_open_outlined, size: 18),
+              label: const Text('Abrir en el Explorador'),
+            ),
+          comprobar(),
+        ],
+      ),
+      AccesoArchivo.carpetaIncorrecta => (
+        Icons.help_outline_rounded,
+        c.rojo,
+        c.rojoFondo,
+        'Se llega al PC de las películas, pero en esa carpeta no están: '
+            'puede que se haya movido. Revisa Ajustes → Películas en la red.',
+        [
+          TextButton(
+            onPressed: () => context.go('/ajustes'),
+            child: const Text('Ir a Ajustes'),
+          ),
+        ],
+      ),
+      AccesoArchivo.noEsta when esAdministrador => (
+        Icons.help_outline_rounded,
+        c.rojo,
+        c.rojoFondo,
+        'No se encuentra el archivo en esta ruta: puede que se haya movido, '
+            'renombrado o borrado. Ajustes → Buscar cambios pone el catálogo '
+            'al día.',
+        <Widget>[],
+      ),
+      AccesoArchivo.noEsta => (
+        Icons.help_outline_rounded,
+        c.rojo,
+        c.rojoFondo,
+        'No se encuentra la película en esta ruta: puede que se haya movido, '
+            'renombrado o borrado en el PC de las películas y el catálogo aún '
+            'no esté al día.',
+        [
+          TextButton(
+            onPressed: () => ref.invalidate(archivoEnRedProvider(u.ruta ?? '')),
+            child: const Text('Comprobar'),
+          ),
+        ],
+      ),
+    };
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: fondo,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.folder_outlined, size: 18, color: c.doradoTexto),
+              if (icono == null)
+                const _Girando()
+              else
+                Icon(icono, size: 18, color: color),
               const SizedBox(width: 10),
-              Etiqueta('Dónde está', color: c.doradoTexto),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SelectableText.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: p.carpeta,
-                  style: TextStyle(color: c.textoSecundario),
+              Expanded(
+                child: Text(
+                  texto,
+                  style: TextStyle(fontSize: 13, height: 1.45, color: c.texto),
                 ),
-                const TextSpan(text: '\n'),
-                TextSpan(text: p.archivo),
-              ],
-            ),
-            style: TextStyle(
-              fontFamily: fuenteRutas,
-              fontFamilyFallback: const ['Cascadia Mono', 'monospace'],
-              fontSize: 15,
-              height: 1.5,
-              color: c.texto,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 18,
-            runSpacing: 6,
-            children: [
-              for (final d in datos)
-                Text(d, style: TextStyle(fontSize: 13, color: c.textoSuave)),
+              ),
             ],
           ),
-          if (aviso != null) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: c.rojoFondo,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    conectado
-                        ? Icons.help_outline_rounded
-                        : Icons.usb_off_rounded,
-                    size: 18,
-                    color: c.rojo,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      aviso,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.45,
-                        color: c.texto,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          if (botones.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: botones),
           ],
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              if (esAdministrador) ...[
-                FilledButton.icon(
-                  onPressed: !disponible
-                      ? null
-                      : () {
-                          if (!abrirConWindows(p.ruta)) {
-                            error('Windows no ha podido abrir la película.');
-                          }
-                        },
-                  icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                  label: const Text('Reproducir'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: !disponible
-                      ? null
-                      : () {
-                          if (!mostrarEnCarpeta(p.ruta)) {
-                            error('No se ha podido abrir la carpeta.');
-                          }
-                        },
-                  icon: const Icon(Icons.folder_open_outlined, size: 16),
-                  label: const Text('Abrir carpeta'),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: c.doradoBorde),
-                  ),
-                ),
-              ],
-              OutlinedButton.icon(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: p.ruta));
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      const SnackBar(content: Text('Ruta copiada.')),
-                    );
-                },
-                icon: const Icon(Icons.copy_rounded, size: 16),
-                label: const Text('Copiar ruta'),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: c.doradoBorde),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
+}
+
+/// Ruedita del tamaño de un icono pequeño (mientras se abre o se comprueba).
+class _Girando extends StatelessWidget {
+  const _Girando();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.square(
+    dimension: 16,
+    child: CircularProgressIndicator(strokeWidth: 2),
+  );
 }
 
 /// Botón que abre una web en el navegador.

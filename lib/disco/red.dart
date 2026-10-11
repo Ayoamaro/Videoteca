@@ -215,6 +215,21 @@ Future<ComprobacionRed> estadoRuta(
   }
 }
 
+/// ¿Está el archivo [ruta]? Si es de otro PC, antes se «llama» a ese PC; si
+/// no contesta (o tarda más de [limite]), `null`.
+Future<bool?> archivoEsta(
+  String ruta, {
+  Duration limite = const Duration(seconds: 8),
+}) async {
+  final equipo = equipoDeRuta(ruta);
+  if (equipo != null && !await equipoResponde(equipo)) return null;
+  try {
+    return await File(ruta).exists().timeout(limite);
+  } on TimeoutException {
+    return null;
+  }
+}
+
 /// Cuántas de las películas [relativas] están por la ruta [base] (4 a la
 /// vez, como mucho durante [limite]).
 Future<int> contarPeliculas(

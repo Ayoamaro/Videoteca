@@ -9,6 +9,7 @@
 // ignore_for_file: avoid_print
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
@@ -115,10 +116,38 @@ void _guardar(String ruta, img.Image imagen) {
   print(ruta);
 }
 
+/// BMP clásico de 24 bits (cabecera de 40 bytes, sin compresión, filas de
+/// abajo arriba). El de `img.encodeBmp` usa una cabecera más moderna que el
+/// instalador no sabe abrir (falla al arrancar sin decir por qué).
 void _guardarBmp(String ruta, img.Image imagen) {
+  final fila = (imagen.width * 3 + 3) & ~3;
+  final tamDatos = fila * imagen.height;
+  final cabecera = ByteData(54)
+    ..setUint8(0, 0x42) // «BM»
+    ..setUint8(1, 0x4D)
+    ..setUint32(2, 54 + tamDatos, Endian.little)
+    ..setUint32(10, 54, Endian.little)
+    ..setUint32(14, 40, Endian.little)
+    ..setInt32(18, imagen.width, Endian.little)
+    ..setInt32(22, imagen.height, Endian.little)
+    ..setUint16(26, 1, Endian.little)
+    ..setUint16(28, 24, Endian.little)
+    ..setUint32(34, tamDatos, Endian.little)
+    ..setInt32(38, 2835, Endian.little) // 72 ppp
+    ..setInt32(42, 2835, Endian.little);
+  final datos = Uint8List(tamDatos);
+  for (var y = 0; y < imagen.height; y++) {
+    var i = (imagen.height - 1 - y) * fila;
+    for (var x = 0; x < imagen.width; x++) {
+      final p = imagen.getPixel(x, y);
+      datos[i++] = p.b.toInt();
+      datos[i++] = p.g.toInt();
+      datos[i++] = p.r.toInt();
+    }
+  }
   File(ruta)
     ..createSync(recursive: true)
-    ..writeAsBytesSync(img.encodeBmp(imagen.convert(numChannels: 3)));
+    ..writeAsBytesSync([...cabecera.buffer.asUint8List(), ...datos]);
   print(ruta);
 }
 

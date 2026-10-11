@@ -50,6 +50,14 @@ class ServicioRed {
 
   Future<bool> abrirEnExplorador(String carpeta) => explorarCarpeta(carpeta);
 
+  /// Entra en el PC de [ruta] con usuario y contraseña y los deja guardados
+  /// en Windows (ver [entrarConUsuario]).
+  Future<ResultadoCredenciales> entrar(
+    String ruta,
+    String usuario,
+    String contrasena,
+  ) => _entrarAparte(ruta, usuario, contrasena);
+
   Future<ComprobacionRed> comprobar(String ruta, List<String> muestras) =>
       _comprobarAparte(ruta, muestras);
 
@@ -382,3 +390,12 @@ Future<ComprobacionRed> _comprobarAparte(String ruta, List<String> muestras) =>
 
 Future<PropuestaRed?> _buscarAparte(String raiz, List<String> muestras) =>
     Isolate.run(() => buscarRutaRed(raiz: raiz, muestras: muestras));
+
+Future<ResultadoCredenciales> _entrarAparte(
+  String ruta,
+  String usuario,
+  String contrasena,
+) => Isolate.run(() => entrarConUsuario(ruta, usuario, contrasena)).timeout(
+  const Duration(seconds: 40),
+  onTimeout: () => ResultadoCredenciales.sinConexion,
+);

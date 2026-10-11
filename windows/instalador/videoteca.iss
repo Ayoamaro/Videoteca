@@ -63,6 +63,10 @@ Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Messages]
 es.WelcomeLabel2=Se va a instalar [name/ver] en este equipo.%n%nCatálogo de tu colección de películas: búscalas al instante, completa sus fichas y consúltalas también desde el móvil.%n%nSi ya tienes Videoteca, se actualiza y tu catálogo se conserva.
+; En Windows 7 u 8, o de 32 bits, la app no funciona (Flutter necesita
+; Windows 10 u 11 de 64 bits): se dice qué se puede hacer en su lugar.
+es.WinVersionTooLowError=Videoteca necesita Windows 10 u 11 y este PC tiene una versión anterior de Windows.%n%nDesde este PC puedes abrir las películas por la red en el Explorador (la carpeta que comparte el PC de las películas) y consultar el catálogo en el móvil.
+es.OnlyOnTheseArchitectures=Videoteca necesita Windows de 64 bits y este PC tiene Windows de 32 bits.%n%nDesde este PC puedes abrir las películas por la red en el Explorador (la carpeta que comparte el PC de las películas) y consultar el catálogo en el móvil.
 
 [Tasks]
 Name: "escritorio"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"

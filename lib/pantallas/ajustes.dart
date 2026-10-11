@@ -26,6 +26,7 @@ import '../tema/colores.dart';
 import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/comunes.dart';
+import '../widgets/credenciales_red.dart';
 import '../widgets/exportar.dart';
 import '../widgets/progreso_escaneo.dart';
 import '../widgets/version_nueva.dart';
@@ -1468,10 +1469,10 @@ class _EstadoSeccionRed extends ConsumerState<_SeccionRed> {
       FaseRed.contrasena =>
         esAdministrador
             ? 'Windows pide usuario y contraseña para entrar en esa carpeta.'
-            : 'Windows pide usuario y contraseña para entrar en ese PC. '
-                  'Pulsa «Abrir en el Explorador», escribe el usuario y la '
-                  'contraseña del PC de las películas, marca «Recordar mis '
-                  'credenciales» y después pulsa «Comprobar».',
+            : 'Windows pide usuario y contraseña para entrar en ese PC. Pulsa '
+                  '«Escribir usuario y contraseña…» y escribe los de una '
+                  'cuenta del PC de las películas (la contraseña, no el PIN): '
+                  'este PC los recordará.',
       FaseRed.noEncontrada =>
         'Se llega al PC, pero en esa carpeta no están las películas: puede '
             'que se haya movido o que la ruta no sea la buena.',
@@ -1509,6 +1510,12 @@ class _EstadoSeccionRed extends ConsumerState<_SeccionRed> {
         children: [
           if (e.fase == FaseRed.contrasena && !e.comprobando)
             FilledButton.icon(
+              onPressed: () => entrarConContrasena(context, e.ruta),
+              icon: const Icon(Icons.key_rounded, size: 18),
+              label: const Text('Escribir usuario y contraseña…'),
+            ),
+          if (e.fase == FaseRed.contrasena && !e.comprobando)
+            OutlinedButton.icon(
               onPressed: () async {
                 final abierto = await ref
                     .read(servicioRedProvider)

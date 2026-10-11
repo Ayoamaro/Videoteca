@@ -132,6 +132,10 @@ class _RedFalsa extends ServicioRed {
   /// Carpetas abiertas en el Explorador.
   final exploradas = <String>[];
 
+  /// Con qué ruta, usuario y contraseña se ha intentado entrar. Solo vale la
+  /// contraseña «buena».
+  final entradas = <(String, String, String)>[];
+
   @override
   Future<ComprobacionRed> comprobar(String ruta, List<String> muestras) async =>
       ruta.startsWith(rutaCasa)
@@ -171,6 +175,18 @@ class _RedFalsa extends ServicioRed {
   Future<bool> abrirEnExplorador(String carpeta) async {
     exploradas.add(carpeta);
     return true;
+  }
+
+  @override
+  Future<ResultadoCredenciales> entrar(
+    String ruta,
+    String usuario,
+    String contrasena,
+  ) async {
+    entradas.add((ruta, usuario, contrasena));
+    if (contrasena != 'buena') return ResultadoCredenciales.incorrectos;
+    casa = EstadoRed.disponible;
+    return ResultadoCredenciales.hecho;
   }
 }
 
@@ -882,10 +898,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(r'\\OTRO-PC\Pelis'), findsOneWidget);
     expect(find.text('Pide contraseña'), findsOneWidget);
+    expect(find.text('Escribir usuario y contraseña…'), findsOneWidget);
     expect(find.text('Abrir en el Explorador'), findsOneWidget);
     expect(find.textContaining('Elegida en este PC'), findsOneWidget);
 
     // Y se puede volver a la del administrador.
+    // (Con un botón más, la fila baja: se sube a la vista.)
+    await tester.ensureVisible(find.text('Usar la del administrador'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Usar la del administrador'));
     await tester.pumpAndSettle();
     expect(find.text(r'\\CASA-PC\Pelis\Películas'), findsOneWidget);
@@ -1043,6 +1063,40 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
+    expect(find.textContaining('Windows pide usuario'), findsNothing);
+    expect(boton(tester, 'Reproducir').enabled, isTrue);
+
+    // Si el Explorador no la pide (Windows 11 reciente con un PC que deja
+    // entrar como invitado), se escribe en la app y Windows la recuerda.
+    red.casa = EstadoRed.contrasena;
+    contenedor.read(redCasaProvider.notifier).comprobar();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Escribir usuario y contraseña…'));
+    await tester.pumpAndSettle();
+    expect(find.text('Entrar en CASA-PC'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Usuario'), 'Ayoze');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Contraseña'),
+      'mala',
+    );
+    await tester.tap(find.text('Entrar'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('El usuario o la contraseña no son correctos'),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Contraseña'),
+      'buena',
+    );
+    await tester.tap(find.text('Entrar'));
+    await tester.pumpAndSettle();
+    expect(red.entradas, [
+      (_RedFalsa.rutaCasa, 'Ayoze', 'mala'),
+      (_RedFalsa.rutaCasa, 'Ayoze', 'buena'),
+    ]);
+    expect(find.text('Entrar en CASA-PC'), findsNothing);
+    expect(find.textContaining('este PC ya entra en CASA-PC'), findsOneWidget);
     expect(find.textContaining('Windows pide usuario'), findsNothing);
     expect(boton(tester, 'Reproducir').enabled, isTrue);
 

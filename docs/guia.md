@@ -27,6 +27,7 @@ Esta guía explica cómo montar tu propia colección con Videoteca, desde ordena
 - Tus películas en **`.mp4`** (también valen `.m4v`, que es el mismo formato), en un disco o una carpeta.
 - Para completar datos: conexión a internet y dos claves gratuitas (TMDB y OMDb, [apartado 6](#6-las-claves-gratuitas-de-tmdb-y-omdb)). Para FilmAffinity, Microsoft Edge (ya viene con Windows).
 - Para consultar desde el móvil: una cuenta gratuita de **GitHub** ([apartado 10](#10-publicar-el-catálogo-para-el-móvil)) y móviles **Android 7 o posterior** de 64 bits (todos los de los últimos años). No hay versión para iPhone.
+- Los demás PC de casa, también con **Windows 10 u 11** de 64 bits. En Windows 7 u 8 la app no funciona, pero las películas se pueden abrir por la red desde el Explorador ([apartado 12](#pc-con-windows-7-u-8)).
 
 ## 2. Prepara tu colección
 
@@ -187,7 +188,7 @@ En los demás PC de casa (en modo consulta), además de buscar, puedes **reprodu
 
 1. **La red de casa, como privada.** *Configuración → Red e Internet →* tu red (Wi-Fi o Ethernet) *→ Perfil de red: Privada*. En una red «pública», Windows no deja que los demás PC vean las carpetas compartidas.
 2. **Comparte la carpeta de las películas, solo para leer.** Lo más sencillo es compartir la carpeta principal de la colección (o el disco entero): en el Explorador, clic derecho → *Propiedades → Compartir → Uso compartido avanzado…* → marca *Compartir esta carpeta* → *Permisos* → para *Todos*, deja marcado solo **Leer** (quita *Cambiar* y *Control total*) → *Aceptar*. Ese permiso es el que impide cambiar o borrar películas desde otro PC.
-3. **Entrar sin contraseña** (recomendado): *Panel de control → Redes e Internet → Centro de redes y recursos compartidos → Cambiar configuración de uso compartido avanzado → Todas las redes → Desactivar el uso compartido con protección por contraseña* (en Windows 11: *Configuración → Red e Internet → Configuración de red avanzada → Configuración de uso compartido avanzado*). Windows pide permiso de administrador. Así los demás PC entran sin usuario ni contraseña (salvo los que tienen Windows 11 reciente: mira [Si Windows pide usuario y contraseña](#si-windows-pide-usuario-y-contraseña)).
+3. **Entrar sin contraseña** (recomendado): *Panel de control → Redes e Internet → Centro de redes y recursos compartidos → Cambiar configuración de uso compartido avanzado → Todas las redes → Desactivar el uso compartido con protección por contraseña* (en Windows 11: *Configuración → Red e Internet → Configuración de red avanzada → Configuración de uso compartido avanzado*). Windows pide permiso de administrador. Así los demás PC entran sin usuario ni contraseña (salvo los que no dejan entrar como invitado, como Windows 11 reciente: mira [Si Windows pide usuario y contraseña](#si-windows-pide-usuario-y-contraseña)).
 4. **En Videoteca, *Ajustes → Red de casa***. La app busca sola, entre las carpetas que comparte el PC, la que lleva a las películas, y prueba 20 de ellas: «encontradas 20 de 20 películas de prueba». Pulsa **Usar esta ruta**. Se publica **cifrada** en el tablón junto con el catálogo, y los demás PC la usan sin que tengas que hacer nada en ellos. Si no la encuentra, *Escribir la ruta…* (por ejemplo, `\\NOMBRE-DEL-PC\Películas`).
 
 ### En los demás PC
@@ -204,13 +205,21 @@ En los demás PC de casa (en modo consulta), además de buscar, puedes **reprodu
 
 ### Si Windows pide usuario y contraseña
 
-Pasa si el PC de las películas tiene la protección por contraseña activada o si el otro PC tiene **Windows 11 24H2 o posterior** (por seguridad, ya no deja entrar «como invitado», sin contraseña). No hace falta bajar la seguridad de nada; se hace **una vez** en cada PC:
+Pasa si el PC de las películas tiene la protección por contraseña activada o si el otro PC no deja entrar «como invitado», sin contraseña: **Windows 11 24H2 o posterior** (por seguridad) y las ediciones Enterprise y Education. No hace falta bajar la seguridad de nada; se hace **una vez** en cada PC:
 
-1. En *Ajustes → Películas en la red* (o en la ficha), pulsa **Abrir en el Explorador**.
-2. Windows pide usuario y contraseña: escribe los de una cuenta del PC de las películas, con el nombre de ese PC delante (`NOMBRE-DEL-PC\usuario`), y marca **Recordar mis credenciales**.
-3. Vuelve a Videoteca: lo comprueba sola y pasa a **Disponible**. Windows recuerda la contraseña y nadie tiene que volver a escribirla.
+1. En *Ajustes → Películas en la red* (o en la ficha), pulsa **Escribir usuario y contraseña…**.
+2. Escribe el usuario y la contraseña de una cuenta del PC de las películas y pulsa **Entrar**:
+   - **Usuario**: el nombre de la cuenta (la app le pone delante el nombre del PC: `NOMBRE-DEL-PC\usuario`) o, si es una cuenta de Microsoft, su correo.
+   - **Contraseña**: la de la cuenta, **no el PIN** (el PIN solo sirve para entrar en ese PC sentado delante). En una cuenta de Microsoft, la contraseña de Microsoft.
+3. La app entra con ellos y los deja guardados en Windows (como «Recordar mis credenciales»): pasa a **Disponible** y nadie tiene que volver a escribirlos, tampoco al reiniciar. La app no guarda la contraseña.
 
-La cuenta tiene que tener contraseña (Windows no deja entrar por la red con una cuenta sin contraseña). Si no quieres usar la tuya, crea una solo para esto en el PC de las películas: *Configuración → Cuentas → Familia y otros usuarios → Agregar otra persona* (o *Agregar cuenta*) *→ No tengo los datos de inicio de sesión de esta persona → Agregar un usuario sin cuenta Microsoft*. Como la carpeta se comparte solo para leer, con esa cuenta tampoco se puede cambiar nada por la red.
+Si algo no cuadra, lo dice: contraseña incorrecta, una cuenta que no existe en ese PC o una cuenta sin contraseña (Windows no deja entrar por la red con ella). También se puede hacer desde el Explorador con **Abrir en el Explorador**, marcando «Recordar mis credenciales» cuando Windows pida la contraseña.
+
+Si no quieres usar tu cuenta, crea una solo para esto en el PC de las películas, con contraseña: *Configuración → Cuentas → Familia y otros usuarios → Agregar otra persona* (o *Agregar cuenta*) *→ No tengo los datos de inicio de sesión de esta persona → Agregar un usuario sin cuenta Microsoft*. Como la carpeta se comparte solo para leer, con esa cuenta tampoco se puede cambiar nada por la red.
+
+### PC con Windows 7 u 8
+
+Videoteca necesita **Windows 10 u 11 de 64 bits** (Flutter, con lo que está hecha, no funciona en versiones anteriores), y el instalador lo avisa. Desde esos PC puedes ver y copiar las películas igual, sin la app: en el Explorador, escribe en la barra de direcciones la ruta de *Ajustes → Red de casa* del PC de las películas (por ejemplo, `\NOMBRE-DEL-PC\Películas`) y busca la película por su carpeta. El catálogo, en el móvil.
 
 ### Copiar una película
 

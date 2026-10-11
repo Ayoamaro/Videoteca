@@ -18,6 +18,7 @@ import '../utilidades.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
 import '../widgets/copiar_pelicula.dart';
+import '../widgets/credenciales_red.dart';
 
 /// Ficha completa de una película.
 class PantallaFicha extends ConsumerWidget {
@@ -706,16 +707,21 @@ class _EstadoDondeEsta extends ConsumerState<_DondeEsta> {
         c.naranja,
         c.naranjaFondo,
         'Windows pide usuario y contraseña para entrar en el PC de las '
-            'películas. Pulsa «Abrir en el Explorador», escribe el usuario y '
-            'la contraseña de ese PC y marca «Recordar mis credenciales»: '
-            'después ya funciona todo.',
+            'películas. Escríbelos una vez y este PC los recordará: después '
+            'ya funciona todo.',
         [
-          if (u.red != null)
+          if (u.red != null) ...[
             FilledButton.icon(
+              onPressed: () => entrarConContrasena(context, u.red!),
+              icon: const Icon(Icons.key_rounded, size: 18),
+              label: const Text('Escribir usuario y contraseña…'),
+            ),
+            OutlinedButton.icon(
               onPressed: () => _abrirExplorador(u.red!),
               icon: const Icon(Icons.folder_open_outlined, size: 18),
               label: const Text('Abrir en el Explorador'),
             ),
+          ],
           comprobar(),
         ],
       ),

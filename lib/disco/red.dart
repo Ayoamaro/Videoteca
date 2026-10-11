@@ -132,6 +132,119 @@ String? equipoDeRuta(String ruta) {
   return null;
 }
 
+/// La carpeta compartida de [ruta] (`\\PC\Compartida\Películas` →
+/// `\\PC\Compartida`), o `null` si no es una ruta de red.
+String? carpetaCompartidaDe(String ruta) {
+  if (!ruta.startsWith(r'\\')) return null;
+  final partes = ruta.substring(2).split(r'\').where((p) => p.isNotEmpty);
+  if (partes.length < 2) return null;
+  return '\\\\${partes.take(2).join(r'\')}';
+}
+
+/// El usuario tal como lo quiere Windows para entrar en el PC [equipo]:
+/// «Ayoze» → «AYO-PC\Ayoze». Si ya lleva el PC delante (`PC\usuario`) o es
+/// una cuenta de Microsoft (su correo), tal cual.
+String usuarioDeRed(String usuario, String equipo) {
+  final limpio = usuario.trim();
+  if (limpio.contains(r'\') || limpio.contains('@')) return limpio;
+  return '$equipo\\$limpio';
+}
+
+/// Cómo ha ido entrar en el PC de las películas con usuario y contraseña.
+enum ResultadoCredenciales {
+  /// Se ha entrado y Windows los recuerda para las veces siguientes.
+  hecho,
+
+  /// Se ha entrado, pero Windows no ha dejado guardarlos: al reiniciar
+  /// habrá que volver a escribirlos.
+  sinGuardar,
+
+  /// Usuario o contraseña incorrectos.
+  incorrectos,
+
+  /// Esa cuenta no tiene contraseña (Windows no deja entrar por la red sin
+  /// ella).
+  cuentaSinContrasena,
+
+  /// La cuenta está desactivada, bloqueada o con la contraseña caducada.
+  cuentaNoValida,
+
+  /// Ese usuario no existe en el PC de las películas: Windows lo trata como
+  /// invitado y este PC no deja entrar como invitado.
+  noExiste,
+
+  /// La cuenta existe, pero no tiene permiso para entrar en esa carpeta.
+  sinPermiso,
+
+  /// Este PC ya está conectado a ese PC con otro usuario.
+  otroUsuario,
+
+  /// El PC de las películas no contesta.
+  sinConexion,
+
+  /// No es una carpeta de red (o ya no existe la carpeta compartida).
+  noEsRed,
+
+  /// Otro error de Windows.
+  error,
+}
+
+/// Qué quiere decir el código de error de Windows al entrar con usuario y
+/// contraseña (ver [conectarConUsuario]).
+ResultadoCredenciales resultadoDeConectar(int codigo) => switch (codigo) {
+  0 => ResultadoCredenciales.hecho,
+  86 || 1244 || 1326 || 2202 => ResultadoCredenciales.incorrectos,
+  1327 => ResultadoCredenciales.cuentaSinContrasena,
+  1330 || 1331 || 1385 || 1907 || 1909 => ResultadoCredenciales.cuentaNoValida,
+  1272 => ResultadoCredenciales.noExiste,
+  5 => ResultadoCredenciales.sinPermiso,
+  1219 => ResultadoCredenciales.otroUsuario,
+  67 || 1200 => ResultadoCredenciales.noEsRed,
+  // No se encuentra el PC, se ha cortado la red…
+  51 ||
+  53 ||
+  64 ||
+  1222 ||
+  1231 ||
+  1232 ||
+  1311 => ResultadoCredenciales.sinConexion,
+  _ => ResultadoCredenciales.error,
+};
+
+/// Entra en el PC de [ruta] con [usuario] y [contrasena] y, si van bien,
+/// los deja guardados en Windows (como «Recordar mis credenciales»): así la
+/// app, el Explorador y el reproductor entran sin preguntar. La contraseña
+/// no se guarda en la app. Solo en Windows; puede tardar: llamarla aparte.
+Future<ResultadoCredenciales> entrarConUsuario(
+  String ruta,
+  String usuario,
+  String contrasena,
+) async {
+  var red = ruta;
+  if (RegExp(r'^[A-Za-z]:').hasMatch(ruta)) {
+    red = conexionDeUnidad(ruta.substring(0, 2)) ?? ruta;
+  }
+  final recurso = carpetaCompartidaDe(red);
+  final equipo = recurso == null ? null : equipoDeRuta(recurso);
+  if (recurso == null || equipo == null) return ResultadoCredenciales.noEsRed;
+  if (!await equipoResponde(equipo)) return ResultadoCredenciales.sinConexion;
+
+  final nombre = usuarioDeRed(usuario, equipo);
+  var codigo = conectarConUsuario(recurso, nombre, contrasena);
+  if (codigo == 1219) {
+    // Ya había una conexión con ese PC (p. ej. con otro usuario): se cierra
+    // y se prueba otra vez.
+    desconectar(recurso);
+    desconectar('\\\\$equipo\\IPC\$');
+    codigo = conectarConUsuario(recurso, nombre, contrasena);
+  }
+  final resultado = resultadoDeConectar(codigo);
+  if (resultado != ResultadoCredenciales.hecho) return resultado;
+  return guardarCredencial(equipo, nombre, contrasena)
+      ? ResultadoCredenciales.hecho
+      : ResultadoCredenciales.sinGuardar;
+}
+
 /// Las carpetas compartidas de este PC tal como las ven los demás:
 /// `\\AYO-PC\Multimedia`…
 List<String> carpetasCompartidasDeEstePc() {

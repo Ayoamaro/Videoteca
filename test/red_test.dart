@@ -82,6 +82,75 @@ void main() {
     });
   });
 
+  group('Usuario y contraseña', () {
+    test('la carpeta compartida de una ruta', () {
+      expect(
+        carpetaCompartidaDe(r'\\AYO-PC\Multimedia\Películas\Drama'),
+        r'\\AYO-PC\Multimedia',
+      );
+      expect(
+        carpetaCompartidaDe(r'\\AYO-PC\Multimedia'),
+        r'\\AYO-PC\Multimedia',
+      );
+      expect(carpetaCompartidaDe(r'\\AYO-PC'), isNull);
+      expect(carpetaCompartidaDe(r'Z:\Películas'), isNull);
+    });
+
+    test('el usuario lleva delante el PC, salvo que ya lo lleve', () {
+      expect(usuarioDeRed(' Ayoze ', 'AYO-PC'), r'AYO-PC\Ayoze');
+      expect(usuarioDeRed(r'OTRO\Ayoze', 'AYO-PC'), r'OTRO\Ayoze');
+      // Cuenta de Microsoft: su correo, tal cual.
+      expect(usuarioDeRed('ayoze@outlook.es', 'AYO-PC'), 'ayoze@outlook.es');
+    });
+
+    test('qué quiere decir lo que contesta Windows', () {
+      expect(resultadoDeConectar(0), ResultadoCredenciales.hecho);
+      expect(resultadoDeConectar(1326), ResultadoCredenciales.incorrectos);
+      expect(resultadoDeConectar(86), ResultadoCredenciales.incorrectos);
+      // Cuenta sin contraseña (Windows no deja entrar con ella por la red).
+      expect(
+        resultadoDeConectar(1327),
+        ResultadoCredenciales.cuentaSinContrasena,
+      );
+      expect(resultadoDeConectar(1331), ResultadoCredenciales.cuentaNoValida);
+      // Usuario que no existe allí: lo trata como invitado y aquí se bloquea.
+      expect(resultadoDeConectar(1272), ResultadoCredenciales.noExiste);
+      expect(resultadoDeConectar(5), ResultadoCredenciales.sinPermiso);
+      expect(resultadoDeConectar(1219), ResultadoCredenciales.otroUsuario);
+      expect(resultadoDeConectar(53), ResultadoCredenciales.sinConexion);
+      expect(resultadoDeConectar(67), ResultadoCredenciales.noEsRed);
+      expect(resultadoDeConectar(31), ResultadoCredenciales.error);
+    });
+
+    test('de verdad: un PC que no contesta no hace esperar', () async {
+      final reloj = Stopwatch()..start();
+      expect(
+        await entrarConUsuario(r'\\NOEXISTE-VIDEOTECA\Pelis', 'yo', 'x'),
+        ResultadoCredenciales.sinConexion,
+      );
+      expect(reloj.elapsed, lessThan(const Duration(seconds: 6)));
+      expect(
+        await entrarConUsuario(r'C:\Pelis', 'yo', 'x'),
+        ResultadoCredenciales.noEsRed,
+      );
+    }, skip: Platform.isWindows ? false : 'Solo en Windows');
+
+    test('de verdad: se guardan en Windows y se pueden borrar', () {
+      // Un «PC» inventado, para no tocar nada de verdad.
+      final equipo =
+          'VIDEOTECA-PRUEBA-${DateTime.now().microsecondsSinceEpoch}';
+      addTearDown(() => borrarCredencial(equipo));
+      expect(usuarioGuardado(equipo), isNull);
+      expect(guardarCredencial(equipo, '$equipo\\Ayoze', 'secreta'), isTrue);
+      expect(usuarioGuardado(equipo), '$equipo\\Ayoze');
+      // Volver a guardarla la cambia (no se duplica).
+      expect(guardarCredencial(equipo, '$equipo\\Otra', 'otra'), isTrue);
+      expect(usuarioGuardado(equipo), '$equipo\\Otra');
+      expect(borrarCredencial(equipo), isTrue);
+      expect(usuarioGuardado(equipo), isNull);
+    }, skip: Platform.isWindows ? false : 'Solo en Windows');
+  });
+
   group('Carpetas de verdad', () {
     late Directory temporal;
 

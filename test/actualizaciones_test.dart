@@ -24,12 +24,14 @@ void main() {
       notas:
           '## Novedades\r\n'
           '- **Revisar dudosas** una a una\r\n'
-          '* Ver [el README](https://github.com/a/b) y `Ajustes`',
+          '* Ver [el README](https://github.com/a/b) y `Ajustes`\r\n'
+          'Pulsa *Novedades y descarga* o _Más tarde_ en mi_versión.',
     );
     expect(v.numero, '1.0');
     expect(
       v.notasLimpias,
-      'Novedades\n• Revisar dudosas una a una\n• Ver el README y Ajustes',
+      'Novedades\n• Revisar dudosas una a una\n• Ver el README y Ajustes\n'
+      'Pulsa Novedades y descarga o Más tarde en mi_versión.',
     );
   });
 

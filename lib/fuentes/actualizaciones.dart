@@ -50,6 +50,12 @@ class VersionPublicada {
       .replaceAll('\r', '')
       .replaceAll(RegExp(r'\*\*|__|`'), '')
       .replaceAll(RegExp(r'^\s*[-*] ', multiLine: true), '• ')
+      // Cursivas: *así* o _así_ (sin tocar «mi_versión»).
+      .replaceAllMapped(RegExp(r'\*([^*\n]+)\*'), (m) => m.group(1)!)
+      .replaceAllMapped(
+        RegExp(r'(?<!\w)_([^_\n]+)_(?!\w)', unicode: true),
+        (m) => m.group(1)!,
+      )
       .replaceAll(RegExp(r'^#+\s*', multiLine: true), '')
       .replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m.group(1)!)
       .trim();

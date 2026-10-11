@@ -96,20 +96,30 @@ jobs:
       # tiene que cerrar y volver a abrir) y se desinstala (sin borrar los
       # datos, que es lo que pasa si no se elige otra cosa).
       - name: Probar el instalador
+        timeout-minutes: 15
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           function Falla($texto) { Write-Output "::error::$texto"; exit 1 }
+          # Espera solo a ese proceso: con -Wait, PowerShell espera también a
+          # sus hijos (la app que el instalador vuelve a abrir).
+          function Ejecutar($exe, $argumentos) {
+            $p = Start-Process $exe -ArgumentList $argumentos -PassThru
+            $null = $p.Handle
+            if (-not $p.WaitForExit(300000)) { Falla "$exe no ha terminado en 5 minutos" }
+            return $p.ExitCode
+          }
           $instalador = (Get-ChildItem build\instalador\*.exe)[0].FullName
           $carpeta = "$env:LOCALAPPDATA\Programs\Videoteca"
           $app = "$carpeta\videoteca.exe"
           $datos = "$env:LOCALAPPDATA\Videoteca"
 
           $registroInstalar = "$env:RUNNER_TEMP\instalar.log"
-          $p = Start-Process $instalador -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$registroInstalar`"" -Wait -PassThru
-          if ($p.ExitCode -ne 0 -or -not (Test-Path $app)) {
+          $argumentos = '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$registroInstalar`""
+          $codigo = Ejecutar $instalador $argumentos
+          if ($codigo -ne 0 -or -not (Test-Path $app)) {
             Get-Content $registroInstalar -ErrorAction SilentlyContinue | Select-Object -Last 60
-            Falla "No se ha instalado en $carpeta (código $($p.ExitCode))"
+            Falla "No se ha instalado en $carpeta (código $codigo)"
           }
           $info = (Get-Item $app).VersionInfo
           Write-Output "Instalada: $($info.ProductName) $($info.ProductVersion) ($($info.CompanyName))"
@@ -128,10 +138,10 @@ jobs:
           if (-not $segunda.WaitForExit(10000)) { Falla 'Se ha abierto dos veces' }
 
           # Actualizar con la app abierta: la cierra y la vuelve a abrir.
-          $p = Start-Process $instalador -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$registroInstalar`"" -Wait -PassThru
-          if ($p.ExitCode -ne 0) {
+          $codigo = Ejecutar $instalador $argumentos
+          if ($codigo -ne 0) {
             Get-Content $registroInstalar | Select-Object -Last 60
-            Falla "No se ha podido actualizar con la app abierta (código $($p.ExitCode))"
+            Falla "No se ha podido actualizar con la app abierta (código $codigo)"
           }
           if (-not $primera.HasExited) { Falla 'Al actualizar no ha cerrado la app' }
           for ($i = 0; $i -lt 20 -and -not (Get-Process videoteca -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Seconds 1 }
@@ -145,7 +155,7 @@ jobs:
 
           # El desinstalador se copia a la carpeta temporal y sigue desde
           # allí: se espera a que desaparezca la carpeta de la app.
-          Start-Process "$carpeta\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          Ejecutar "$carpeta\unins000.exe" @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') | Out-Null
           for ($i = 0; $i -lt 60 -and (Test-Path $app); $i++) { Start-Sleep -Seconds 1 }
           if (Test-Path $app) { Falla 'No se ha desinstalado' }
           if (-not (Test-Path "$datos\prueba.txt")) { Falla 'Al desinstalar ha borrado los datos sin preguntar' }

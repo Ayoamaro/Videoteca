@@ -4,12 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../errores.dart';
 import '../arranque.dart';
+import '../datos/actualizaciones.dart';
 import '../datos/catalogo.dart';
 import '../datos/consulta.dart';
 import '../datos/sesion.dart' show largoMinimoContrasena;
 import '../datos/fuentes.dart';
 import '../datos/publicacion.dart';
+import '../disco/abrir_enlace.dart';
 import '../disco/acciones_windows.dart';
+import '../fuentes/actualizaciones.dart';
 import '../fuentes/conexion.dart';
 import '../fuentes/conversiones.dart';
 import '../pantallas/nuevas.dart' show cuandoTexto;
@@ -21,9 +24,10 @@ import '../utilidades.dart';
 import '../widgets/comunes.dart';
 import '../widgets/exportar.dart';
 import '../widgets/progreso_escaneo.dart';
+import '../widgets/version_nueva.dart';
 
-/// Ajustes de la app. Las secciones marcadas con «Día N» se activan ese día
-/// del planning.
+/// Ajustes de la app. En el modo consulta solo se ven la apariencia, el
+/// catálogo descargado, la sesión y «Acerca de».
 class PantallaAjustes extends ConsumerWidget {
   const PantallaAjustes({super.key});
 
@@ -147,6 +151,7 @@ class PantallaAjustes extends ConsumerWidget {
             ] else
               const _SeccionCopia(),
             const _SeccionSesion(),
+            const _SeccionAcercaDe(),
           ],
         ),
       ],
@@ -368,6 +373,107 @@ class _SeccionSesion extends ConsumerWidget {
               onPressed: control?.cerrar,
               icon: const Icon(Icons.logout_rounded, size: 18),
               label: const Text('Cerrar sesión'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Qué versión es esta, si hay otra más nueva y dónde están las
+/// instrucciones.
+class _SeccionAcercaDe extends ConsumerWidget {
+  const _SeccionAcercaDe();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final e = ref.watch(actualizacionProvider);
+    final nueva = e.nueva;
+    final comprobada = e.comprobada;
+    final (pastilla, color, fondo) = switch (e) {
+      _ when !Actualizacion.disponible => (
+        'Compilación propia',
+        c.textoSecundario,
+        c.seleccion,
+      ),
+      _ when e.buscando => ('Buscando…', c.azul, c.azulFondo),
+      _ when nueva != null => (
+        'Hay una nueva: ${nueva.numero}',
+        c.doradoTexto,
+        c.doradoFondo,
+      ),
+      _ when e.error != null => ('Sin comprobar', c.naranja, c.naranjaFondo),
+      _ when comprobada != null => ('Al día', c.verde, c.verdeFondo),
+      _ => ('Sin comprobar', c.textoSecundario, c.seleccion),
+    };
+    return _Seccion(
+      titulo: 'Acerca de Videoteca',
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Icon(Icons.info_outline_rounded, color: c.doradoTexto),
+            Text(
+              versionApp.isEmpty
+                  ? 'Versión de desarrollo'
+                  : 'Versión $versionApp',
+              style: TextStyle(fontSize: 15, color: c.texto),
+            ),
+            Pastilla(pastilla, color: color, fondo: fondo),
+          ],
+        ),
+        Text(
+          'Catálogo de películas para Windows y Android, de código abierto '
+          '(licencia MIT). Las instrucciones, las novedades y todas las '
+          'versiones están en GitHub.',
+          style: TextStyle(fontSize: 13, height: 1.5, color: c.textoSuave),
+        ),
+        Text(
+          'Los datos de las películas salen de TMDB, OMDb, Wikidata y '
+          'FilmAffinity. Esta app usa la API de TMDB, pero TMDB no la '
+          'respalda ni la certifica.',
+          style: TextStyle(fontSize: 12, height: 1.5, color: c.textoSecundario),
+        ),
+        if (e.error != null)
+          Text(
+            'No se ha podido comprobar si hay otra versión: ${e.error}',
+            style: TextStyle(fontSize: 13, color: c.naranja),
+          )
+        else if (comprobada != null && nueva == null)
+          Text(
+            'Comprobado ${cuandoTexto(comprobada).toLowerCase()}: es la '
+            'última versión.',
+            style: TextStyle(fontSize: 13, color: c.textoSecundario),
+          ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            if (nueva != null)
+              FilledButton.icon(
+                onPressed: () => mostrarVersionNueva(context, nueva),
+                icon: const Icon(Icons.system_update_rounded, size: 18),
+                label: const Text('Novedades y descarga'),
+              )
+            else if (Actualizacion.disponible)
+              OutlinedButton.icon(
+                onPressed: e.buscando
+                    ? null
+                    : () =>
+                          ref.read(actualizacionProvider.notifier).comprobar(),
+                icon: const Icon(Icons.sync_rounded, size: 18),
+                label: const Text('Buscar actualizaciones'),
+              ),
+            OutlinedButton.icon(
+              onPressed: () => abrirEnlace(
+                'https://github.com/${repoApp.isEmpty ? 'Ayoamaro/Videoteca' : repoApp}',
+              ),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: const Text('Instrucciones en GitHub'),
             ),
           ],
         ),
@@ -617,15 +723,10 @@ class _SeccionServicios extends ConsumerWidget {
         ),
         _FilaServicio(
           nombre: 'FilmAffinity',
-          uso: 'Lectura semiautomática con navegador integrado.',
-          estado: Text(
-            'Día 11',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: c.textoTenue,
-            ),
-          ),
+          uso:
+              'Sinopsis, reparto, temas y premios. Se lee con una ventana de '
+              'Microsoft Edge, contigo delante. No necesita clave.',
+          estado: Pastilla('Listo', color: c.verde, fondo: c.verdeFondo),
         ),
       ],
     );

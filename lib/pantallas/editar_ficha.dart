@@ -44,17 +44,24 @@ import 'registro.dart';
 /// Con [repaso] es el «Repaso con FilmAffinity» de Completar mi colección:
 /// se abre FilmAffinity nada más entrar y, al guardar o saltar, se pasa a la
 /// siguiente película de ese tipo.
+///
+/// Con [dudosa] es «Revisar dudosa», también de Completar mi colección: como
+/// Completar ficha (búsqueda automática, «¿Cuál es?» y datos en los campos
+/// vacíos) para las películas que el lote dejó sin tocar; al guardar o
+/// saltar se pasa a la siguiente dudosa.
 class PantallaEditarFicha extends ConsumerStatefulWidget {
   const PantallaEditarFicha({
     super.key,
     required this.id,
     this.completar = false,
     this.repaso,
+    this.dudosa = false,
   });
 
   final int id;
   final bool completar;
   final TipoRepaso? repaso;
+  final bool dudosa;
 
   @override
   ConsumerState<PantallaEditarFicha> createState() => _EstadoEditarFicha();
@@ -92,6 +99,9 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
   ResultadoDatos? _aplicado;
   var _verCandidatas = false;
 
+  /// Completar ficha y Revisar dudosa: con búsqueda automática en TMDB.
+  bool get _conBusqueda => widget.completar || widget.dudosa;
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +109,17 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
       t.addListener(() => setState(() {}));
     }
     ArrastreArchivos.instancia.escuchar(_alSoltar);
+    if (widget.dudosa) {
+      // Se busca esta y, mientras la revisas, la siguiente.
+      final p = _pelicula;
+      final siguiente = p == null
+          ? null
+          : siguienteDudosa(ref.read(colaDudosasProvider), p);
+      ref.read(busquedasNuevasProvider.notifier).pedir([
+        widget.id,
+        ?siguiente?.id,
+      ]);
+    }
     _cargar();
   }
 
@@ -155,7 +176,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
           t.text = valores[c]!;
         }
         _estrellas = int.tryParse(valores[Campo.estrellas]!) ?? 0;
-        if (widget.completar) {
+        if (_conBusqueda) {
           // Título y año del nombre del archivo, si el archivo no los tiene.
           for (final (campo, valor) in [
             (Campo.titulo, datos.titulo),
@@ -168,7 +189,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
           }
         }
       });
-      if (widget.completar) {
+      if (_conBusqueda) {
         _aplicarBusqueda(ref.read(busquedasNuevasProvider)[widget.id]);
       }
       // Repaso: FilmAffinity se abre solo.
@@ -380,6 +401,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     final caratula = _caratula;
     final completar = widget.completar;
     final repaso = widget.repaso;
+    final dudosa = widget.dudosa;
     if (completar && !await _confirmarSinCaratula()) return;
     if (!mounted) return;
     final mensajero = ScaffoldMessenger.of(context);
@@ -397,6 +419,8 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
             ? 'Completar ficha'
             : repaso != null
             ? 'Repaso con FilmAffinity'
+            : dudosa
+            ? 'Revisar dudosa'
             : 'Editar ficha',
       );
       if (completar) await catalogo.marcarCompletada(p.id);
@@ -413,7 +437,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         _caratula = null;
       });
       // Completar ficha: se pasa a la siguiente nueva sin guardar (o a la
-      // bandeja si no quedan). Repaso: a la siguiente por repasar.
+      // bandeja si no quedan). Repaso y dudosas: a la siguiente por revisar.
       final siguiente = completar
           ? ref
                 .read(nuevasSinGuardarProvider)
@@ -421,12 +445,20 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                 .firstOrNull
           : repaso != null
           ? _siguienteRepaso(p.id)
+          : dudosa
+          ? siguienteDudosa(ref.read(colaDudosasProvider), p)
           : null;
+      // Las que quedan por revisar (las saltadas, si no hay siguiente).
+      final saltadas = dudosa ? ref.read(colaDudosasProvider).length : 0;
       if (repaso != null) {
         enrutador.go(
           siguiente == null
               ? '/coleccion'
               : '/repaso/${repaso.name}/${siguiente.id}',
+        );
+      } else if (dudosa) {
+        enrutador.go(
+          siguiente == null ? '/coleccion' : '/dudosas/${siguiente.id}',
         );
       } else if (!completar) {
         enrutador.pop();
@@ -442,6 +474,8 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                       'así).'
                 : repaso != null
                 ? '«${p.titulo}» repasada (sin cambios).'
+                : dudosa
+                ? '«${p.titulo}» marcada como revisada (sin cambios).'
                 : 'No había nada distinto que guardar.')
           : 'Guardado en el archivo y comprobado '
                 '($n ${n == 1 ? 'cambio' : 'cambios'}).';
@@ -453,11 +487,16 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
             // Con botón, Flutter lo dejaría fijo hasta cerrarlo a mano.
             persist: false,
             // Si se pasa a la siguiente película, también hay barra abajo.
-            margin: completar || repaso != null ? _margenAviso : null,
+            margin: completar || repaso != null || dudosa ? _margenAviso : null,
             content: Text(
               siguiente == null
                   ? (repaso != null
                         ? '$hecho No quedan más por repasar.'
+                        : dudosa && saltadas == 0
+                        ? '$hecho No quedan más dudosas.'
+                        : dudosa
+                        ? '$hecho Era la última de la lista (quedan '
+                              '$saltadas que has saltado).'
                         : hecho)
                   : '$hecho Siguiente: «${siguiente.titulo}».',
             ),
@@ -539,6 +578,19 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     return si ?? false;
   }
 
+  /// Revisar dudosa: por qué el lote la dejó sin tocar y qué hacer.
+  String _explicacionDudosa() {
+    final motivo = ref.watch(
+      coleccionProvider.select((e) => e.filas[widget.id]?.mensaje ?? ''),
+    );
+    final quedan = ref.watch(colaDudosasProvider).length;
+    return '${motivo.isEmpty ? '' : '$motivo '}'
+        'Comprueba cuál es (o elígela en «¿Cuál es?»), revisa los datos y '
+        'guarda: se pasa a la siguiente. «Saltar» la deja como está. '
+        '${quedan == 1 ? 'Queda 1' : 'Quedan ${formatoNumero(quedan)}'} '
+        'por revisar.';
+  }
+
   /// La siguiente película por repasar (sin contar [id]).
   Pelicula? _siguienteRepaso(int id) => ref
       .read(colaRepasoProvider(widget.repaso!))
@@ -546,26 +598,36 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
       .firstOrNull;
 
   /// Repaso: deja esta película sin tocar (no se vuelve a proponer) y pasa
+  /// a la siguiente. Dudosas: la deja como está (sigue en la lista) y pasa
   /// a la siguiente.
   Future<void> _saltar() async {
     if (!await _descartar() || !mounted) return;
-    final repaso = widget.repaso!;
     final enrutador = GoRouter.of(context);
-    final siguiente = _siguienteRepaso(widget.id);
-    await ref.read(repasadasProvider.notifier).marcar(widget.id);
+    final String destino;
+    if (widget.dudosa) {
+      final p = _pelicula;
+      final siguiente = p == null
+          ? null
+          : siguienteDudosa(ref.read(colaDudosasProvider), p);
+      destino = siguiente == null ? '/coleccion' : '/dudosas/${siguiente.id}';
+    } else {
+      final repaso = widget.repaso!;
+      final siguiente = _siguienteRepaso(widget.id);
+      await ref.read(repasadasProvider.notifier).marcar(widget.id);
+      destino = siguiente == null
+          ? '/coleccion'
+          : '/repaso/${repaso.name}/${siguiente.id}';
+    }
+    if (!mounted) return;
     // Ya no hay cambios pendientes: se puede salir sin preguntar.
     setState(() => _caratula = null);
     _original = {for (final c in Campo.values) c: _actual(c)};
-    enrutador.go(
-      siguiente == null
-          ? '/coleccion'
-          : '/repaso/${repaso.name}/${siguiente.id}',
-    );
+    enrutador.go(destino);
   }
 
   Future<void> _salir() async {
     if (await _descartar() && mounted) {
-      if (widget.repaso != null) {
+      if (widget.repaso != null || widget.dudosa) {
         context.go('/coleccion');
       } else if (widget.completar) {
         context.go('/nuevas');
@@ -599,17 +661,18 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
         : _errorLectura;
     final completar = widget.completar;
     final repaso = widget.repaso;
-    // En Completar ficha (y en el repaso) se puede «guardar» sin cambios:
-    // si el archivo ya estaba completo, solo se marca como guardada.
+    final dudosa = widget.dudosa;
+    // En Completar ficha (y en el repaso y las dudosas) se puede «guardar»
+    // sin cambios: si el archivo ya estaba bien, solo se marca como hecha.
     final puedeGuardar =
         cargado &&
         problema == null &&
         errores.isEmpty &&
-        (_hayCambios || completar || repaso != null);
-    final busqueda = completar
+        (_hayCambios || completar || repaso != null || dudosa);
+    final busqueda = _conBusqueda
         ? ref.watch(busquedasNuevasProvider)[widget.id]
         : null;
-    if (completar) {
+    if (_conBusqueda) {
       ref.listen(
         busquedasNuevasProvider.select((b) => b[widget.id]),
         (_, b) => _aplicarBusqueda(b),
@@ -633,7 +696,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                     onPressed: _salir,
                     icon: const Icon(Icons.chevron_left_rounded),
                     label: Text(
-                      repaso != null
+                      repaso != null || dudosa
                           ? 'Completar mi colección'
                           : completar
                           ? 'Películas nuevas'
@@ -671,6 +734,24 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                     alVerCandidatas: () =>
                         setState(() => _verCandidatas = !_verCandidatas),
                   )
+                else if (dudosa)
+                  CabeceraCompletar(
+                    pelicula: p,
+                    titulo: _actual(Campo.titulo),
+                    busqueda: busqueda,
+                    hayClave: ref.watch(fuentesDatosProvider) != null,
+                    alVerCandidatas: () =>
+                        setState(() => _verCandidatas = !_verCandidatas),
+                    encabezado: 'Revisar dudosa',
+                    explicacion: _explicacionDudosa(),
+                    acciones: [
+                      OutlinedButton.icon(
+                        onPressed: _saltar,
+                        icon: const Icon(Icons.skip_next_rounded, size: 18),
+                        label: const Text('Saltar'),
+                      ),
+                    ],
+                  )
                 else
                   CabeceraPagina(
                     titulo: 'Editar ficha',
@@ -681,7 +762,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                         'carátula quedan intactos, y todo queda en el '
                         'Registro de cambios para poder deshacerlo.',
                   ),
-                if (completar &&
+                if (_conBusqueda &&
                     busqueda?.identificacion != null &&
                     (busqueda!.estado == EstadoBusqueda.elegir ||
                         busqueda.estado == EstadoBusqueda.noEncontrada ||
@@ -832,6 +913,9 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                                 : repaso != null
                                 ? 'Sin cambios: al guardar se marca como '
                                       'repasada'
+                                : dudosa
+                                ? 'Sin cambios: al guardar se marca como '
+                                      'revisada'
                                 : 'Sin cambios')
                           : '$numCambios ${numCambios == 1 ? 'cambio' : 'cambios'} sin guardar',
                       style: TextStyle(
@@ -850,6 +934,8 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                     child: Text(
                       repaso != null
                           ? 'Terminar el repaso'
+                          : dudosa
+                          ? 'Terminar la revisión'
                           : completar
                           ? 'Descartar'
                           : 'Cancelar',

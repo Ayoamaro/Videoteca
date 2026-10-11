@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../datos/actualizaciones.dart';
 import '../datos/catalogo.dart';
 import '../datos/consulta.dart';
 import '../datos/nuevas.dart';
@@ -13,6 +14,7 @@ import '../widgets/buscador_sugerencias.dart';
 import '../widgets/caratula.dart';
 import '../widgets/coleccion_vacia.dart';
 import '../widgets/comunes.dart';
+import '../widgets/version_nueva.dart';
 
 /// Pantalla de Inicio: buscador, aviso de películas nuevas, añadidas
 /// recientemente y géneros.
@@ -87,6 +89,8 @@ class PantallaInicio extends ConsumerWidget {
                   : 'Busca por título, título original, actor o director…',
               atajo: movil ? null : 'Ctrl K',
             ),
+            if (ref.watch(actualizacionProvider.select((e) => e.avisar)))
+              const AvisoVersionNueva(),
             if (esAdministrador && nuevas.isNotEmpty) _AvisoNuevas(nuevas),
             if (!esAdministrador) const _AvisoSinConexion(),
             if (todas.isEmpty)

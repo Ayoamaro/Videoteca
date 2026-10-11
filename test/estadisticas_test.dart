@@ -370,12 +370,16 @@ void main() {
         expect(File(nuevo.miniatura(7)).readAsBytesSync(), [1, 2, 3]);
         expect(File(nuevo.miniatura(99)).existsSync(), isFalse);
         expect(File(nuevo.copiaCaratula(1, antes: true)).existsSync(), isTrue);
+        final sep = Platform.pathSeparator;
         expect(
-          File('${nuevo.raiz}\\videoteca-antes-de-restaurar.sqlite')
+          File('${nuevo.raiz}${sep}videoteca-antes-de-restaurar.sqlite')
               .existsSync(),
           isTrue,
         );
-        expect(Directory('${nuevo.raiz}\\restaurando').existsSync(), isFalse);
+        expect(
+          Directory('${nuevo.raiz}${sep}restaurando').existsSync(),
+          isFalse,
+        );
       },
     );
   });

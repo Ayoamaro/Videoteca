@@ -1,5 +1,13 @@
-# Al subir una etiqueta de versión (p. ej. `v0.1`), compila la app de Windows
-# (con su instalador) y la de Android (APK) y las publica en GitHub → Releases.
+# Al subir una etiqueta de versión (p. ej. `v1.0`), compila la app de Windows
+# (con su instalador) y la de Android (APK), prueba el instalador y lo publica
+# todo en GitHub → Releases con las notas de `docs/novedades/<etiqueta>.md`.
+#
+# También se puede lanzar a mano (Actions → Publicar versión → Run workflow):
+# compila y prueba igual, pero no publica nada (los archivos quedan en la
+# página de esa ejecución, en «Artifacts»).
+#
+# Si montas tu propia Videoteca a partir de este repositorio, mira
+# docs/tu-propia-version.md (llave de firma de Android y tablón propuesto).
 name: Publicar versión
 
 on:
@@ -9,14 +17,49 @@ on:
 
 env:
   FLUTTER_VERSION: '3.47.6'
+  # El tablón que la app propone al entrar en modo consulta: la variable
+  # TABLON del repositorio (Settings → Secrets and variables → Actions →
+  # Variables) o, si no existe, «<este repositorio>_Tablon».
+  TABLON: ${{ vars.TABLON || format('{0}_Tablon', github.repository) }}
 
 permissions:
   contents: write
 
 jobs:
+  version:
+    name: Comprobar la versión
+    runs-on: ubuntu-latest
+    outputs:
+      numero: ${{ steps.leer.outputs.numero }}
+    steps:
+      - uses: actions/checkout@v7
+      # La versión sale de pubspec.yaml («version: 1.0.0+5» → 1.0.0) y tiene
+      # que ser la de la etiqueta (v1.0 = 1.0.0), para no publicar una app
+      # que dice ser otra versión.
+      - name: Leer la versión
+        id: leer
+        run: |
+          numero=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)
+          echo "numero=$numero" >> "$GITHUB_OUTPUT"
+          echo "pubspec.yaml: $numero"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            normalizar() { IFS=. read -r a b c <<< "${1#v}"; echo "${a:-0}.${b:-0}.${c:-0}"; }
+            if [ "$(normalizar "$GITHUB_REF_NAME")" != "$(normalizar "$numero")" ]; then
+              echo "::error::La etiqueta $GITHUB_REF_NAME no coincide con la versión de pubspec.yaml ($numero)."
+              exit 1
+            fi
+            if [ ! -f "docs/novedades/$GITHUB_REF_NAME.md" ]; then
+              echo "::error::Faltan las notas de la versión: docs/novedades/$GITHUB_REF_NAME.md"
+              exit 1
+            fi
+          fi
+
   instalador:
     name: Instalador de Windows
+    needs: version
     runs-on: windows-latest
+    env:
+      NUMERO: ${{ needs.version.outputs.numero }}
     steps:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
@@ -26,17 +69,11 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter test
-      # El tablón que se propone al entrar en modo consulta (cámbialo por el
-      # tuyo si montas tu propia colección).
-      - run: flutter build windows --release --dart-define=TABLON=Ayoamaro/Videoteca_Tablon
-
-      # La versión sale de pubspec.yaml («version: 0.1.0+1» → 0.1.0).
-      - name: Leer la versión
-        id: version
-        shell: pwsh
-        run: |
-          $linea = Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)'
-          "numero=$($linea.Matches[0].Groups[1].Value)" >> $env:GITHUB_OUTPUT
+      # REPO_APP: dónde mira la app si hay versiones nuevas (este repositorio).
+      - run: >-
+          flutter build windows --release
+          --dart-define=TABLON=${{ env.TABLON }}
+          --dart-define=REPO_APP=${{ github.repository }}
 
       # Las librerías de Visual C++ van con la app, por si el PC no las tiene.
       - name: Añadir las librerías de Visual C++
@@ -51,8 +88,49 @@ jobs:
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
-          & $iscc "/DVersion=${{ steps.version.outputs.numero }}" windows\instalador\videoteca.iss
+          & $iscc "/DVersion=$env:NUMERO" "/DRepo=${{ github.repository }}" windows\instalador\videoteca.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Se instala de verdad en la máquina de GitHub, se abre la app, se
+      # comprueba que no se abre dos veces y se desinstala (sin borrar los
+      # datos, que es lo que pasa si no se elige otra cosa).
+      - name: Probar el instalador
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Falla($texto) { Write-Output "::error::$texto"; exit 1 }
+          $instalador = (Get-ChildItem build\instalador\*.exe)[0].FullName
+          $carpeta = "$env:LOCALAPPDATA\Programs\Videoteca"
+          $app = "$carpeta\videoteca.exe"
+          $datos = "$env:LOCALAPPDATA\Videoteca"
+
+          Start-Process $instalador -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          if (-not (Test-Path $app)) { Falla "No se ha instalado en $carpeta" }
+          $info = (Get-Item $app).VersionInfo
+          Write-Output "Instalada: $($info.ProductName) $($info.ProductVersion) ($($info.CompanyName))"
+          if (-not $info.ProductVersion.StartsWith($env:NUMERO)) { Falla "El .exe dice ser la versión $($info.ProductVersion)" }
+          $registro = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' |
+            Where-Object DisplayName -eq 'Videoteca'
+          if ($registro.DisplayVersion -ne $env:NUMERO) { Falla "Aplicaciones instaladas no muestra la versión $env:NUMERO" }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Videoteca.lnk")) { Falla 'Falta el acceso en el menú Inicio' }
+
+          New-Item -ItemType Directory -Force $datos | Out-Null
+          Set-Content "$datos\prueba.txt" 'No se tiene que borrar'
+          $primera = Start-Process $app -PassThru
+          Start-Sleep -Seconds 15
+          if ($primera.HasExited) { Falla "La app se ha cerrado sola al abrirla (código $($primera.ExitCode))" }
+          $segunda = Start-Process $app -PassThru
+          if (-not $segunda.WaitForExit(10000)) { Falla 'Se ha abierto dos veces' }
+          Stop-Process -Id $primera.Id
+          $primera.WaitForExit(10000) | Out-Null
+
+          # El desinstalador se copia a la carpeta temporal y sigue desde
+          # allí: se espera a que desaparezca la carpeta de la app.
+          Start-Process "$carpeta\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          for ($i = 0; $i -lt 60 -and (Test-Path $app); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $app) { Falla 'No se ha desinstalado' }
+          if (-not (Test-Path "$datos\prueba.txt")) { Falla 'Al desinstalar ha borrado los datos sin preguntar' }
+          Write-Output 'Instalar, abrir, no abrirse dos veces y desinstalar: correcto.'
 
       - uses: actions/upload-artifact@v7
         with:
@@ -61,6 +139,7 @@ jobs:
 
   apk:
     name: APK de Android
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -81,7 +160,10 @@ jobs:
         env:
           LLAVE: ${{ secrets.ANDROID_LLAVE_BASE64 }}
         run: |
-          if [ -z "$LLAVE" ]; then echo "Falta el secreto ANDROID_LLAVE_BASE64"; exit 1; fi
+          if [ -z "$LLAVE" ]; then
+            echo "::error::Falta el secreto ANDROID_LLAVE_BASE64 (la llave con la que se firma la APK). Ver docs/tu-propia-version.md."
+            exit 1
+          fi
           echo "$LLAVE" | base64 -d > "$RUNNER_TEMP/videoteca.jks"
           echo "ANDROID_LLAVE_ARCHIVO=$RUNNER_TEMP/videoteca.jks" >> "$GITHUB_ENV"
 
@@ -89,12 +171,13 @@ jobs:
       - name: Compilar la APK
         env:
           ANDROID_LLAVE_CLAVE: ${{ secrets.ANDROID_LLAVE_CLAVE }}
+          NUMERO: ${{ needs.version.outputs.numero }}
         run: |
           flutter build apk --release --split-per-abi --target-platform android-arm64 \
-            --dart-define=TABLON=Ayoamaro/Videoteca_Tablon
-          version=$(sed -n 's/^version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)
+            --dart-define=TABLON=${{ env.TABLON }} \
+            --dart-define=REPO_APP=${{ github.repository }}
           mkdir -p build/apk
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "build/apk/Videoteca-$version.apk"
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "build/apk/Videoteca-$NUMERO.apk"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -111,10 +194,15 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: descargas
+          merge-multiple: true
+      # Huellas SHA-256 para comprobar que lo descargado está entero.
+      - name: Calcular las huellas
+        working-directory: descargas
+        run: sha256sum * | tee SHA256SUMS.txt
       - name: Crear la versión
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" descargas/*/* \
+          gh release create "${{ github.ref_name }}" descargas/* \
             --title "Videoteca ${{ github.ref_name }}" \
-            --notes-file docs/novedades/${{ github.ref_name }}.md
+            --notes-file "docs/novedades/${{ github.ref_name }}.md"

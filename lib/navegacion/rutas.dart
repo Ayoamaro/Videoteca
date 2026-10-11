@@ -33,6 +33,7 @@ bool _deAdministracion(String ruta) =>
       '/pendientes',
       '/coleccion',
       '/repaso',
+      '/dudosas',
       '/registro',
       '/lectura',
       '/archivo',
@@ -181,6 +182,20 @@ final rutasProvider = Provider<GoRouter>((ref) {
                   repaso:
                       TipoRepaso.porNombre(e.pathParameters['tipo']) ??
                       TipoRepaso.cortadas,
+                ),
+              );
+            },
+          ),
+          GoRoute(
+            path: '/dudosas/:id',
+            pageBuilder: (c, e) {
+              final id = int.tryParse(e.pathParameters['id'] ?? '') ?? 0;
+              return sinAnimacion(
+                e,
+                PantallaEditarFicha(
+                  key: ValueKey('dudosa-$id'),
+                  id: id,
+                  dudosa: true,
                 ),
               );
             },

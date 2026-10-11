@@ -50,6 +50,7 @@ class _PantallaCompletarColeccionState
         if (!hayClave) _sinClave(context),
         _campos(context, estado),
         _progreso(context, estado, hayClave: hayClave),
+        _dudosas(context, estado),
         if (estado.filas.isNotEmpty) _resultados(context, estado),
         if (estado.filas.isNotEmpty) _tandas(context, estado),
         const _Repaso(),
@@ -416,6 +417,54 @@ class _PantallaCompletarColeccionState
     if (si ?? false) await _lote.empezar(cuantas);
   }
 
+  // ── Dudosas ──────────────────────────────────────────────────────────
+
+  /// Las que el lote dejó sin tocar, para revisarlas de una en una.
+  Widget _dudosas(BuildContext context, EstadoColeccion estado) {
+    final c = context.colores;
+    final cola = ref.watch(colaDudosasProvider);
+    if (cola.isEmpty) return const SizedBox.shrink();
+    return Tarjeta(
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 16,
+        runSpacing: 10,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dudosas por revisar · ${formatoNumero(cola.length)}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'El lote no las tocó porque no estaba seguro de cuál es cada '
+                  'una (o el archivo no tiene director). Revísalas de una en '
+                  'una: la app la busca, te enseña las parecidas y rellena los '
+                  'campos vacíos; tú compruebas cuál es, guardas y pasa a la '
+                  'siguiente.',
+                  style: TextStyle(fontSize: 13, color: c.textoSecundario),
+                ),
+              ],
+            ),
+          ),
+          FilledButton.tonalIcon(
+            // Mientras el lote escribe, mejor no editar a la vez.
+            onPressed: estado.trabajando
+                ? null
+                : () => context.go('/dudosas/${cola.first.id}'),
+            icon: const Icon(Icons.fact_check_outlined, size: 18),
+            label: const Text('Revisar una a una'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Resultados ───────────────────────────────────────────────────────
 
   Widget _resultados(BuildContext context, EstadoColeccion estado) {
@@ -745,9 +794,8 @@ class _LineaResultado extends StatelessWidget {
           ),
           if (revisar) ...[
             TextButton(
-              onPressed: () =>
-                  context.push('/pelicula/${fila.pelicula}/editar'),
-              child: const Text('Revisar a mano'),
+              onPressed: () => context.go('/dudosas/${fila.pelicula}'),
+              child: const Text('Revisar'),
             ),
             TextButton(onPressed: alRevisada, child: const Text('Ya está')),
           ],

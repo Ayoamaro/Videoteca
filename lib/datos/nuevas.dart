@@ -5,12 +5,16 @@ import '../fuentes/conexion.dart';
 import '../fuentes/datos_automaticos.dart';
 import '../fuentes/identificacion.dart';
 import '../modelos/pelicula.dart';
+import 'catalogo.dart';
 import 'fuentes.dart';
 import 'vigilancia.dart';
 
 // Películas nuevas: en cuanto aparece una en la bandeja, la app busca sola
 // sus datos en TMDB (de una en una, sin que hagas nada). Cuando abres
 // «Completar ficha», los datos ya están ahí.
+//
+// Lo mismo sirve para revisar una a una las dudosas de Completar mi
+// colección: esas se buscan cuando se piden (ver [BusquedasNuevas.pedir]).
 //
 // Lo encontrado se guarda solo en memoria: si cierras la app, se vuelve a
 // buscar (tarda un par de segundos por película).
@@ -64,7 +68,8 @@ class BusquedaNueva {
   final String mensaje;
 }
 
-/// Búsquedas de las películas de la bandeja (id → búsqueda).
+/// Búsquedas de las películas de la bandeja y de las pedidas (id →
+/// búsqueda).
 final busquedasNuevasProvider =
     NotifierProvider<BusquedasNuevas, Map<int, BusquedaNueva>>(
       BusquedasNuevas.new,
@@ -72,6 +77,10 @@ final busquedasNuevasProvider =
 
 class BusquedasNuevas extends Notifier<Map<int, BusquedaNueva>> {
   var _enMarcha = false;
+
+  /// Películas que no son nuevas pero se quieren buscar (las dudosas que
+  /// se están revisando), por orden.
+  final _pedidas = <int>[];
 
   @override
   Map<int, BusquedaNueva> build() {
@@ -94,8 +103,17 @@ class BusquedasNuevas extends Notifier<Map<int, BusquedaNueva>> {
 
   void _poner(int id, BusquedaNueva b) => state = {...state, id: b};
 
+  /// Busca también las películas [ids] (si no se han buscado ya), después
+  /// de las nuevas que estén esperando.
+  void pedir(Iterable<int> ids) {
+    _pedidas.addAll(ids.where((id) => !_pedidas.contains(id)));
+    // Se pide al abrir una pantalla: el estado no puede cambiar mientras se
+    // construye.
+    Future.microtask(_procesar);
+  }
+
   /// Busca, de una en una, las películas de la bandeja que no tienen
-  /// búsqueda (las ya guardadas no se buscan).
+  /// búsqueda (las ya guardadas no se buscan) y después las pedidas.
   Future<void> _procesar() async {
     if (_enMarcha) return;
     _enMarcha = true;
@@ -103,16 +121,25 @@ class BusquedasNuevas extends Notifier<Map<int, BusquedaNueva>> {
       while (true) {
         final fuentes = ref.read(fuentesDatosProvider);
         if (fuentes == null) return;
-        final siguiente = ref
-            .read(nuevasProvider)
-            .where((p) => p.completada == null && !state.containsKey(p.id))
-            .firstOrNull;
+        final siguiente =
+            ref
+                .read(nuevasProvider)
+                .where((p) => p.completada == null && !state.containsKey(p.id))
+                .firstOrNull ??
+            _siguientePedida();
         if (siguiente == null) return;
         await _buscar(siguiente.id, datosDe(siguiente), fuentes);
       }
     } finally {
       _enMarcha = false;
     }
+  }
+
+  Pelicula? _siguientePedida() {
+    final faltan = _pedidas.where((id) => !state.containsKey(id));
+    if (faltan.isEmpty) return null;
+    final porId = ref.read(peliculasPorIdProvider);
+    return faltan.map((id) => porId[id]).nonNulls.firstOrNull;
   }
 
   Future<void> _buscar(
@@ -219,7 +246,7 @@ class BusquedasNuevas extends Notifier<Map<int, BusquedaNueva>> {
   /// o, sin [datos], con los del catálogo.
   Future<void> buscarDeNuevo(int id, [DatosIdentificacion? datos]) async {
     final fuentes = ref.read(fuentesDatosProvider);
-    final p = ref.read(nuevasProvider).where((p) => p.id == id).firstOrNull;
+    final p = ref.read(peliculasPorIdProvider)[id];
     datos ??= p == null ? null : datosDe(p);
     if (fuentes == null || datos == null) return;
     await _buscar(id, datos, fuentes);

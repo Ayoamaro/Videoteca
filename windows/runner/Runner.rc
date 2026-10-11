@@ -87,21 +87,23 @@ VS_VERSION_INFO VERSIONINFO
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "040904e4"
+        // Español (0x0C0A), Unicode (1200): lo que enseña Windows en
+        // Propiedades → Detalles y en el Administrador de tareas.
+        BLOCK "0c0a04b0"
         BEGIN
-            VALUE "CompanyName", "io.github.ayoamaro" "\0"
-            VALUE "FileDescription", "videoteca" "\0"
+            VALUE "CompanyName", "Ayoamaro" "\0"
+            VALUE "FileDescription", "Videoteca" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "videoteca" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 io.github.ayoamaro. All rights reserved." "\0"
+            VALUE "LegalCopyright", "© 2026 Ayoamaro · Licencia MIT" "\0"
             VALUE "OriginalFilename", "videoteca.exe" "\0"
-            VALUE "ProductName", "videoteca" "\0"
+            VALUE "ProductName", "Videoteca" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
     BLOCK "VarFileInfo"
     BEGIN
-        VALUE "Translation", 0x409, 1252
+        VALUE "Translation", 0x0C0A, 1200
     END
 END
 

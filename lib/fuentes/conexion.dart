@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'actualizaciones.dart' show versionApp;
+
 // Lo común a los servicios de internet (TMDB, OMDb, Wikidata): pedir una
 // dirección, esperar como mucho unos segundos, reintentar si el servicio
 // pide calma y convertir los fallos en mensajes claros.
@@ -38,8 +40,8 @@ class FuenteException implements Exception {
 /// Identificación de la app ante los servicios (Wikidata la exige). Solo
 /// puede llevar letras sin tildes: con una tilde, la petición ni sale.
 const agenteVideoteca =
-    'Videoteca/0.2 (catalogo personal de peliculas; '
-    'https://github.com/Ayoamaro/Videoteca)';
+    'Videoteca/${versionApp == '' ? 'dev' : versionApp} '
+    '(catalogo personal de peliculas; https://github.com/Ayoamaro/Videoteca)';
 
 /// Pide [direccion] y devuelve su JSON. Si la respuesta es 429 («demasiadas
 /// peticiones») espera un poco y vuelve a intentarlo. [interpretar] decide

@@ -123,7 +123,9 @@ class Marco extends StatelessWidget {
   static String _activoEscritorio(String ruta) {
     if (ruta.startsWith('/pelicula') || ruta == '/generos') return '/catalogo';
     if (ruta.startsWith('/nuevas')) return '/nuevas';
-    if (ruta.startsWith('/repaso')) return '/coleccion';
+    if (ruta.startsWith('/repaso') || ruta.startsWith('/dudosas')) {
+      return '/coleccion';
+    }
     if (ruta == '/mas' || ruta == '/lectura' || ruta == '/archivo') {
       return '/ajustes';
     }

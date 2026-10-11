@@ -1,5 +1,6 @@
 // Dibuja el icono de la app (la tira de película dorada del diseño sobre el
-// fondo oscuro) y lo guarda en todos los tamaños que piden Android y Windows.
+// fondo oscuro) y lo guarda en todos los tamaños que piden Android y Windows
+// (también las imágenes del instalador).
 //
 //   dart run tool/generar_iconos.dart
 //
@@ -114,6 +115,13 @@ void _guardar(String ruta, img.Image imagen) {
   print(ruta);
 }
 
+void _guardarBmp(String ruta, img.Image imagen) {
+  File(ruta)
+    ..createSync(recursive: true)
+    ..writeAsBytesSync(img.encodeBmp(imagen.convert(numChannels: 3)));
+  print(ruta);
+}
+
 void main() {
   const res = 'android/app/src/main/res';
   const densidades = {
@@ -149,6 +157,35 @@ void main() {
   ]);
   File('windows/runner/resources/app_icon.ico').writeAsBytesSync(ico);
   print('windows/runner/resources/app_icon.ico');
+
+  // Instalador de Windows (Inno Setup): la imagen de la izquierda de la
+  // primera y la última página y la pequeña de arriba, en BMP sin
+  // transparencia, a 100, 150 y 200 % (Inno elige la que va mejor con la
+  // pantalla).
+  for (final (sufijo, factor) in [('100', 1.0), ('150', 1.5), ('200', 2.0)]) {
+    final ancho = (164 * factor).round();
+    final alto = (314 * factor).round();
+    final grande = img.fill(
+      img.Image(width: ancho, height: alto),
+      color: _fondo,
+    );
+    final logo = _dibujo((ancho * 0.62).round(), escala: 0.9, conFondo: false);
+    img.compositeImage(
+      grande,
+      logo,
+      dstX: (ancho - logo.width) ~/ 2,
+      dstY: (alto * 0.36 - logo.height / 2).round(),
+    );
+    _guardarBmp('windows/instalador/imagen-grande-$sufijo.bmp', grande);
+
+    final lado = (55 * factor).round();
+    final pequena = img.fill(
+      img.Image(width: lado, height: lado),
+      color: _fondo,
+    );
+    img.compositeImage(pequena, _dibujo(lado, escala: 0.8, conFondo: false));
+    _guardarBmp('windows/instalador/imagen-pequena-$sufijo.bmp', pequena);
+  }
 
   // Para verlo en grande.
   _guardar(

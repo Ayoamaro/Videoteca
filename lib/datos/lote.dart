@@ -552,6 +552,28 @@ List<({int numero, DateTime fecha, Map<EstadoLote, int> cuenta})> tandasDe(
   ]..sort((a, b) => b.numero.compareTo(a.numero));
 }
 
+// ── Revisar las dudosas una a una ────────────────────────────────────────
+
+/// Las películas que el lote dejó sin tocar por dudas (dudosas y no
+/// encontradas) y que aún no se han revisado, en el orden del disco. Se
+/// revisan de una en una como en «Completar ficha» (`/dudosas/:id`).
+final colaDudosasProvider = Provider<List<Pelicula>>((ref) {
+  final filas = ref.watch(coleccionProvider.select((e) => e.filas));
+  final porId = ref.watch(peliculasPorIdProvider);
+  return [
+    for (final f in filas.values)
+      if (f.estado == EstadoLote.dudosa.name ||
+          f.estado == EstadoLote.noEncontrada.name)
+        ?porId[f.pelicula],
+  ]..sort((a, b) => a.ruta.compareTo(b.ruta));
+});
+
+/// La dudosa de [cola] que va después de [actual] en el disco (o `null` si
+/// es la última). Vale también si [actual] ya ha salido de la cola.
+Pelicula? siguienteDudosa(List<Pelicula> cola, Pelicula actual) => cola
+    .where((p) => p.id != actual.id && p.ruta.compareTo(actual.ruta) > 0)
+    .firstOrNull;
+
 // ── Repaso con FilmAffinity ──────────────────────────────────────────────
 
 /// Películas ya repasadas con FilmAffinity (guardadas o saltadas): no se

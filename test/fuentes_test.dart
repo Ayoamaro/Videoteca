@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'package:videoteca/datos/catalogo.dart' show peliculasPorIdProvider;
 import 'package:videoteca/datos/fuentes.dart';
+import 'package:videoteca/datos/lote.dart' show siguienteDudosa;
 import 'package:videoteca/datos/nuevas.dart';
 import 'package:videoteca/datos/vigilancia.dart';
 import 'package:videoteca/disco/escritor.dart' show Campo;
@@ -492,6 +494,55 @@ void main() {
       final elegida = suscripcion.read()[1]!;
       expect(elegida.elegida, isTrue);
       expect(elegida.resultado!.datos[Campo.direccion]!.valor, 'Otro Director');
+    });
+
+    test('las dudosas del lote se buscan cuando se piden', () async {
+      const dudosa = Pelicula(
+        id: 5,
+        titulo: 'El caballero oscuro',
+        anio: 2008,
+        direccion: 'Fulano',
+        ruta: r'D:\Accion\Accion\El caballero oscuro (2008).mp4',
+      );
+      const otra = Pelicula(
+        id: 6,
+        titulo: 'Zorro',
+        anio: 2000,
+        ruta: r'D:\Accion\Accion\Zorro (2000).mp4',
+      );
+      final contenedor = ProviderContainer(
+        overrides: [
+          fuentesDatosProvider.overrideWithValue(
+            FuentesDatos(
+              claveTmdb: 'buena',
+              claveOmdb: '',
+              cliente: _servicios([_caballero, remake]),
+            ),
+          ),
+          nuevasProvider.overrideWithValue(const []),
+          peliculasPorIdProvider.overrideWithValue({5: dudosa, 6: otra}),
+        ],
+      );
+      addTearDown(contenedor.dispose);
+      final suscripcion = contenedor.listen(busquedasNuevasProvider, (_, _) {});
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(suscripcion.read(), isEmpty, reason: 'sin pedirlas no se buscan');
+
+      contenedor.read(busquedasNuevasProvider.notifier).pedir([5]);
+      for (var i = 0; i < 200; i++) {
+        final b = suscripcion.read()[5];
+        if (b != null && b.estado != EstadoBusqueda.buscando) break;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      // Con un director que no coincide no hay «probable»: hay que elegir.
+      final b = suscripcion.read()[5]!;
+      expect(b.estado, EstadoBusqueda.elegir);
+      expect(b.identificacion!.candidatos, isNotEmpty);
+
+      // La siguiente, por orden del disco (aunque la actual ya no esté).
+      expect(siguienteDudosa([dudosa, otra], dudosa)?.id, 6);
+      expect(siguienteDudosa([otra], dudosa)?.id, 6);
+      expect(siguienteDudosa([dudosa, otra], otra), isNull);
     });
   });
 

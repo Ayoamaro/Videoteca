@@ -69,6 +69,9 @@ class PastillaEstado extends StatelessWidget {
 
 /// Cabecera de «Completar ficha»: ruta del archivo, título y cómo se ha
 /// identificado la película.
+///
+/// También para revisar las dudosas, con otro [encabezado], una
+/// [explicacion] debajo y más [acciones] (p. ej. «Saltar»).
 class CabeceraCompletar extends StatelessWidget {
   const CabeceraCompletar({
     super.key,
@@ -77,9 +80,15 @@ class CabeceraCompletar extends StatelessWidget {
     required this.busqueda,
     required this.hayClave,
     required this.alVerCandidatas,
+    this.encabezado = 'Completar ficha',
+    this.explicacion,
+    this.acciones = const [],
   });
 
   final Pelicula pelicula;
+  final String encabezado;
+  final String? explicacion;
+  final List<Widget> acciones;
 
   /// El título que hay ahora en el formulario.
   final String titulo;
@@ -156,9 +165,16 @@ class CabeceraCompletar extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Completar ficha · ${titulo.isEmpty ? pelicula.titulo : titulo}',
+          '$encabezado · ${titulo.isEmpty ? pelicula.titulo : titulo}',
           style: Theme.of(context).textTheme.headlineMedium,
         ),
+        if (explicacion != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            explicacion!,
+            style: TextStyle(fontSize: 14, color: c.textoSecundario),
+          ),
+        ],
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,
@@ -213,6 +229,7 @@ class CabeceraCompletar extends StatelessWidget {
                 child: const Text('¿No es esta?'),
               ),
             ],
+            ...acciones,
           ],
         ),
       ],

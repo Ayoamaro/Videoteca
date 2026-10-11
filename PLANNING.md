@@ -291,6 +291,9 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 **Necesito de ti:** estar delante del PC2 o el PC3 y tener a mano un pendrive.
 **Al terminar:** 🎉 **v1.1** — cualquier PC de casa ve, reproduce y copia tus películas.
 
+**Hecho hasta ahora (12/10):** versión **1.1.0** preparada: [novedades](docs/novedades/v1.1.md) y en la [guía](docs/guia.md#12-usar-videoteca-en-otros-pc-de-casa) el apartado «Usar Videoteca en otros PC de casa» (red privada, compartir solo para leer, entrar sin contraseña, qué hacer si la pide, copiar una película, Windows 7). Comprobado en el PC1: la carpeta `Multimedia` se comparte **solo para leer** («Todos: Leer»), la red es **privada** y deja entrar como invitado. **Novedad que ha salido al preparar las pruebas:** en los PC que no dejan entrar como invitado (Windows 11 24H2 o posterior, y las ediciones Enterprise/Education) el Explorador **no pide la contraseña**: solo dice que «las directivas de seguridad bloquean el acceso de invitados». Por eso, con «Pide contraseña», la app tiene ahora **Escribir usuario y contraseña…**: entra con ellos y los deja guardados en Windows (como «Recordar mis credenciales»; la app no los guarda); dice si la contraseña es incorrecta, si la cuenta no existe en el PC1 o si no tiene contraseña, y recuerda que **el PIN no vale** (hace falta la contraseña de la cuenta). Probado de verdad contra la carpeta compartida de este PC. **Windows 7 u 8 (o de 32 bits):** la app no puede funcionar (Flutter necesita Windows 10 u 11 de 64 bits); el instalador lo explica y la guía dice cómo abrir las películas desde el Explorador. Versión de prueba (instalador + APK) compilada en GitHub sin publicar, y una **lista de pruebas** para el móvil donde marcar cada resultado (Claude la lee al volver). 194 pruebas automáticas.
+**Falta (contigo delante):** instalar la 1.1 de prueba en el PC1 y pulsar «Usar esta ruta» en *Ajustes → Red de casa*; las pruebas del PC2/PC3 (y un PC con Windows 7 si lo hay) y del móvil con la lista; y, si todo va bien, publicar la v1.1.
+
 ---
 
 ## Decisiones pendientes
@@ -304,7 +307,7 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 | ~~Publicar la APK en Google Play (25 €, opcional)~~ | ☑ Día 19: no, se sigue con la APK de GitHub |
 | ~~Qué enseña «Dónde está» en el móvil~~ | ☑ 11/10: solo la carpeta (Drama y Musical › Drama), sin ruta de red ni botones |
 | ~~Copiar varias películas de golpe~~ | ☑ 11/10: de momento una a una; varias, en *Ideas* |
-| Red de casa: entrar como invitado o con la contraseña guardada en cada PC | Antes del día 21 (depende del Windows del PC2 y el PC3) |
+| ~~Red de casa: entrar como invitado o con la contraseña guardada en cada PC~~ | ☑ 12/10: los dos. Como invitado donde Windows lo deja; donde no (Windows 11 reciente), la contraseña se escribe una vez en la app y la guarda Windows |
 
 ## Ideas para después de la v1.0
 

@@ -1,3 +1,5 @@
+import 'dart:ui' show AppExitResponse;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../arranque.dart';
 import '../datos/catalogo.dart';
 import '../datos/consulta.dart';
+import '../datos/copia_pelicula.dart';
 import '../datos/lote.dart';
 import '../datos/nuevas.dart';
 import '../datos/publicacion.dart';
@@ -16,6 +19,7 @@ import '../tema/colores.dart';
 import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/comunes.dart';
+import '../widgets/copiar_pelicula.dart';
 
 /// Una entrada del menú.
 class Destino {
@@ -201,6 +205,7 @@ class _Vigilancia extends ConsumerStatefulWidget {
 
 class _VigilanciaState extends ConsumerState<_Vigilancia> {
   AppLifecycleListener? _ciclo;
+  AppLifecycleListener? _salida;
 
   @override
   void initState() {
@@ -213,12 +218,30 @@ class _VigilanciaState extends ConsumerState<_Vigilancia> {
         },
       );
     }
+    // En el PC: si se cierra la app mientras se copia una película, se
+    // pregunta (y, si se cierra, no queda nada a medias).
+    if (hayRedDeCasa) {
+      _salida = AppLifecycleListener(onExitRequested: _alPedirCerrar);
+    }
   }
 
   @override
   void dispose() {
     _ciclo?.dispose();
+    _salida?.dispose();
     super.dispose();
+  }
+
+  Future<AppExitResponse> _alPedirCerrar() async {
+    final copia = ref.read(copiaPeliculaProvider);
+    if (copia == null || !copia.enMarcha || !mounted) {
+      return AppExitResponse.exit;
+    }
+    if (!await preguntarCerrarConCopia(context, copia)) {
+      return AppExitResponse.cancel;
+    }
+    await ref.read(copiaPeliculaProvider.notifier).cancelarYEsperar();
+    return AppExitResponse.exit;
   }
 
   void _avisar(String texto, {String? accion, VoidCallback? alPulsar}) =>
@@ -256,6 +279,26 @@ class _VigilanciaState extends ConsumerState<_Vigilancia> {
         );
       });
     }
+    // Al terminar de copiar una película (también si se está en otra
+    // pantalla).
+    ref.listen(copiaPeliculaProvider.select((c) => c?.etapa), (_, etapa) {
+      final c = ref.read(copiaPeliculaProvider);
+      if (c == null) return;
+      if (etapa == EtapaCopia.hecha) {
+        _avisar(
+          '«${c.titulo}» copiada en ${c.carpeta}.',
+          accion: 'Abrir carpeta',
+          alPulsar: () =>
+              ref.read(servicioRedProvider).abrir(c.destino, enCarpeta: true),
+        );
+      } else if (etapa == EtapaCopia.fallo) {
+        _avisar(
+          'No se ha podido copiar «${c.titulo}».',
+          accion: c.id > 0 ? 'Ver' : null,
+          alPulsar: () => GoRouter.of(context).go('/pelicula/${c.id}'),
+        );
+      }
+    });
     ref.listen(avisoCambiosProvider, (_, resultado) {
       if (resultado == null) return;
       final unaNueva = resultado.idsNuevos.length == 1
@@ -364,6 +407,8 @@ class MenuLateral extends ConsumerWidget {
                     ],
                     const Spacer(),
                     const SizedBox(height: 20),
+                    // Mientras se copia una película (y al terminar).
+                    const CopiaEnMenu(),
                     const _Estado(),
                   ],
                 ),

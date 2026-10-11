@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../fuentes/filmaffinity.dart' show busquedaFilmaffinity;
 import '../datos/buscador.dart';
 import '../datos/catalogo.dart';
+import '../datos/copia_pelicula.dart';
 import '../datos/red_casa.dart';
 import '../datos/ubicacion.dart';
 import '../disco/abrir_enlace.dart';
@@ -16,6 +17,7 @@ import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
+import '../widgets/copiar_pelicula.dart';
 
 /// Ficha completa de una película.
 class PantallaFicha extends ConsumerWidget {
@@ -477,6 +479,19 @@ class _EstadoDondeEsta extends ConsumerState<_DondeEsta> {
     }
   }
 
+  /// Abre la carpeta de la copia recién hecha, con la película seleccionada.
+  Future<void> _abrirCopia(String destino) async {
+    final r = await ref
+        .read(servicioRedProvider)
+        .abrir(destino, enCarpeta: true);
+    if (!mounted || r == ResultadoAbrir.hecho) return;
+    _mensaje(
+      r == ResultadoAbrir.noEsta
+          ? 'La copia ya no está en esa carpeta.'
+          : 'No se ha podido abrir la carpeta.',
+    );
+  }
+
   Future<void> _abrirExplorador(String carpeta) async {
     if (!await ref.read(servicioRedProvider).abrirEnExplorador(carpeta) &&
         mounted) {
@@ -546,6 +561,13 @@ class _EstadoDondeEsta extends ConsumerState<_DondeEsta> {
 
     final i = ruta.lastIndexOf(r'\');
     final aviso = _aviso(context, u);
+    // Una copia cada vez: la de esta película se ve aquí; si se está
+    // copiando otra, se espera a que termine.
+    final copia = ref.watch(copiaPeliculaProvider);
+    final copiaDeEsta = copia != null && copia.origen == ruta ? copia : null;
+    final copiandoOtra = copia != null && copia.enMarcha && copiaDeEsta == null
+        ? copia
+        : null;
     return tarjeta([
       const SizedBox(height: 12),
       SelectableText.rich(
@@ -607,8 +629,33 @@ class _EstadoDondeEsta extends ConsumerState<_DondeEsta> {
               side: BorderSide(color: c.doradoBorde),
             ),
           ),
+          OutlinedButton.icon(
+            onPressed: !u.disponible || (copia?.enMarcha ?? false)
+                ? null
+                : () => copiarPelicula(context, ref, p, ruta),
+            icon: const Icon(Icons.save_alt_rounded, size: 16),
+            label: const Text('Copiar película'),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: c.doradoBorde),
+            ),
+          ),
         ],
       ),
+      if (copiandoOtra != null) ...[
+        const SizedBox(height: 10),
+        Text(
+          'Ahora se está copiando «${copiandoOtra.titulo}» '
+          '(${copiandoOtra.porcentaje} %): cuando termine podrás copiar esta.',
+          style: TextStyle(fontSize: 13, color: c.textoSecundario),
+        ),
+      ],
+      if (copiaDeEsta != null) ...[
+        const SizedBox(height: 14),
+        ProgresoCopia(
+          copiaDeEsta,
+          alAbrirCarpeta: () => _abrirCopia(copiaDeEsta.destino),
+        ),
+      ],
     ]);
   }
 

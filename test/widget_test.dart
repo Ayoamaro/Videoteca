@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,9 +10,11 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:videoteca/datos/catalogo.dart';
 import 'package:videoteca/datos/consulta.dart';
+import 'package:videoteca/datos/copia_pelicula.dart';
 import 'package:videoteca/datos/ejemplo.dart';
 import 'package:videoteca/datos/red_casa.dart';
 import 'package:videoteca/disco/acciones_windows.dart';
+import 'package:videoteca/disco/copiador.dart';
 import 'package:videoteca/disco/red.dart';
 import 'package:videoteca/datos/sesion.dart';
 import 'package:videoteca/main.dart';
@@ -170,6 +174,120 @@ class _RedFalsa extends ServicioRed {
   }
 }
 
+const _gb = 1024 * 1024 * 1024;
+
+/// Discos de mentira para copiar películas: no se copia nada; la prueba
+/// decide cómo avanza y cómo acaba cada copia.
+class _CopiaFalsa extends ServicioCopia {
+  _CopiaFalsa();
+
+  final lista = <Unidad>[
+    const Unidad(
+      letra: 'E:',
+      etiqueta: 'KINGSTON',
+      conexion: Conexion.usb,
+      extraible: true,
+      sistema: 'exFAT',
+      libre: 20 * _gb,
+      total: 29 * _gb,
+    ),
+    const Unidad(
+      letra: 'F:',
+      conexion: Conexion.usb,
+      extraible: true,
+      sistema: 'FAT32',
+      libre: 25 * _gb,
+      total: 29 * _gb,
+    ),
+    const Unidad(
+      letra: 'G:',
+      conexion: Conexion.usb,
+      sistema: 'NTFS',
+      libre: 1 * _gb,
+      total: 465 * _gb,
+    ),
+    const Unidad(
+      letra: 'C:',
+      conexion: Conexion.interna,
+      sistema: 'NTFS',
+      libre: 300 * _gb,
+      total: 931 * _gb,
+    ),
+    const Unidad(
+      letra: 'D:',
+      conexion: Conexion.interna,
+      sistema: 'NTFS',
+      libre: 5000 * _gb,
+      total: 14900 * _gb,
+    ),
+  ];
+
+  /// Archivos que ya están (ruta → tamaño).
+  final existentes = <String, int>{};
+
+  /// Lo que contesta el diálogo de Windows «Elegir carpeta».
+  String? carpetaElegida;
+
+  /// Copias pedidas: (origen, destino, reemplazar).
+  final copias = <(String, String, bool)>[];
+  StreamController<AvanceCopia>? _avance;
+  Completer<ResultadoCopia>? _fin;
+  var canceladas = 0;
+
+  void avanzar(int copiados, int total) =>
+      _avance!.add(AvanceCopia(copiados, total));
+
+  void terminar([ResultadoCopia r = const ResultadoCopia(FinCopia.hecha)]) {
+    if (!_fin!.isCompleted) _fin!.complete(r);
+    _avance!.close();
+  }
+
+  @override
+  Future<List<Unidad>> unidades({String? archivo}) async => [
+    for (final u in lista)
+      Unidad(
+        letra: u.letra,
+        etiqueta: u.etiqueta,
+        conexion: u.conexion,
+        extraible: u.extraible,
+        sistema: u.sistema,
+        libre: u.libre,
+        total: u.total,
+        existente: existentes['${u.carpeta}\\$archivo'],
+      ),
+  ];
+
+  @override
+  Future<Volumen?> volumen(String carpeta) async =>
+      const Volumen(sistema: 'NTFS', libre: 100 * _gb, total: 500 * _gb);
+
+  @override
+  Future<int?> existente(String ruta) async => existentes[ruta];
+
+  @override
+  String? elegirCarpeta() => carpetaElegida;
+
+  @override
+  TrabajoCopia copiar(
+    String origen,
+    String destino, {
+    bool reemplazar = false,
+    bool borrarAntes = false,
+  }) {
+    copias.add((origen, destino, reemplazar));
+    final avance = _avance = StreamController<AvanceCopia>.broadcast();
+    final fin = _fin = Completer<ResultadoCopia>();
+    return TrabajoCopia(
+      avance: avance.stream,
+      resultado: fin.future,
+      cancelar: () {
+        canceladas++;
+        terminar(const ResultadoCopia(FinCopia.cancelada));
+      },
+    );
+  }
+}
+
 /// La ruta de red guardada solo en memoria (sin base de datos).
 class _RutaRedEnMemoria extends RutaRed {
   @override
@@ -190,6 +308,7 @@ Future<void> abrirApp(
   bool vacio = false,
   double letra = 1,
   ServicioRed? red,
+  ServicioCopia? copia,
 }) async {
   tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
@@ -221,6 +340,7 @@ Future<void> abrirApp(
             sinInternet ? _ConsultaSinInternet.new : _ConsultaAlDia.new,
           ),
         servicioRedProvider.overrideWithValue(red ?? _RedFalsa()),
+        servicioCopiaProvider.overrideWithValue(copia ?? _CopiaFalsa()),
         rutaRedProvider.overrideWith(_RutaRedEnMemoria.new),
       ],
       child: const VideotecaApp(),
@@ -543,7 +663,8 @@ void main() {
   });
 
   testWidgets('Con la letra al 200 % nada se sale en el PC', (tester) async {
-    await abrirApp(tester, const Size(1280, 800), letra: 2.0);
+    final copia = _CopiaFalsa();
+    await abrirApp(tester, const Size(1280, 800), letra: 2.0, copia: copia);
     for (final menu in [
       'Catálogo',
       'Películas nuevas',
@@ -567,6 +688,20 @@ void main() {
     await tester.tap(find.text('Forrest Gump'));
     await tester.pumpAndSettle();
     expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
+    // Copiar película: la ventana y la barra de progreso (ficha y menú).
+    await tester.ensureVisible(find.text('Copiar película'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Copiar película'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('KINGSTON (E:)'));
+    // (Forrest Gump no dice lo que ocupa: hasta que empieza, la barra va
+    // y viene sin parar.)
+    await tester.pump(const Duration(seconds: 1));
+    copia.avanzar(_gb, 3 * _gb);
+    await tester.pump();
+    expect(find.text('33 %'), findsWidgets);
+    copia.terminar();
+    await tester.pumpAndSettle();
   }, variant: windows);
 
   testWidgets('Con la letra al máximo (200 %) nada se sale en el móvil', (
@@ -936,6 +1071,7 @@ void main() {
     expect(find.text('Dramas  ›  Drama'), findsOneWidget);
     expect(find.text('Reproducir'), findsNothing);
     expect(find.text('Copiar ruta'), findsNothing);
+    expect(find.text('Copiar película'), findsNothing);
   }, variant: windows);
 
   testWidgets('En el móvil, «Dónde está» solo dice la carpeta', (tester) async {
@@ -953,10 +1089,206 @@ void main() {
     expect(find.text('4,1 GB'), findsOneWidget);
     expect(find.textContaining('CASA-PC'), findsNothing);
     expect(find.textContaining('Infinity War (2018).mp4'), findsNothing);
-    for (final texto in ['Reproducir', 'Abrir carpeta', 'Copiar ruta']) {
+    for (final texto in [
+      'Reproducir',
+      'Abrir carpeta',
+      'Copiar ruta',
+      'Copiar película',
+    ]) {
       expect(find.text(texto), findsNothing);
     }
   });
+
+  const infinityWar = 'Los Vengadores 3꞉ Infinity War (2018).mp4';
+
+  testWidgets('Copiar película en el PC del administrador', (tester) async {
+    final red = _RedFalsa();
+    final copia = _CopiaFalsa();
+    await abrirApp(tester, const Size(1440, 1000), red: red, copia: copia);
+    await abrirFicha(tester, 'infinity war', 'Los Vengadores 3: Infinity War');
+    await tester.tap(find.text('Copiar película'));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Dónde quieres guardarla?'), findsOneWidget);
+    expect(find.text('Los Vengadores 3: Infinity War · 4,1 GB'), findsOne);
+    expect(find.text('KINGSTON (E:)'), findsOneWidget);
+    expect(find.text('Disco local (C:)'), findsOneWidget);
+    // El disco de la colección no sale: en él no se escribe nada.
+    expect(find.text('Disco local (D:)'), findsNothing);
+    expect(find.textContaining('No sale el disco D:'), findsOneWidget);
+    // Un pendrive en FAT32 no admite la película (4,1 GB) y en otro no cabe.
+    expect(
+      find.text('Formato FAT32: no admite archivos de más de 4 GB'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('No cabe: faltan'), findsOneWidget);
+    await tester.tap(find.text('Pendrive (F:)'));
+    await tester.pumpAndSettle();
+    expect(copia.copias, isEmpty);
+
+    // Al pendrive, a la carpeta Películas.
+    expect(find.text(r'Se guarda en E:\Películas'), findsOneWidget);
+    await tester.tap(find.text('KINGSTON (E:)'));
+    await tester.pumpAndSettle();
+    const origen = 'D:\\Aventuras y Fantasía\\Fantasía\\$infinityWar';
+    const destino = 'E:\\Películas\\$infinityWar';
+    expect(copia.copias, [(origen, destino, false)]);
+    expect(find.text(r'Copiando a E:\Películas'), findsOneWidget);
+    // Una película cada vez.
+    expect(boton(tester, 'Copiar película').enabled, isFalse);
+
+    copia.avanzar(2 * _gb, 4 * _gb);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('2,0 GB de 4,0 GB'), findsOneWidget);
+    // En la ficha y en el menú.
+    expect(find.text('50 %'), findsNWidgets(2));
+    expect(find.text('Copiando'), findsOneWidget);
+
+    // Cancelar (después de confirmarlo).
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Cancelar la copia?'), findsOneWidget);
+    await tester.tap(find.text('Cancelar la copia'));
+    await tester.pumpAndSettle();
+    expect(copia.canceladas, 1);
+    expect(
+      find.text('Copia cancelada: no ha quedado nada a medias.'),
+      findsOneWidget,
+    );
+    expect(find.text('Copia cancelada'), findsOneWidget);
+    await tester.tap(find.text('Cerrar aviso'));
+    await tester.pumpAndSettle();
+    expect(find.text('Copia cancelada'), findsNothing);
+
+    // Si ya está en el pendrive, se pregunta antes de reemplazarla.
+    copia.existentes[destino] = (4.1 * _gb).round();
+    await tester.tap(find.text('Copiar película'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Ya está copiada aquí: se puede reemplazar'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('KINGSTON (E:)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ya está copiada ahí'), findsOneWidget);
+    expect(find.textContaining('seguramente es la misma película'), findsOne);
+    await tester.tap(find.text('Reemplazar'));
+    await tester.pumpAndSettle();
+    expect(copia.copias.last, (origen, destino, true));
+
+    // Terminada: se dice y se puede abrir su carpeta.
+    copia.terminar();
+    await tester.pumpAndSettle();
+    expect(find.text(r'Copiada en E:\Películas'), findsOneWidget);
+    expect(
+      find.text(r'«Los Vengadores 3: Infinity War» copiada en E:\Películas.'),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.ancestor(
+        of: find.text('Abrir carpeta'),
+        matching: find.byWidgetPredicate((w) => w is FilledButton),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(red.abiertas.last, (destino, true));
+  }, variant: windows);
+
+  testWidgets('Copiar película desde un PC de la red', (tester) async {
+    modoSesion = ModoApp.consulta;
+    addTearDown(() => modoSesion = null);
+    final red = _RedFalsa();
+    final copia = _CopiaFalsa();
+    await abrirApp(
+      tester,
+      const Size(1440, 1000),
+      consulta: true,
+      red: red,
+      copia: copia,
+    );
+    await abrirFicha(tester, 'infinity war', 'Los Vengadores 3: Infinity War');
+    await tester.tap(find.text('Copiar película'));
+    await tester.pumpAndSettle();
+    // En un PC de la red salen todos sus discos.
+    expect(find.text('Disco local (D:)'), findsOneWidget);
+    expect(find.textContaining('No sale el disco'), findsNothing);
+
+    // La carpeta de las películas (en el otro PC) no vale.
+    copia.carpetaElegida = r'\\CASA-PC\Pelis\Copias';
+    await tester.tap(find.text('Elegir otra carpeta…'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Esa carpeta está en el PC de las películas: elige una de '
+        'este PC.',
+      ),
+      findsOneWidget,
+    );
+    // Otra carpeta de este PC, sí.
+    copia.carpetaElegida = r'C:\Users\Ana\Vídeos';
+    await tester.tap(find.text('Elegir otra carpeta…'));
+    await tester.pumpAndSettle();
+    expect(copia.copias, [
+      (
+        '\\\\CASA-PC\\Pelis\\Películas\\Aventuras y Fantasía\\Fantasía\\'
+            '$infinityWar',
+        'C:\\Users\\Ana\\Vídeos\\$infinityWar',
+        false,
+      ),
+    ]);
+
+    // Se apaga el PC de las películas a mitad: se explica.
+    copia.avanzar(_gb, (4.1 * _gb).round());
+    copia.terminar(
+      const ResultadoCopia(FinCopia.fallo, fallo: FalloCopia.origenSinConexion),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('No se ha podido copiar'), findsNWidgets(2));
+    expect(
+      find.textContaining(
+        'Se ha perdido la conexión con el PC de las '
+        'películas',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('No ha quedado nada a medias'), findsOne);
+    await tester.tap(find.text('Cerrar aviso'));
+    await tester.pumpAndSettle();
+
+    // Con el PC de las películas apagado, no se puede copiar.
+    red.casa = EstadoRed.sinConexion;
+    ProviderScope.containerOf(tester.element(find.byType(VideotecaApp)))
+        .read(redCasaProvider.notifier)
+        .comprobar();
+    await tester.pumpAndSettle();
+    expect(boton(tester, 'Copiar película').enabled, isFalse);
+  }, variant: windows);
+
+  testWidgets('Cerrar la app mientras se copia: se pregunta', (tester) async {
+    final copia = _CopiaFalsa();
+    await abrirApp(tester, const Size(1440, 1000), copia: copia);
+    // Sin copias, se cierra sin preguntar.
+    expect(await tester.binding.handleRequestAppExit(), AppExitResponse.exit);
+    await abrirFicha(tester, 'infinity war', 'Los Vengadores 3: Infinity War');
+    await tester.tap(find.text('Copiar película'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('KINGSTON (E:)'));
+    await tester.pumpAndSettle();
+
+    var respuesta = tester.binding.handleRequestAppExit();
+    await tester.pumpAndSettle();
+    expect(find.text('¿Cerrar Videoteca?'), findsOneWidget);
+    await tester.tap(find.text('Seguir copiando'));
+    await tester.pumpAndSettle();
+    expect(await respuesta, AppExitResponse.cancel);
+    expect(copia.canceladas, 0);
+
+    respuesta = tester.binding.handleRequestAppExit();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(await respuesta, AppExitResponse.exit);
+    expect(copia.canceladas, 1);
+  }, variant: windows);
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {
     await abrirApp(tester, const Size(1440, 1000), vacio: true);

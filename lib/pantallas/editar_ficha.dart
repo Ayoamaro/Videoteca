@@ -193,7 +193,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
       if (_conBusqueda) {
         _aplicarBusqueda(ref.read(busquedasNuevasProvider)[widget.id]);
       }
-      // Repaso: FilmAffinity se abre solo.
+      // Repaso: FilmAffinity se abre solo en el navegador.
       if (widget.repaso != null && esAdministrador) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _leerFilmaffinity();
@@ -349,12 +349,11 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
     _pasarDatos(elegidos);
   }
 
-  /// Lee los datos de la ficha de FilmAffinity (en una ventana de Edge) y
+  /// Lee los datos de la ficha de FilmAffinity (copiada de tu navegador) y
   /// pasa al formulario los que se elijan.
   Future<void> _leerFilmaffinity() async {
     final elegidos = await mostrarDatosFilmaffinity(
       context,
-      perfil: ref.read(carpetasAppProvider).navegador,
       fuentes: ref.read(fuentesDatosProvider),
       datos: _datosIdentificacion,
       actuales: {for (final c in Campo.values) c: _actual(c)},
@@ -701,9 +700,10 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                     descripcion:
                         '${repaso.nombre}: quedan '
                         '${formatoNumero(ref.watch(colaRepasoProvider(repaso)).length)}. '
-                        'FilmAffinity se abre solo con «${p.titulo}»: revisa '
-                        'lo que trae, pulsa «Guardar en el archivo» y se pasa '
-                        'a la siguiente. «Saltar» la deja sin tocar.',
+                        'FilmAffinity se abre solo en tu navegador con '
+                        '«${p.titulo}»: cópiala entera (Ctrl + A, Ctrl + C), '
+                        'revisa lo que trae, pulsa «Guardar en el archivo» y '
+                        'se pasa a la siguiente. «Saltar» la deja sin tocar.',
                     acciones: [
                       OutlinedButton.icon(
                         onPressed: _saltar,

@@ -113,6 +113,14 @@ class FuentesDatos {
     poner(Campo.direccion, ficha.directores.join(', '), t);
     poner(Campo.guion, ficha.guion.join(', '), t);
     poner(Campo.fotografia, ficha.fotografia.join(', '), t);
+    // Sinopsis, reparto, productora y música: antes solo de FilmAffinity
+    // (issue #5). Windows separa por «;» los valores de las listas.
+    String lista(List<String> nombres) =>
+        nombres.map((n) => n.replaceAll(';', ',')).join(', ');
+    poner(Campo.sinopsis, ficha.sinopsis, t);
+    poner(Campo.reparto, lista(ficha.reparto), t);
+    poner(Campo.productora, lista(ficha.productoras), t);
+    poner(Campo.musica, lista(ficha.musica), t);
     poner(Campo.pais, ficha.paises.join(', '), t);
     // La saga, también solo en letras latinas: algunas «colecciones» de TMDB
     // las crean usuarios en su idioma («新海诚（导演作品合集）» = las

@@ -1,205 +1,156 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../disco/acciones_windows.dart';
+import '../datos/fuentes.dart';
 import '../disco/escritor.dart' show Campo;
 import '../fuentes/datos_automaticos.dart';
 import '../fuentes/filmaffinity.dart';
 import '../fuentes/identificacion.dart';
-import '../fuentes/navegador.dart';
 import '../tema/colores.dart';
 import 'dialogo_datos.dart';
 
 /// Lee los datos de la película [datos] de su ficha de FilmAffinity y deja
 /// elegir cuáles pasar a la ficha.
 ///
-/// Abre una ventana de Edge en la ficha (si se sabe cuál es: el enlace
-/// guardado o el de Wikidata) o en la búsqueda de FilmAffinity. En cuanto
-/// la ventana está en la ficha de una película, la lee sola. [actuales] son
-/// los valores que tiene ahora el formulario.
+/// La app no maneja ningún navegador (Cloudflare bloqueaba la ventana de
+/// Edge que abría antes, issue #5): abre la ficha en tu navegador de siempre
+/// (el enlace guardado, el de Wikidata o la búsqueda de FilmAffinity), tú la
+/// copias entera (Ctrl + A, Ctrl + C) y la app lee lo copiado en cuanto
+/// cambia el portapapeles. [actuales] son los valores que tiene ahora el
+/// formulario.
 ///
 /// Devuelve los datos elegidos, o `null` si se cancela.
 Future<Map<Campo, DatoEncontrado>?> mostrarDatosFilmaffinity(
   BuildContext context, {
-  required String perfil,
   required FuentesDatos? fuentes,
   required DatosIdentificacion datos,
   required Map<Campo, String> actuales,
 }) => showDialog<Map<Campo, DatoEncontrado>>(
   context: context,
   barrierDismissible: false,
-  builder: (context) => _DialogoFilmaffinity(
-    perfil: perfil,
-    fuentes: fuentes,
-    datos: datos,
-    actuales: actuales,
-  ),
+  builder: (context) =>
+      _DialogoFilmaffinity(fuentes: fuentes, datos: datos, actuales: actuales),
 );
 
-enum _Estado {
-  /// Buscando el enlace o abriendo Edge.
-  abriendo,
-
-  /// La ventana está abierta, pero no en la ficha de una película.
-  esperando,
-
-  /// FilmAffinity pide comprobar que eres una persona.
-  comprobacion,
-
-  /// Has cerrado la ventana.
-  cerrada,
-}
-
-class _DialogoFilmaffinity extends StatefulWidget {
+class _DialogoFilmaffinity extends ConsumerStatefulWidget {
   const _DialogoFilmaffinity({
-    required this.perfil,
     required this.fuentes,
     required this.datos,
     required this.actuales,
   });
 
-  final String perfil;
   final FuentesDatos? fuentes;
   final DatosIdentificacion datos;
   final Map<Campo, String> actuales;
 
   @override
-  State<_DialogoFilmaffinity> createState() => _EstadoDialogoFilmaffinity();
+  ConsumerState<_DialogoFilmaffinity> createState() =>
+      _EstadoDialogoFilmaffinity();
 }
 
-class _EstadoDialogoFilmaffinity extends State<_DialogoFilmaffinity> {
-  var _estado = _Estado.abriendo;
-  var _paso = 'Abriendo FilmAffinity…';
-  String? _error;
-  Navegador? _navegador;
-  Timer? _reloj;
-  var _revisando = false;
+class _EstadoDialogoFilmaffinity extends ConsumerState<_DialogoFilmaffinity> {
+  /// La página que se abre en el navegador (`null` mientras se busca).
+  String? _url;
+  var _abierta = false;
 
-  /// La última ficha leída (se sigue enseñando aunque la ventana vaya a
-  /// otra página, hasta que abras la ficha de otra película).
+  /// Lo que había en el portapapeles al abrir la ventana: solo se lee lo
+  /// que se copie después.
+  late int _visto;
+  Timer? _reloj;
+
+  /// La última ficha leída y por qué no sirve lo último copiado.
   FichaFilmaffinity? _ficha;
+  FalloCopiado? _fallo;
   final _marcados = <Campo>{};
 
   @override
   void initState() {
     super.initState();
-    _abrir();
+    _visto = ref.read(portapapelesProvider).cambios();
+    _reloj = Timer.periodic(
+      const Duration(milliseconds: 700),
+      (_) => _mirarPortapapeles(),
+    );
+    // Cuando la ventana ya esté dibujada y la app libre: abrir el navegador
+    // (ShellExecute) atiende mensajes de Windows y, a mitad de un dibujo,
+    // mete otro dentro (Flutter lo prohíbe).
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => Timer.run(_buscarYAbrir),
+    );
   }
 
   @override
   void dispose() {
     _reloj?.cancel();
-    _navegador?.cerrar();
     super.dispose();
   }
 
-  Future<void> _abrir({bool buscar = false}) async {
-    setState(() {
-      _estado = _Estado.abriendo;
-      _error = null;
-    });
-    try {
-      var url = '';
-      final guardado = widget.actuales[Campo.enlaceFilmaffinity] ?? '';
-      final id = idFichaFilmaffinity(guardado);
-      if (!buscar && id != null) {
-        url = enlaceFichaFilmaffinity(id);
-      } else if (!buscar && widget.fuentes != null) {
-        setState(() => _paso = 'Buscando su ficha (TMDB y Wikidata)…');
-        try {
-          url =
-              await widget.fuentes!.buscarEnlaceFilmaffinity(widget.datos) ??
-              '';
-        } on Exception {
-          // Sin enlace: se busca en FilmAffinity.
-        }
+  /// La ficha guardada o la de Wikidata; si no se sabe, la búsqueda.
+  Future<void> _buscarYAbrir() async {
+    var url = '';
+    final id = idFichaFilmaffinity(
+      widget.actuales[Campo.enlaceFilmaffinity] ?? '',
+    );
+    if (id != null) {
+      url = enlaceFichaFilmaffinity(id);
+    } else if (widget.fuentes != null) {
+      try {
+        url =
+            await widget.fuentes!.buscarEnlaceFilmaffinity(widget.datos) ?? '';
+      } on Exception {
+        // Sin enlace: se busca en FilmAffinity.
       }
-      if (url.isEmpty) url = busquedaFilmaffinity(widget.datos.titulo);
-      if (!mounted) return;
-      setState(() => _paso = 'Abriendo FilmAffinity en una ventana de Edge…');
-      final navegador = _navegador;
-      if (navegador != null && await navegador.abierto()) {
-        await navegador.ir(url);
-      } else {
-        _navegador = await Navegador.abrir(url, perfil: widget.perfil);
-      }
-      if (!mounted) return;
-      setState(() => _estado = _Estado.esperando);
-      _reloj ??= Timer.periodic(
-        const Duration(milliseconds: 800),
-        (_) => _revisar(),
-      );
-    } on NavegadorException catch (e) {
-      if (mounted) setState(() => _error = e.mensaje);
     }
+    if (url.isEmpty) url = busquedaFilmaffinity(widget.datos.titulo);
+    if (!mounted) return;
+    setState(() => _url = url);
+    await _abrir(url);
   }
 
-  /// Mira qué hay en la ventana y, si es la ficha de otra película, la lee.
-  Future<void> _revisar() async {
-    final navegador = _navegador;
-    if (_revisando || navegador == null || _estado == _Estado.abriendo) return;
-    _revisando = true;
-    try {
-      if (!await navegador.abierto()) {
-        if (mounted) setState(() => _estado = _Estado.cerrada);
-        return;
-      }
-      final pagina = await navegador.paginaActual();
-      if (pagina == null || !mounted) return;
-      final id = idFichaFilmaffinity(pagina.url);
-      final codigo = await navegador.html(pagina.id);
-      if (!mounted) return;
-      if (codigo == null) return; // Cargando.
-      if (_esComprobacion(pagina.titulo, codigo)) {
-        setState(() => _estado = _Estado.comprobacion);
-        return;
-      }
-      if (id == null || id == _ficha?.id) {
-        setState(() => _estado = _Estado.esperando);
-        return;
-      }
-      if (!fichaEnEspanol(pagina.url)) {
-        // Se lee la versión española (los nombres de los datos van en
-        // español).
-        await navegador.ir(enlaceFichaFilmaffinity(id));
-        return;
-      }
-      final ficha = leerFichaFilmaffinity(codigo, pagina.url);
+  Future<void> _abrir(String url) async {
+    final bien = await ref.read(abrirEnNavegadorProvider)(url);
+    if (mounted) setState(() => _abierta = bien);
+  }
+
+  /// Si se ha copiado algo nuevo, lo lee.
+  void _mirarPortapapeles() {
+    final portapapeles = ref.read(portapapelesProvider);
+    final cambios = portapapeles.cambios();
+    if (cambios == _visto) return;
+    _visto = cambios;
+    _leer();
+  }
+
+  Future<void> _leer() async {
+    final portapapeles = ref.read(portapapelesProvider);
+    final r = fichaCopiada(
+      portapapeles.html(),
+      texto: await portapapeles.texto() ?? '',
+    );
+    if (!mounted) return;
+    final ficha = r.ficha;
+    setState(() {
+      _fallo = r.fallo;
       if (ficha == null) return;
       final c = ficha.comparar(widget.datos);
       final segura = c.titulo && c.anio && c.director;
-      setState(() {
-        _ficha = ficha;
-        _estado = _Estado.esperando;
-        _marcados
-          ..clear()
-          ..addAll([
-            if (segura)
-              for (final MapEntry(key: campo, value: d)
-                  in ficha.datos().entries)
-                if (_vacio(campo) ||
-                    (campo == Campo.sinopsis &&
-                        sinopsisCortada(widget.actuales[campo]!, d.valor)))
-                  campo,
-          ]);
-      });
-      // Ya está leída: se aparta la ventana para ver la app.
-      if (segura) await navegador.minimizar();
-    } on Exception {
-      // La ventana se está cerrando o cambiando de página: a la próxima.
-    } finally {
-      _revisando = false;
-    }
+      _ficha = ficha;
+      _marcados
+        ..clear()
+        ..addAll([
+          if (segura)
+            for (final MapEntry(key: campo, value: d) in ficha.datos().entries)
+              if (_vacio(campo) ||
+                  (campo == Campo.sinopsis &&
+                      sinopsisCortada(widget.actuales[campo]!, d.valor)))
+                campo,
+        ]);
+    });
   }
 
   bool _vacio(Campo c) => (widget.actuales[c] ?? '').isEmpty;
-
-  static bool _esComprobacion(String titulo, String codigo) =>
-      !codigo.contains('id="main-title"') &&
-      (codigo.contains('challenges.cloudflare.com') ||
-          titulo.startsWith('Un momento') ||
-          titulo.startsWith('Just a moment'));
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +164,7 @@ class _EstadoDialogoFilmaffinity extends State<_DialogoFilmaffinity> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _estadoVentana(),
+              _pasos(),
               if (ficha != null) ...[
                 const SizedBox(height: 14),
                 _datos(ficha, datos),
@@ -240,68 +191,63 @@ class _EstadoDialogoFilmaffinity extends State<_DialogoFilmaffinity> {
     );
   }
 
-  /// Qué pasa con la ventana de Edge y qué tienes que hacer tú.
-  Widget _estadoVentana() {
+  /// Qué tienes que hacer tú, y cómo va.
+  Widget _pasos() {
     final c = context.colores;
-    if (_error != null) {
-      return MensajeDialogo(
-        icono: Icons.error_outline_rounded,
-        color: c.rojo,
-        texto: _error!,
-      );
-    }
-    final hayFicha = _ficha != null;
-    final (icono, color, texto) = switch (_estado) {
-      _Estado.abriendo => (Icons.hourglass_top_rounded, c.textoSuave, _paso),
-      _Estado.comprobacion => (
-        Icons.front_hand_rounded,
-        c.naranja,
-        'FilmAffinity quiere comprobar que eres una persona. Hazlo en la '
-            'ventana de Edge y sigo yo.',
-      ),
-      _Estado.cerrada => (
-        Icons.web_asset_off_rounded,
-        c.textoSuave,
-        'Has cerrado la ventana de FilmAffinity.',
-      ),
-      _Estado.esperando when hayFicha => (
-        Icons.check_circle_outline_rounded,
-        c.verde,
-        'Ficha leída. Si no es la película buena, abre la correcta en la '
-            'ventana de FilmAffinity y la leeré.',
-      ),
-      _Estado.esperando => (
-        Icons.travel_explore_rounded,
-        c.doradoTexto,
-        'Busca la película en la ventana de FilmAffinity y entra en su '
-            'ficha: la leeré en cuanto la abras.',
-      ),
-    };
+    final url = _url;
+    final fallo = _fallo;
+    final (icono, color, texto) = url == null
+        ? (
+            Icons.hourglass_top_rounded,
+            c.textoSuave,
+            'Buscando su ficha (TMDB y Wikidata)…',
+          )
+        : fallo != null
+        ? (Icons.info_outline_rounded, c.naranja, fallo.texto)
+        : _ficha != null
+        ? (
+            Icons.check_circle_outline_rounded,
+            c.verde,
+            'Ficha leída. Si no es la película buena, copia la correcta y la '
+                'leeré.',
+          )
+        : (
+            Icons.content_paste_go_rounded,
+            c.doradoTexto,
+            '${_abierta ? 'He abierto FilmAffinity en tu navegador.' : 'Abre FilmAffinity en tu navegador.'} '
+                'Entra en la ficha de la película, pulsa una vez dentro de '
+                'la página (no en la barra de la dirección), después Ctrl + A '
+                'y Ctrl + C, y vuelve aquí: la leeré sola.',
+          );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         MensajeDialogo(icono: icono, color: color, texto: texto),
-        if (_estado != _Estado.abriendo)
+        if (url != null)
           Wrap(
             spacing: 8,
             runSpacing: 6,
             children: [
-              if (_estado == _Estado.cerrada)
+              OutlinedButton.icon(
+                onPressed: () => _abrir(url),
+                icon: const Icon(Icons.open_in_browser_rounded, size: 18),
+                label: Text(
+                  idFichaFilmaffinity(url) != null
+                      ? 'Abrir su ficha'
+                      : 'Abrir la búsqueda',
+                ),
+              ),
+              if (idFichaFilmaffinity(url) != null)
                 OutlinedButton.icon(
-                  onPressed: _abrir,
-                  icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-                  label: const Text('Abrir otra vez'),
-                )
-              else
-                OutlinedButton.icon(
-                  onPressed: () => _navegador?.mostrar(),
-                  icon: const Icon(Icons.open_in_browser_rounded, size: 18),
-                  label: const Text('Ver la ventana'),
+                  onPressed: () =>
+                      _abrir(busquedaFilmaffinity(widget.datos.titulo)),
+                  icon: const Icon(Icons.search_rounded, size: 18),
+                  label: Text('Buscar «${widget.datos.titulo}»'),
                 ),
               OutlinedButton.icon(
-                onPressed: () => _abrir(buscar: true),
-                icon: const Icon(Icons.search_rounded, size: 18),
-                label: Text('Buscar «${widget.datos.titulo}»'),
+                onPressed: _leer,
+                icon: const Icon(Icons.content_paste_rounded, size: 18),
+                label: const Text('Leer lo copiado'),
               ),
             ],
           ),
@@ -341,11 +287,6 @@ class _EstadoDialogoFilmaffinity extends State<_DialogoFilmaffinity> {
                 ),
               ),
             ),
-            TextButton.icon(
-              onPressed: () => abrirConWindows(f.enlace),
-              icon: const Icon(Icons.open_in_new_rounded, size: 16),
-              label: const Text('FilmAffinity'),
-            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -355,7 +296,7 @@ class _EstadoDialogoFilmaffinity extends State<_DialogoFilmaffinity> {
                     'sinopsis, si la tuya está cortada). Los que ya tienen '
                     'otro valor solo se cambian si los marcas.'
               : '¿Seguro que es esta película? No hay nada marcado: marca tú '
-                    'lo que quieras pasar, o abre otra ficha en la ventana.',
+                    'lo que quieras pasar, o copia otra ficha.',
           style: TextStyle(
             fontSize: 13,
             color: segura ? c.textoSecundario : c.naranja,

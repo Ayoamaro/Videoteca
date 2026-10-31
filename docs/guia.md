@@ -25,7 +25,7 @@ Esta guía explica cómo montar tu propia colección con Videoteca, desde ordena
 
 - Un **PC con Windows 10 u 11** de 64 bits: es el «administrador», donde están las películas y donde se completan las fichas.
 - Tus películas en **`.mp4`** (también valen `.m4v`, que es el mismo formato), en un disco o una carpeta.
-- Para completar datos: conexión a internet y dos claves gratuitas (TMDB y OMDb, [apartado 6](#6-las-claves-gratuitas-de-tmdb-y-omdb)). Para FilmAffinity, Microsoft Edge (ya viene con Windows).
+- Para completar datos: conexión a internet y dos claves gratuitas (TMDB y OMDb, [apartado 6](#6-las-claves-gratuitas-de-tmdb-y-omdb)). Para FilmAffinity, cualquier navegador (Edge, Chrome, Firefox…).
 - Para consultar desde el móvil: una cuenta gratuita de **GitHub** ([apartado 10](#10-publicar-el-catálogo-para-el-móvil)) y móviles **Android 7 o posterior** de 64 bits (todos los de los últimos años). No hay versión para iPhone.
 - Los demás PC de casa, también con **Windows 10 u 11** de 64 bits. En Windows 7 u 8 la app no funciona, pero las películas se pueden abrir por la red desde el Explorador ([apartado 12](#pc-con-windows-7-u-8)).
 
@@ -97,14 +97,14 @@ Reglas que la app cumple siempre:
 
 En la ficha de cualquier película, **Editar ficha** abre sus datos (leídos del propio archivo). Puedes cambiarlos a mano, poner o cambiar la carátula (arrastrando una imagen a la pantalla o con *Cambiar carátula…*) y usar:
 
-- **Buscar datos en internet**: TMDB, OMDb y Wikidata. Si la película no se identifica sin dudas, te enseña las parecidas para que elijas.
-- **Leer de FilmAffinity**: abre una ventana de Edge con la ficha de la película (o su búsqueda, para que entres tú) y la lee en cuanto la tienes delante: sinopsis completa, reparto, géneros, música, productora, temas, premios… FilmAffinity a veces pide comprobar que eres una persona («Un momento…»): marca la casilla en esa ventana y la app sigue sola. **La app nunca intenta saltarse esa comprobación.**
+- **Buscar datos en internet**: TMDB, OMDb y Wikidata (título original, sinopsis, reparto, dirección, guion, música, fotografía, productora, país, saga, edad, estrellas y enlaces). Si la película no se identifica sin dudas, te enseña las parecidas para que elijas.
+- **Leer de FilmAffinity**: para lo que solo tiene FilmAffinity (temas y premios, y sus géneros o su sinopsis si los prefieres). La app abre la ficha de la película en tu navegador (o su búsqueda, para que entres tú). En la ficha, pulsa **Ctrl + A** y después **Ctrl + C** y vuelve a la app: la lee sola y te enseña lo que trae para que elijas. La app no maneja el navegador ni entra en FilmAffinity por su cuenta (FilmAffinity no lo permite).
 
 Los datos traídos de fuera llevan una etiqueta de color con su origen y no se guardan hasta que pulsas **Guardar en el archivo**.
 
 ### Películas nuevas
 
-Cuando copias una película al disco, aparece en **Películas nuevas** y la app busca sola sus datos. Con **Completar ficha**: el título y el año salen del nombre del archivo, los datos encontrados se ponen en los campos vacíos, «¿Cuál es?» te enseña las parecidas si hay varias, y *Leer de FilmAffinity* trae el resto. Arrastra la carátula, guarda y pasa sola a la siguiente nueva.
+Cuando copias una película al disco, aparece en **Películas nuevas** y la app busca sola sus datos. Con **Completar ficha**: el título y el año salen del nombre del archivo, los datos encontrados se ponen en los campos vacíos, «¿Cuál es?» te enseña las parecidas si hay varias, y *Leer de FilmAffinity* trae temas y premios. Arrastra la carátula, guarda y pasa sola a la siguiente nueva.
 
 ### Completar mi colección
 
@@ -116,7 +116,7 @@ Para rellenar de golpe lo que falta en toda la colección:
 
 Las **dudosas** (no coinciden título, año y director, o el archivo no tiene director) y las **no encontradas** se quedan sin tocar. Con **Revisar una a una** la app te las va enseñando: la busca, te propone las parecidas y rellena los campos vacíos; tú compruebas cuál es, guardas (o *Saltar*) y pasa a la siguiente. Es la forma más rápida de completar una colección cuyos archivos todavía no tienen datos.
 
-El **Repaso con FilmAffinity** (sinopsis cortadas y películas sin temas) funciona igual, con FilmAffinity abriéndose solo en cada película, contigo delante.
+El **Repaso con FilmAffinity** (sinopsis cortadas y películas sin temas) funciona igual: FilmAffinity se abre solo en tu navegador con cada película, la copias (Ctrl + A, Ctrl + C), revisas, guardas y pasa a la siguiente.
 
 ## 8. Qué se guarda dentro de cada archivo
 
@@ -244,7 +244,10 @@ Solo escribe dentro de un archivo cuando tú guardas una ficha (o lanzas *Comple
 Porque no coinciden a la vez título, año y director con ninguna película de TMDB: por ejemplo, el archivo no tiene director todavía, el año está mal o hay dos películas con el mismo título. Revísalas con *Revisar una a una* en Completar mi colección.
 
 **FilmAffinity me pide «verificar que soy un ser humano».**
-Es la protección de FilmAffinity. Marca la casilla en la ventana de Edge que abre la app y sigue: la app lo detecta y continúa. Aparece más si se abren muchas fichas seguidas.
+Es la protección de FilmAffinity: márcala en tu navegador, como en cualquier web. La app no entra en FilmAffinity: solo lee la ficha que copias tú.
+
+**«Leer de FilmAffinity» dice que lo copiado no sirve.**
+Tiene que ser la ficha de la película (no la búsqueda), en español (`filmaffinity.com/es/…`) y copiada entera: pulsa Ctrl + A y después Ctrl + C en la página. Si sigue sin leerla, pulsa *Leer lo copiado*.
 
 **OMDb dice que he llegado al límite.**
 La clave gratuita permite 1.000 consultas al día. *Completar mi colección* deja las estrellas para el día siguiente y sigue con lo demás.

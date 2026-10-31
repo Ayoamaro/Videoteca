@@ -9,7 +9,7 @@ import 'identificacion.dart';
 // solo si la película se identifica sin dudas (título + año + director).
 // Las dudosas y las no encontradas se dejan sin tocar. Los temas y premios
 // (solo están en FilmAffinity) no van en el lote: se hacen en el «Repaso con
-// FilmAffinity», contigo delante.
+// FilmAffinity», contigo delante (copiando su ficha del navegador).
 //
 // No usa nada de Flutter.
 
@@ -18,8 +18,12 @@ import 'identificacion.dart';
 enum OpcionLote {
   tituloOriginal('Título original', 'TMDB', [Campo.tituloOriginal]),
   pais('País', 'TMDB', [Campo.pais]),
+  sinopsis('Sinopsis', 'TMDB', [Campo.sinopsis]),
+  reparto('Reparto', 'TMDB', [Campo.reparto]),
   guion('Guion', 'TMDB', [Campo.guion]),
+  musica('Música', 'TMDB', [Campo.musica]),
   fotografia('Fotografía', 'TMDB', [Campo.fotografia]),
+  productora('Productora', 'TMDB', [Campo.productora]),
   saga('Saga y nº', 'TMDB', [Campo.saga, Campo.numeroSaga]),
   clasificacion('Clasificación por edad', 'TMDB', [Campo.clasificacion]),
   estrellas('Estrellas', 'OMDb · Rotten Tomatoes', [Campo.estrellas]),

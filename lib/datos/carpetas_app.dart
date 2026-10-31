@@ -48,6 +48,14 @@ class CarpetasApp {
   void _crear() {
     Directory(miniaturas).createSync(recursive: true);
     Directory(copias).createSync(recursive: true);
+    // El perfil de la ventana de Edge con la que se leía FilmAffinity hasta
+    // la 1.1 (issue #5: ya no se usa).
+    try {
+      final perfil = Directory('$raiz${_sep}navegador');
+      if (perfil.existsSync()) perfil.deleteSync(recursive: true);
+    } on FileSystemException {
+      // Edge aún abierto con ese perfil: a la próxima.
+    }
   }
 
   final String raiz;
@@ -63,9 +71,6 @@ class CarpetasApp {
   /// Carátulas de antes y de después de cada cambio del registro (para
   /// poder deshacerlo).
   String get copias => '$raiz${_sep}copias';
-
-  /// Perfil propio de la ventana de Edge con la que se lee FilmAffinity.
-  String get navegador => '$raiz${_sep}navegador';
 
   /// Lo que se prepara para publicar en el tablón: miniaturas WebP y qué
   /// se publicó la última vez.

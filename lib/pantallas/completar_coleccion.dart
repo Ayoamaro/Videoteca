@@ -122,9 +122,8 @@ class _PantallaCompletarColeccionState
           ),
           const SizedBox(height: 14),
           Text(
-            'Temas, premios y sinopsis completas solo están en FilmAffinity, '
-            'que pide comprobar a mano que eres una persona: van en el '
-            '«Repaso con FilmAffinity», más abajo.',
+            'Temas y premios solo están en FilmAffinity, que no deja leerlo '
+            'a programas: van en el «Repaso con FilmAffinity», más abajo.',
             style: TextStyle(fontSize: 13, color: c.textoSecundario),
           ),
         ],
@@ -820,11 +819,10 @@ class _Repaso extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Contigo delante: la app abre cada película con FilmAffinity ya '
-            'buscando, revisas lo que trae, guardas y pasa sola a la '
-            'siguiente. Si FilmAffinity pide comprobar que eres una persona, '
-            'marca la casilla en su ventana. Puedes dejarlo cuando quieras y '
-            'seguir otro día por donde ibas.',
+            'Contigo delante: la app abre cada película en FilmAffinity, en '
+            'tu navegador; copias su ficha (Ctrl + A, Ctrl + C), revisas lo '
+            'que trae, guardas y pasa sola a la siguiente. Puedes dejarlo '
+            'cuando quieras y seguir otro día por donde ibas.',
             style: TextStyle(fontSize: 13, color: c.textoSecundario),
           ),
           const SizedBox(height: 14),

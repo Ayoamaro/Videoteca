@@ -731,8 +731,8 @@ class _SeccionServicios extends ConsumerWidget {
         _FilaServicio(
           nombre: 'FilmAffinity',
           uso:
-              'Sinopsis, reparto, temas y premios. Se lee con una ventana de '
-              'Microsoft Edge, contigo delante. No necesita clave.',
+              'Temas y premios (y lo que falte). Se abre en tu navegador, '
+              'copias la ficha y la app la lee. No necesita clave.',
           estado: Pastilla('Listo', color: c.verde, fondo: c.verdeFondo),
         ),
       ],

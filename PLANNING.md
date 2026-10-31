@@ -315,7 +315,7 @@ Desde la v1.1 ya no se trabaja por «días»: el usuario cuenta cada problema qu
 |---|---|---|
 | — | Ninguna | |
 
-**Issues cerradas** (sin versión nueva todavía):
+**Issues cerradas en la v1.1.1** (31/10, [notas](docs/novedades/v1.1.1.md)):
 
 | # | Issue | PR |
 |---|---|---|
@@ -326,7 +326,7 @@ Desde la v1.1 ya no se trabaja por «días»: el usuario cuenta cada problema qu
 | [#5](https://github.com/Ayoamaro/Videoteca/issues/5) | FilmAffinity: Edge bloqueado por Cloudflare y campos que nunca se rellenan solos | [#11](https://github.com/Ayoamaro/Videoteca/pull/11) (31/10) |
 | [#4](https://github.com/Ayoamaro/Videoteca/issues/4) | Ventana de Windows más elegante, integrada con la app (como Chrome) | [#12](https://github.com/Ayoamaro/Videoteca/pull/12) (31/10) |
 
-**Para las notas de la próxima versión:** con la #6, la primera publicación rehace las 5.541 miniaturas y sube de nuevo todas las carátulas; los móviles y PC de consulta las vuelven a descargar **una vez (~100 MB, mejor con wifi)**. Después, comprobar en el móvil que se ven nítidas (Inicio, Catálogo, Ficha). Con la #5: contar que sinopsis, reparto, productora y música llegan solos de TMDB (y como casillas en «Completar mi colección») y que «Leer de FilmAffinity» abre la ficha en el navegador de siempre: pulsar dentro de la página, Ctrl + A y Ctrl + C. Con la #4: la ventana de Windows ya no tiene la barra blanca (la dibuja la app); comprobar en un PC con Windows 11 el menú «Ajustar» al pasar por maximizar.
+**Pendiente tras publicar la v1.1.1:** instalarla en la cuenta **Ayoze** y dejar que publique el tablón (la primera vez rehace las 5.541 miniaturas y sube de nuevo todas las carátulas); comprobar en el móvil que las carátulas se ven nítidas (Inicio, Catálogo, Ficha) y, en un PC con Windows 11 (PC2/PC3), la barra de la ventana y el menú «Ajustar» al pasar por maximizar.
 
 ---
 

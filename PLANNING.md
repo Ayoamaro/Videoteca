@@ -296,6 +296,32 @@ Catálogo de películas para Windows y Android: detecta las películas del disco
 
 ---
 
+## Fase 6 · Mantenimiento con issues (desde el 31/10)
+
+Desde la v1.1 ya no se trabaja por «días»: el usuario cuenta cada problema que ve y se apunta como **issue** en GitHub ([lista](https://github.com/Ayoamaro/Videoteca/issues)). Cada issue lleva una etiqueta de **prioridad** (la dice el usuario: `urgente` › `alta` › `media` › `baja`) y otras de **tipo** (`bug`, `enhancement`), **área** (`interfaz`, `editar ficha`, `fuentes de datos`, `ventana Windows`, `móvil`, `tablón`) y `decisión` si hay que elegir camino antes de programar.
+
+**Cómo se arregla cada issue** (el usuario dice «vamos con la issue #N», normalmente en un chat nuevo):
+1. Leer la issue y su análisis; si tiene la etiqueta `decisión`, preguntar antes de programar.
+2. Crear una **rama nueva** desde `main` actualizado (`issue-N-descripcion-corta`). **Nunca** se arregla directamente en `main`.
+3. Arreglar, con pruebas automáticas (`flutter test`, `flutter analyze`) y probándolo **en local** en la app.
+4. **Simular la fusión** con `main` (`git merge --no-commit --no-ff main` en la rama, pruebas, `git merge --abort`) para ver que no da problemas.
+5. Subir la rama y abrir la **PR** («Closes #N», qué se cambió y cómo se probó).
+6. **Esperar a que el usuario diga que se puede fusionar**; entonces fusionar en `main` (la issue se cierra sola).
+7. **Versión nueva** del instalador/APK solo cuando se hayan juntado **varias** issues arregladas (no con cada una): subir la versión en `pubspec.yaml`, notas en `docs/novedades/`, etiqueta `v*`.
+
+**Issues abiertas** (31/10):
+
+| # | Issue | Prioridad |
+|---|---|---|
+| [#2](https://github.com/Ayoamaro/Videoteca/issues/2) | Editar/Completar ficha: la página hace scroll sola al pulsar o pegar en un campo | 🔴 urgente |
+| [#5](https://github.com/Ayoamaro/Videoteca/issues/5) | FilmAffinity: Edge bloqueado por Cloudflare y campos que nunca se rellenan solos | 🔴 urgente · decisión |
+| [#4](https://github.com/Ayoamaro/Videoteca/issues/4) | Ventana de Windows más elegante, integrada con la app (como Chrome) | 🟠 alta · decisión |
+| [#1](https://github.com/Ayoamaro/Videoteca/issues/1) | Al abrir una ficha se ve tarde el efecto de pulsar la carátula | 🟡 media |
+| [#3](https://github.com/Ayoamaro/Videoteca/issues/3) | Los avisos flotantes tapan botones y no se pueden cerrar | 🟡 media |
+| [#6](https://github.com/Ayoamaro/Videoteca/issues/6) | Carátulas borrosas en el móvil | 🟡 media |
+
+---
+
 ## Decisiones pendientes
 
 | Decisión | Se resuelve el |

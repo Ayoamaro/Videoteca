@@ -6,6 +6,7 @@ App de catálogo de películas para **Windows (administrador) y Android (consult
 - El plan está en [PLANNING.md](PLANNING.md): "días" = sesiones de trabajo (1–20 → v1.0; **Fase 5, días 21–24 → v1.1: red de casa**). El usuario dice "vamos con el día X".
 - **Al empezar una sesión:** leer `PLANNING.md` y ver qué días están marcados (☑) y el `git log`.
 - **Al terminar cada día:** marcar el día como ☑ en `PLANNING.md`, hacer commit (mensajes en español) y push.
+- **Desde la v1.1 (Fase 6): issues de GitHub.** El usuario dice «vamos con la issue #N». Flujo en `PLANNING.md` § Fase 6: rama nueva desde `main` (nunca arreglar en `main`), probar en local, simular la fusión con `main`, PR con «Closes #N» y **fusionar solo cuando el usuario lo diga**. Versión nueva solo tras juntar varias issues. Las issues nuevas llevan etiqueta de prioridad (la da el usuario) + tipo/área; mantener la tabla de issues abiertas de `PLANNING.md`.
 - Hasta el día 9 la app **solo lee** el disco. Cualquier escritura en `.mp4` se prueba antes con **copias**, nunca con los originales.
 - Diseño aprobado: https://claude.ai/artifact/ExVasA5vV2r3fByTLLAxnW · prompt: `docs/prompt-claude-design.md`. Estilo: oscuro "sala de cine", acento dorado `#E2AE4F`, fondo `#0F0E13`, tipografías Bricolage Grotesque (títulos) + Manrope (texto).
 

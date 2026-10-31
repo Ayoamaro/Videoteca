@@ -315,11 +315,11 @@ Desde la v1.1 ya no se trabaja por «días»: el usuario cuenta cada problema qu
 |---|---|---|
 | — | Ninguna | |
 
-**Issues cerradas** (sin versión nueva todavía):
+**Issues cerradas en la v1.1.2** (31/10, [notas](docs/novedades/v1.1.2.md)):
 
 | # | Issue | PR |
 |---|---|---|
-| [#13](https://github.com/Ayoamaro/Videoteca/issues/13) | Ventana maximizada: minimizar, maximizar y cerrar no funcionan; quitar «Videoteca» de la barra | [#14](https://github.com/Ayoamaro/Videoteca/pull/14) (31/10) · conviene sacar la 1.1.2 pronto |
+| [#13](https://github.com/Ayoamaro/Videoteca/issues/13) | Ventana maximizada: minimizar, maximizar y cerrar no funcionan; quitar «Videoteca» de la barra | [#14](https://github.com/Ayoamaro/Videoteca/pull/14) (31/10) |
 
 **Issues cerradas en la v1.1.1** (31/10, [notas](docs/novedades/v1.1.1.md)):
 

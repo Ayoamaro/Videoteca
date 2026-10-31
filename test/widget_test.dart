@@ -28,6 +28,7 @@ import 'package:videoteca/tablon/copia_local.dart';
 import 'package:videoteca/tema/tema.dart';
 import 'package:videoteca/utilidades.dart';
 import 'package:videoteca/widgets/buscador_sugerencias.dart';
+import 'package:videoteca/widgets/comunes.dart';
 
 /// Catálogo con los datos de ejemplo en lugar de la base de datos.
 class _CatalogoEjemplo extends Catalogo {
@@ -1444,6 +1445,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(pagina.position.pixels, lessThan(enMusica));
   }, variant: windows);
+
+  testWidgets(
+    'Al abrir una ficha no se ve la pulsación de la tarjeta (issue #1)',
+    (tester) async {
+      await abrirApp(tester, const Size(1400, 900));
+      // Se pulsa la primera carátula de Inicio y se mira la ficha enseguida,
+      // mientras la onda de la pulsación aún se estaría desvaneciendo.
+      final tarjeta = find.byType(TarjetaPelicula).first;
+      final gesto = await tester.startGesture(tester.getCenter(tarjeta));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesto.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
+      // Ninguna capa por encima de la ficha tiene ondas ni resaltados de
+      // antes (se pintaban en el Material del Marco, común a todas).
+      final efectos = <dynamic>[];
+      for (
+        RenderObject? r = tester.renderObject(find.text('DÓNDE ESTÁ'));
+        r != null;
+        r = r.parent
+      ) {
+        if (r.runtimeType.toString() == '_RenderInkFeatures') {
+          efectos.addAll((r as dynamic).debugInkFeatures as List? ?? const []);
+        }
+      }
+      expect(efectos, isEmpty);
+      await tester.pumpAndSettle();
+    },
+    variant: windows,
+  );
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {
     await abrirApp(tester, const Size(1440, 1000), vacio: true);

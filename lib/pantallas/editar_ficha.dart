@@ -166,7 +166,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
             .toList();
     try {
       final ruta = p.ruta;
-      final datos = await leerEnSegundoPlano(ruta);
+      final datos = await ref.read(lectorFichaProvider)(ruta);
       if (!mounted) return;
       final valores = valoresFicha(datos);
       setState(() {
@@ -1094,12 +1094,18 @@ class _NombreCampo extends StatelessWidget {
       height: 28,
       child: Row(
         children: [
-          Text(
-            nombre,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: c.textoSuave,
+          // En los campos estrechos (Año, Nº en la saga) los textos se
+          // cortan con «…» en vez de salirse.
+          Flexible(
+            child: Text(
+              nombre,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: c.textoSuave,
+              ),
             ),
           ),
           if (cambiado) ...[
@@ -1113,9 +1119,13 @@ class _NombreCampo extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 5),
-            Text(
-              'Cambiado',
-              style: TextStyle(fontSize: 12, color: c.doradoTexto),
+            Flexible(
+              child: Text(
+                'Cambiado',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: c.doradoTexto),
+              ),
             ),
             if (origen != null) ...[
               const SizedBox(width: 8),
@@ -1366,3 +1376,8 @@ class _Aviso extends StatelessWidget {
 /// Lee un `.mp4` sin frenar la pantalla. (Función suelta: ver `edicion.dart`.)
 Future<DatosArchivo> leerEnSegundoPlano(String ruta) =>
     Isolate.run(() => leerArchivo(ruta));
+
+/// Cómo se lee el archivo al abrir la pantalla (en las pruebas, sin disco).
+final lectorFichaProvider = Provider<Future<DatosArchivo> Function(String)>(
+  (ref) => leerEnSegundoPlano,
+);

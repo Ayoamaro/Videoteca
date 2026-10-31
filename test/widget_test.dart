@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:videoteca/datos/catalogo.dart';
@@ -15,11 +16,14 @@ import 'package:videoteca/datos/ejemplo.dart';
 import 'package:videoteca/datos/red_casa.dart';
 import 'package:videoteca/disco/acciones_windows.dart';
 import 'package:videoteca/disco/copiador.dart';
+import 'package:videoteca/disco/escritor.dart';
+import 'package:videoteca/disco/lector_archivo.dart';
 import 'package:videoteca/disco/red.dart';
 import 'package:videoteca/datos/sesion.dart';
 import 'package:videoteca/main.dart';
 import 'package:videoteca/modelos/pelicula.dart';
 import 'package:videoteca/pantallas/acceso.dart';
+import 'package:videoteca/pantallas/editar_ficha.dart';
 import 'package:videoteca/tablon/copia_local.dart';
 import 'package:videoteca/tema/tema.dart';
 import 'package:videoteca/utilidades.dart';
@@ -313,6 +317,25 @@ class _RutaRedEnMemoria extends RutaRed {
   Future<void> cambiar(String ruta) async => state = ruta;
 }
 
+/// Lo que «hay en el archivo» de una película de ejemplo (sin disco).
+Future<DatosArchivo> _leerEjemplo(String ruta) async {
+  final p = peliculasEjemplo.firstWhere((p) => p.ruta == ruta);
+  return DatosArchivo(
+    ruta: ruta,
+    propiedades: {
+      Campo.titulo.propiedad: p.titulo,
+      Campo.tituloOriginal.propiedad: p.tituloOriginal,
+      Campo.sinopsis.propiedad: p.sinopsis,
+      Campo.reparto.propiedad: p.reparto,
+      Campo.direccion.propiedad: p.direccion,
+      Campo.musica.propiedad: p.musica,
+      Campo.productora.propiedad: p.productora,
+    },
+    caratula: null,
+    tamanoBytes: p.tamanoBytes,
+  );
+}
+
 /// Arranca la app con una ventana del tamaño indicado. Sin [carpetaRaiz],
 /// la app se comporta como en el primer arranque.
 Future<void> abrirApp(
@@ -358,6 +381,7 @@ Future<void> abrirApp(
         servicioRedProvider.overrideWithValue(red ?? _RedFalsa()),
         servicioCopiaProvider.overrideWithValue(copia ?? _CopiaFalsa()),
         rutaRedProvider.overrideWith(_RutaRedEnMemoria.new),
+        lectorFichaProvider.overrideWithValue(_leerEjemplo),
       ],
       child: const VideotecaApp(),
     ),
@@ -1353,6 +1377,72 @@ void main() {
     await tester.pumpAndSettle();
     expect(await respuesta, AppExitResponse.exit);
     expect(copia.canceladas, 1);
+  }, variant: windows);
+
+  testWidgets('Editar ficha: la página no se mueve sola (issue #2)', (
+    tester,
+  ) async {
+    await abrirApp(tester, const Size(1400, 800));
+    GoRouter.of(tester.element(find.byType(Scaffold).first))
+        .go('/pelicula/1/editar');
+    await tester.pumpAndSettle();
+    Finder campo(String valor) => find.byWidgetPredicate(
+      (w) => w is TextField && w.controller?.text == valor,
+    );
+    final ejemplo = peliculasEjemplo[0];
+    final sinopsis = campo(ejemplo.sinopsis);
+    final reparto = campo(ejemplo.reparto);
+    final pagina = tester.state<ScrollableState>(
+      find.ancestor(of: reparto, matching: find.byType(Scrollable)).last,
+    );
+    Future<void> mirarA(Finder f) async {
+      await Scrollable.ensureVisible(tester.element(f), alignment: 0.5);
+      await tester.pumpAndSettle();
+    }
+
+    // Pulsar un campo que se ve, o pegar en él, no mueve la página.
+    await mirarA(reparto);
+    final antes = pagina.position.pixels;
+    expect(antes, greaterThan(0));
+    await tester.tap(reparto);
+    await tester.pumpAndSettle();
+    expect(pagina.position.pixels, antes, reason: 'al pulsar');
+    await tester.enterText(
+      reparto,
+      List.generate(60, (i) => 'Actor Número $i').join(', '),
+    );
+    await tester.pumpAndSettle();
+    expect(pagina.position.pixels, antes, reason: 'al pegar');
+
+    // Se escribe en la sinopsis, se baja con la rueda hasta Música y se va
+    // a otro programa a copiar algo: al volver, la página sigue en Música
+    // (antes saltaba hasta la sinopsis, que tenía el foco).
+    await mirarA(sinopsis);
+    await tester.tap(sinopsis);
+    await tester.pumpAndSettle();
+    await mirarA(campo(ejemplo.musica));
+    final enMusica = pagina.position.pixels;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(pagina.position.pixels, enMusica, reason: 'al volver');
+    // La sinopsis sigue con el foco: se puede seguir escribiendo en ella.
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(of: sinopsis, matching: find.byType(EditableText)),
+          )
+          .focusNode
+          .hasFocus,
+      isTrue,
+    );
+
+    // Pasado ese momento, escribir en la sinopsis la vuelve a enseñar.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(sinopsis, 'Otra sinopsis');
+    await tester.pumpAndSettle();
+    expect(pagina.position.pixels, lessThan(enMusica));
   }, variant: windows);
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {

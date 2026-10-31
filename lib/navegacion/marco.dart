@@ -267,6 +267,13 @@ class _VigilanciaState extends ConsumerState<_Vigilancia> {
       ref.listen(busquedasNuevasProvider, (_, _) {});
       // Publica sola en el tablón los cambios del catálogo.
       ref.listen(tablonProvider, (_, _) {});
+      // Sin ruta de red decidida, la busca al abrir y, si vale, la usa: así
+      // los demás PC la reciben aunque nadie entre en Ajustes.
+      if (hayRedDeCasa &&
+          ref.watch(rutaRedProvider) == null &&
+          ref.watch(tablonProvider.select((e) => e.configurado))) {
+        ref.listen(redCasaProvider, (_, _) {});
+      }
     } else {
       if (hayRedDeCasa) ref.listen(redCasaProvider, (_, _) {});
       // Avisa cuando llega una versión nueva del catálogo (no la primera

@@ -1479,6 +1479,8 @@ class _EstadoSeccionRed extends ConsumerState<_SeccionRed> {
       FaseRed.disponible
           when esAdministrador && !ref.watch(tablonProvider).configurado =>
         'Se publicará cuando configures la publicación en el tablón.',
+      FaseRed.disponible when esAdministrador =>
+        'Los demás PC de casa la reciben con el tablón.',
       _ => null,
     };
     return [

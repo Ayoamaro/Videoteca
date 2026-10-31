@@ -814,24 +814,35 @@ void main() {
     expect(titulo.top - buscador.bottom, inInclusiveRange(36, 60));
   }, variant: windows);
 
-  testWidgets('Red de casa en el PC: la app propone la ruta y se guarda', (
+  testWidgets('Red de casa en el PC: la app busca la ruta y la usa sola', (
     tester,
   ) async {
     final n = peliculasEjemplo.length;
     await abrirApp(tester, const Size(1440, 1000));
+    final contenedor = ProviderScope.containerOf(
+      tester.element(find.byType(VideotecaApp)),
+    );
+    // Sin publicación configurada no se busca al abrir (solo en Ajustes).
+    expect(contenedor.exists(redCasaProvider), isFalse);
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Red de casa'));
     await tester.pumpAndSettle();
-    // La busca sola y la propone.
+    // La busca y, como se llega a todas las películas de prueba, la usa sin
+    // esperar a «Usar esta ruta».
     expect(find.text(r'\\CASA-PC\Pelis\Películas'), findsOneWidget);
+    expect(find.text('Disponible'), findsOneWidget);
     expect(
-      find.text('Encontradas $n de $n películas de prueba por esa ruta.'),
+      find.text(
+        'Encontradas $n de $n películas de prueba · comprobado: ahora mismo.',
+      ),
       findsOneWidget,
     );
+    expect(contenedor.read(rutaRedProvider), r'\\CASA-PC\Pelis\Películas');
 
     // Una carpeta de este PC no vale: los demás no la ven.
-    await tester.tap(find.text('Elegir otra…'));
+    // (El primer «Cambiar…» es el de la carpeta de las películas.)
+    await tester.tap(find.text('Cambiar…').last);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, r'D:\Películas');
     await tester.tap(find.text('Comprobar y guardar'));
@@ -840,21 +851,21 @@ void main() {
     await tester.tap(find.text('Cancelar').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Usar esta ruta'));
-    await tester.pumpAndSettle();
-    expect(find.text('Disponible'), findsOneWidget);
-    expect(
-      find.text(
-        'Encontradas $n de $n películas de prueba · comprobado: ahora mismo.',
-      ),
-      findsOneWidget,
-    );
-
-    // Se puede dejar sin ruta (los demás PC solo consultan).
+    // Se puede dejar sin ruta (los demás PC solo consultan); después, al
+    // buscarla, solo se propone: ya se había decidido.
     await tester.tap(find.text('Quitar'));
     await tester.pumpAndSettle();
     expect(find.text('Sin ruta de red'), findsOneWidget);
-    expect(find.text('Buscar la ruta'), findsOneWidget);
+    await tester.tap(find.text('Buscar la ruta'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Encontradas $n de $n películas de prueba por esa ruta.'),
+      findsOneWidget,
+    );
+    expect(contenedor.read(rutaRedProvider), '');
+    await tester.tap(find.text('Usar esta ruta'));
+    await tester.pumpAndSettle();
+    expect(find.text('Disponible'), findsOneWidget);
   }, variant: windows);
 
   testWidgets('PC de consulta: usa la ruta de red del tablón si se llega', (

@@ -240,7 +240,9 @@ class RedCasa extends Notifier<EstadoRedCasa> {
   }
 
   /// Administrador: busca entre las carpetas compartidas de este PC la que
-  /// lleva a las películas y la propone.
+  /// lleva a las películas y la propone. Si todavía no se ha decidido nada y
+  /// por ella se llega a todas las películas de prueba, la usa sin esperar
+  /// a que se pulse «Usar esta ruta» (se puede cambiar o quitar después).
   Future<void> buscar() async {
     final raiz = ref.read(carpetaRaizProvider);
     if (state.buscando || raiz == null) return;
@@ -255,6 +257,23 @@ class RedCasa extends Notifier<EstadoRedCasa> {
       propuesta = null;
     }
     if (!ref.mounted) return;
+    if (propuesta != null &&
+        esAdministrador &&
+        ref.read(rutaRedProvider) == null &&
+        propuesta.probadas > 0 &&
+        propuesta.encontradas == propuesta.probadas) {
+      // Primero lo ya comprobado (así no se vuelve a mirar al guardarla).
+      state = EstadoRedCasa(
+        ruta: propuesta.ruta,
+        fase: FaseRed.disponible,
+        encontradas: propuesta.encontradas,
+        probadas: propuesta.probadas,
+        comprobada: DateTime.now(),
+        buscada: true,
+      );
+      await ref.read(rutaRedProvider.notifier).cambiar(propuesta.ruta);
+      return;
+    }
     state = _con(
       state,
       buscando: false,

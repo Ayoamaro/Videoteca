@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "marco_ventana.h"
 #include "receptor_arrastre.h"
 #include "win32_window.h"
 
@@ -32,6 +33,9 @@ class FlutterWindow : public Win32Window {
 
   // Recibe los archivos arrastrados desde el Explorador (carátulas).
   std::unique_ptr<ReceptorArrastre> receptor_arrastre_;
+
+  // La ventana sin la barra de Windows (la dibuja la app).
+  std::unique_ptr<MarcoVentana> marco_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

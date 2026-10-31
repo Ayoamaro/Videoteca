@@ -13,6 +13,7 @@ import 'datos/carpetas_app.dart';
 import 'navegacion/rutas.dart';
 import 'tema/tema.dart';
 import 'widgets/avisos.dart';
+import 'widgets/barra_ventana.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,7 +90,8 @@ class _AvisoAlAbrirState extends State<_AvisoAlAbrir> {
 }
 
 /// Iconos de las barras del sistema del móvil (hora, batería, botones) en
-/// claro sobre el tema oscuro y en oscuro sobre el claro.
+/// claro sobre el tema oscuro y en oscuro sobre el claro. En Windows, además,
+/// la barra de la ventana.
 class BarrasSistema extends StatelessWidget {
   const BarrasSistema({super.key, required this.child});
 
@@ -108,7 +110,8 @@ class BarrasSistema extends StatelessWidget {
         systemNavigationBarIconBrightness: iconos,
         systemNavigationBarContrastEnforced: false,
       ),
-      child: child,
+      // En Windows, la barra de la ventana la pone la app (como Chrome).
+      child: ConBarraVentana(child: child),
     );
   }
 }

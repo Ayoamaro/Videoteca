@@ -27,7 +27,7 @@ class ConBarraVentana extends StatelessWidget {
 /// Alto de la barra de la ventana.
 const altoBarraVentana = 34.0;
 
-/// La barra de arriba: logo, nombre y minimizar / maximizar / cerrar con el
+/// La barra de arriba: logo y minimizar / maximizar / cerrar con el
 /// estilo de la app. Arrastrarla, el doble clic, el menú del sistema y el
 /// menú «Ajustar» los pone Windows (código nativo).
 class BarraVentana extends StatefulWidget {
@@ -41,6 +41,8 @@ class _EstadoBarraVentana extends State<BarraVentana> {
   final _minimizar = GlobalKey();
   final _maximizar = GlobalKey();
   final _cerrar = GlobalKey();
+
+  /// Las últimas zonas mandadas (números separados por espacios).
   String? _enviado;
 
   Ventana get _ventana => Ventana.instancia;
@@ -67,7 +69,19 @@ class _EstadoBarraVentana extends State<BarraVentana> {
     final cerrar = rect(_cerrar);
     if (minimizar == null || maximizar == null || cerrar == null) return;
     final alto = altoBarraVentana * escala;
-    final huella = '$alto $minimizar $maximizar $cerrar';
+    // Con los números, no con `Rect.toString()`: en la versión Release,
+    // Flutter quita esos textos («Instance of 'Rect'») y todas las zonas
+    // parecían iguales; tras maximizar no se volvían a mandar y los botones
+    // no respondían (issue #13).
+    final huella = [
+      alto,
+      for (final r in [minimizar, maximizar, cerrar]) ...[
+        r.left,
+        r.top,
+        r.right,
+        r.bottom,
+      ],
+    ].join(' ');
     if (huella == _enviado) return;
     _enviado = huella;
     _ventana.zonas(
@@ -103,15 +117,8 @@ class _EstadoBarraVentana extends State<BarraVentana> {
                   size: 16,
                   color: estado.activa ? c.dorado : c.textoTenue,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  'Videoteca',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: estado.activa ? c.textoSecundario : c.textoTenue,
-                  ),
-                ),
+                // Solo el icono: el nombre ya está en el menú (y la ventana
+                // sigue llamándose «Videoteca» para Windows).
                 // El hueco: se arrastra (lo dice Windows, no la app).
                 const Spacer(),
                 _Boton(

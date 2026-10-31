@@ -43,8 +43,14 @@ bool _deAdministracion(String ruta) =>
 /// `/catalogo`, `/pelicula/12`… Todas se muestran dentro del [Marco], menos el
 /// asistente de bienvenida.
 final rutasProvider = Provider<GoRouter>((ref) {
+  // Cada pantalla, con su propio `Material` (transparente): la onda de una
+  // tarjeta pulsada se pinta en él y se va con la pantalla. Sin él se pintaba
+  // en el del Marco, común a todas, y se veía encima de la nueva (issue #1).
   Page<void> sinAnimacion(GoRouterState estado, Widget pantalla) =>
-      NoTransitionPage(key: estado.pageKey, child: pantalla);
+      NoTransitionPage(
+        key: estado.pageKey,
+        child: Material(type: MaterialType.transparency, child: pantalla),
+      );
 
   return GoRouter(
     // Si aún no se ha elegido la carpeta de las películas, se empieza por el

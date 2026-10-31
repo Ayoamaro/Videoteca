@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import '../tablon/formato.dart'
+    show anchoMiniaturaTablon, calidadMiniaturaTablon;
+
 /// Carpeta donde la app guarda sus cosas: la base de datos y las miniaturas.
 ///
 /// En Windows es `%LOCALAPPDATA%\Videoteca` (p. ej.
@@ -67,7 +70,10 @@ class CarpetasApp {
   /// Lo que se prepara para publicar en el tablón: miniaturas WebP y qué
   /// se publicó la última vez.
   String get tablon => '$raiz${_sep}tablon';
-  String get miniaturasTablon => '$tablon${_sep}caratulas';
+
+  /// (Con el tamaño y la calidad en el nombre: si cambian, se rehacen todas.)
+  String get miniaturasTablon =>
+      '$tablon${_sep}caratulas-${anchoMiniaturaTablon}q$calidadMiniaturaTablon';
   String miniaturaTablon(int id) => '$miniaturasTablon$_sep$id.webp';
   String get estadoTablon => '$tablon${_sep}estado.json';
 

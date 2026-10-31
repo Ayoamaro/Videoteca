@@ -199,22 +199,29 @@ List<Map<String, dynamic>> leerPaqueteCatalogo(Uint8List datos) => [
 
 // ── Carátulas ────────────────────────────────────────────────────────────
 
-/// Ancho de las miniaturas del tablón (las del PC son de 240 px; estas pesan
-/// la mitad: ~13 KB).
-const anchoMiniaturaTablon = 180;
+/// Ancho y calidad de las miniaturas del tablón: se hacen desde la carátula
+/// original (350 × 500) y un móvil (×2,5–3) las enseña nítidas en las
+/// tarjetas; ~19 KB de media (issue #6: con 180 px q65 se veían borrosas).
+/// Comparar variantes: `dart run tool/probar_caratulas.dart`.
+const anchoMiniaturaTablon = 300;
+const calidadMiniaturaTablon = 60;
 
-/// Miniatura del tablón (WebP) a partir de la miniatura JPEG del PC.
-Uint8List? miniaturaTablon(Uint8List jpeg) {
-  final imagen = img.decodeImage(jpeg);
-  if (imagen == null) return null;
-  final pequena = imagen.width > anchoMiniaturaTablon
+/// Miniatura del tablón (WebP) a partir de una carátula (JPEG o PNG).
+Uint8List? miniaturaTablon(
+  Uint8List imagen, {
+  int ancho = anchoMiniaturaTablon,
+  int calidad = calidadMiniaturaTablon,
+}) {
+  final original = img.decodeImage(imagen);
+  if (original == null) return null;
+  final pequena = original.width > ancho
       ? img.copyResize(
-          imagen,
-          width: anchoMiniaturaTablon,
+          original,
+          width: ancho,
           interpolation: img.Interpolation.average,
         )
-      : imagen;
-  return img.WebPEncoder(lossless: false, quality: 65).encode(pequena);
+      : original;
+  return img.WebPEncoder(lossless: false, quality: calidad).encode(pequena);
 }
 
 const _cabeceraCaratulas = [0x56, 0x54, 0x43, 0x31]; // «VTC1»

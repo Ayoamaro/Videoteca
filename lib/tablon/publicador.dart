@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart' as crypto;
 
 import '../datos/base_datos.dart';
 import '../datos/carpetas_app.dart';
+import '../disco/caratula_mp4.dart';
 import 'cifrado.dart';
 import 'formato.dart';
 import 'github.dart';
@@ -187,14 +188,24 @@ Future<IndiceTablon?> _indiceRemoto(
 // ── Miniaturas ───────────────────────────────────────────────────────────
 
 /// Hace las miniaturas WebP del tablón que falten o estén viejas (4 a la
-/// vez) y borra las de películas que ya no están.
+/// vez) y borra las de películas que ya no están, y las carpetas de
+/// miniaturas de otro tamaño o calidad.
 Future<void> prepararMiniaturasTablon(
   List<FilaPelicula> filas,
   CarpetasApp carpetas, {
   void Function(int hechas, int total)? alAvanzar,
 }) async {
-  Directory(carpetas.miniaturasTablon).createSync(recursive: true);
-  final pendientes = <int>[];
+  final carpeta = Directory(carpetas.miniaturasTablon)
+    ..createSync(recursive: true);
+  for (final otra in carpeta.parent.listSync()) {
+    final nombre = otra.uri.pathSegments.where((s) => s.isNotEmpty).last;
+    if (otra is Directory &&
+        nombre.startsWith('caratulas') &&
+        otra.path != carpeta.path) {
+      otra.deleteSync(recursive: true);
+    }
+  }
+  final pendientes = <(int, String)>[];
   for (final f in filas) {
     if (!f.tieneMiniatura) continue;
     final jpeg = File(carpetas.miniatura(f.id));
@@ -202,7 +213,7 @@ Future<void> prepararMiniaturasTablon(
     if (!jpeg.existsSync()) continue;
     if (!webp.existsSync() ||
         webp.lastModifiedSync().isBefore(jpeg.lastModifiedSync())) {
-      pendientes.add(f.id);
+      pendientes.add((f.id, f.ruta));
     }
   }
   final validas = {for (final f in filas) f.id};
@@ -240,8 +251,10 @@ Future<void> prepararMiniaturasTablon(
 // dentro de otra se llevaría sin querer todo lo de alrededor (como el aviso
 // de progreso de la app), y eso no se puede mandar a otro hilo.
 
-Future<void> _miniaturasEnSegundoPlano(String raiz, List<int> ids) =>
-    Isolate.run(() => _hacerMiniaturas(raiz, ids));
+Future<void> _miniaturasEnSegundoPlano(
+  String raiz,
+  List<(int, String)> peliculas,
+) => Isolate.run(() => _hacerMiniaturas(raiz, peliculas));
 
 Future<_Armado> _armarEnSegundoPlano(
   Uint8List bytesLlave,
@@ -254,15 +267,31 @@ Future<_Armado> _armarEnSegundoPlano(
   () => _armar(bytesLlave, parametros, filas, raizColeccion, raizApp, remotas),
 );
 
-void _hacerMiniaturas(String raiz, List<int> ids) {
+/// Las miniaturas del tablón salen de la carátula original del `.mp4` (más
+/// nítidas que desde la miniatura JPEG del PC, que ya está comprimida). Si el
+/// archivo no se puede leer (disco desconectado…), de la miniatura del PC, y
+/// se deja con fecha de antes para rehacerla desde el original la próxima
+/// vez.
+void _hacerMiniaturas(String raiz, List<(int, String)> peliculas) {
   final carpetas = CarpetasApp(raiz);
-  for (final id in ids) {
+  for (final (id, ruta) in peliculas) {
     try {
-      final webp = miniaturaTablon(
-        File(carpetas.miniatura(id)).readAsBytesSync(),
-      );
-      if (webp != null) {
-        File(carpetas.miniaturaTablon(id)).writeAsBytesSync(webp);
+      final jpeg = File(carpetas.miniatura(id));
+      Uint8List? original;
+      try {
+        original = leerCaratulaMp4(ruta);
+      } catch (_) {
+        // Sin disco, archivo movido o carátula rara: la del PC.
+        original = null;
+      }
+      final webp = miniaturaTablon(original ?? jpeg.readAsBytesSync());
+      if (webp == null) continue;
+      final destino = File(carpetas.miniaturaTablon(id))
+        ..writeAsBytesSync(webp);
+      if (original == null) {
+        destino.setLastModifiedSync(
+          jpeg.lastModifiedSync().subtract(const Duration(seconds: 1)),
+        );
       }
     } on Exception {
       // Una miniatura estropeada: esa película va sin carátula.

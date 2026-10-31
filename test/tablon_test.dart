@@ -15,6 +15,7 @@ import 'package:videoteca/tablon/lector.dart';
 import 'package:videoteca/tablon/publicador.dart';
 
 import 'ayuda/github_falso.dart';
+import 'lectura_test.dart' show mp4ConCaratula;
 
 void main() {
   // Parámetros pequeños para que los tests vayan rápido.
@@ -172,6 +173,55 @@ void main() {
           red: red,
         );
 
+    test('las miniaturas salen de la carátula del .mp4 (issue #6)', () async {
+      // Una carátula original de 350 × 500 dentro de un .mp4 de verdad.
+      final original = img.Image(width: 350, height: 500);
+      for (final p in original) {
+        p
+          ..r = (p.x * 7) % 256
+          ..g = (p.y * 5) % 256
+          ..b = ((p.x ^ p.y) * 3) % 256;
+      }
+      final mp4 = File('${temporal.path}${Platform.pathSeparator}Uno.mp4')
+        ..writeAsBytesSync(mp4ConCaratula(img.encodeJpg(original)));
+      // Restos de las miniaturas de antes (180 px): se borran.
+      final vieja = Directory(
+        '${carpetas.tablon}${Platform.pathSeparator}caratulas',
+      )..createSync(recursive: true);
+      final filas = [
+        for (final f in await bd.todasLasPeliculas())
+          f.id == 1 ? f.copyWith(ruta: mp4.path) : f,
+      ];
+      await prepararMiniaturasTablon(filas, carpetas);
+
+      expect(vieja.existsSync(), isFalse);
+      // Uno: desde el .mp4, al ancho del tablón y con fecha de ahora.
+      final uno = File(carpetas.miniaturaTablon(1));
+      expect(
+        img.decodeWebP(uno.readAsBytesSync())!.width,
+        anchoMiniaturaTablon,
+      );
+      final jpegUno = File(carpetas.miniatura(1));
+      expect(
+        uno.lastModifiedSync().isBefore(jpegUno.lastModifiedSync()),
+        isFalse,
+      );
+      // Tres: su .mp4 no está → de la miniatura del PC, y con fecha de antes
+      // para rehacerla desde el original la próxima vez.
+      final tres = File(carpetas.miniaturaTablon(150));
+      expect(img.decodeWebP(tres.readAsBytesSync())!.width, 240);
+      expect(
+        tres.lastModifiedSync().isBefore(
+          File(carpetas.miniatura(150)).lastModifiedSync(),
+        ),
+        isTrue,
+      );
+      // La próxima vez solo se rehace Tres (Uno ya está al día).
+      final antesUno = uno.readAsBytesSync();
+      await prepararMiniaturasTablon(filas, carpetas);
+      expect(uno.readAsBytesSync(), antesUno);
+    });
+
     test(
       'la primera vez lo sube todo y se puede leer con la contraseña',
       () async {
@@ -208,7 +258,8 @@ void main() {
         expect(fichas.first.containsKey('pais'), isFalse); // vacío: no va
         final caratulas = await lector.caratulas(commit, '000', llaveMovil);
         expect(caratulas.keys, [1]);
-        expect(img.decodeWebP(caratulas[1]!)!.width, anchoMiniaturaTablon);
+        // (Sin el .mp4, de la miniatura del PC, de 240 px: no se agranda.)
+        expect(img.decodeWebP(caratulas[1]!)!.width, 240);
 
         // Con otra contraseña, nada.
         final mala = await derivarLlave('otra', p);

@@ -316,6 +316,11 @@ class BaseDatos extends _$BaseDatos {
 
   /// Modo consulta: cambia de golpe las películas con número entre [desde] y
   /// [hasta] (un grupo del tablón) por [filas].
+  ///
+  /// Si la ruta de una fila la tiene todavía otra película de otro grupo (en
+  /// el PC se ha movido una a donde estaba otra), esa se quita: su grupo
+  /// también ha cambiado y llega en la misma descarga. Si no, la ruta
+  /// repetida hacía fallar el grupo siempre (issue #15).
   Future<void> reemplazarPeliculas(
     int desde,
     int hasta,
@@ -324,7 +329,9 @@ class BaseDatos extends _$BaseDatos {
     await (delete(
       peliculas,
     )..where((p) => p.id.isBetweenValues(desde, hasta))).go();
-    await batch((b) => b.insertAll(peliculas, filas));
+    await batch(
+      (b) => b.insertAll(peliculas, filas, mode: InsertMode.insertOrReplace),
+    );
   });
 
   /// Modo consulta: vacía el catálogo (para descargar otro tablón).

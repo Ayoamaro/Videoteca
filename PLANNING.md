@@ -313,12 +313,17 @@ Desde la v1.1 ya no se trabaja por «días»: el usuario cuenta cada problema qu
 
 | # | Issue | Prioridad |
 |---|---|---|
-| [#2](https://github.com/Ayoamaro/Videoteca/issues/2) | Editar/Completar ficha: la página hace scroll sola al pulsar o pegar en un campo | 🔴 urgente |
 | [#5](https://github.com/Ayoamaro/Videoteca/issues/5) | FilmAffinity: Edge bloqueado por Cloudflare y campos que nunca se rellenan solos | 🔴 urgente · decisión |
 | [#4](https://github.com/Ayoamaro/Videoteca/issues/4) | Ventana de Windows más elegante, integrada con la app (como Chrome) | 🟠 alta · decisión |
 | [#1](https://github.com/Ayoamaro/Videoteca/issues/1) | Al abrir una ficha se ve tarde el efecto de pulsar la carátula | 🟡 media |
 | [#3](https://github.com/Ayoamaro/Videoteca/issues/3) | Los avisos flotantes tapan botones y no se pueden cerrar | 🟡 media |
 | [#6](https://github.com/Ayoamaro/Videoteca/issues/6) | Carátulas borrosas en el móvil | 🟡 media |
+
+**Issues cerradas** (sin versión nueva todavía):
+
+| # | Issue | PR |
+|---|---|---|
+| [#2](https://github.com/Ayoamaro/Videoteca/issues/2) | Editar/Completar ficha: la página hace scroll sola | [#7](https://github.com/Ayoamaro/Videoteca/pull/7) (31/10) |
 
 ---
 

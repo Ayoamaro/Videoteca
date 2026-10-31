@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:go_router/go_router.dart';
 
 import '../modelos/pelicula.dart';
@@ -29,20 +32,75 @@ class PaginaBase extends StatelessWidget {
           bottom: false,
           child: SingleChildScrollView(
             padding: relleno,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < children.length; i++) ...[
-                  if (i > 0) SizedBox(height: separacion),
-                  children[i],
+            child: _SinSaltosAlVolver(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < children.length; i++) ...[
+                    if (i > 0) SizedBox(height: separacion),
+                    children[i],
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );
       },
     );
   }
+}
+
+/// Al volver a la ventana (p. ej. tras copiar algo en otro programa),
+/// Flutter devuelve el foco al último campo de texto y este pide que la
+/// página se mueva hasta él, aunque ya no se viera: la página saltaba sola
+/// (issue #2). Justo al volver se ignoran esas peticiones; el scroll lo lleva
+/// el usuario. (Con el tabulador se sigue bajando al campo siguiente: eso va
+/// por otro camino.)
+class _SinSaltosAlVolver extends SingleChildRenderObjectWidget {
+  const _SinSaltosAlVolver({required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    _vueltaALaVentana.escuchar();
+    return _RenderSinSaltos();
+  }
+}
+
+class _RenderSinSaltos extends RenderProxyBox {
+  @override
+  void showOnScreen({
+    RenderObject? descendant,
+    Rect? rect,
+    Duration duration = Duration.zero,
+    Curve curve = Curves.ease,
+  }) {
+    if (_vueltaALaVentana.ahora) return;
+    super.showOnScreen(
+      descendant: descendant,
+      rect: rect,
+      duration: duration,
+      curve: curve,
+    );
+  }
+}
+
+final _vueltaALaVentana = _VueltaALaVentana();
+
+/// Si se acaba de volver a la ventana (durante [_margen]).
+class _VueltaALaVentana {
+  static const _margen = Duration(milliseconds: 400);
+
+  AppLifecycleListener? _escucha;
+  Timer? _reloj;
+
+  bool get ahora => _reloj?.isActive ?? false;
+
+  void escuchar() => _escucha ??= AppLifecycleListener(
+    onResume: () {
+      _reloj?.cancel();
+      _reloj = Timer(_margen, () {});
+    },
+  );
 }
 
 /// Título grande de pantalla con descripción opcional y botones a la derecha.

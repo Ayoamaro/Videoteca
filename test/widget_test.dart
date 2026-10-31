@@ -1668,7 +1668,9 @@ void main() {
     );
   }, variant: windows);
 
-  testWidgets('Barra de la ventana como Chrome (issue #4)', (tester) async {
+  testWidgets('Barra de la ventana como Chrome (issues #4 y #13)', (
+    tester,
+  ) async {
     final semantica = tester.ensureSemantics();
     const canal = MethodChannel('videoteca/ventana');
     final llamadas = <MethodCall>[];
@@ -1696,7 +1698,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Videoteca'), findsOneWidget);
+    // Solo el icono, sin el nombre (issue #13).
+    expect(find.byIcon(Icons.movie_outlined), findsOneWidget);
+    expect(find.text('Videoteca'), findsNothing);
     // El contenido va debajo de la barra.
     expect(
       tester.getTopLeft(find.text('Contenido')).dy,
@@ -1714,6 +1718,22 @@ void main() {
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     Finder boton(String nombre) => find.byWidgetPredicate(
       (w) => w is Semantics && w.properties.label == nombre,
+    );
+
+    // Al maximizar (la ventana cambia de tamaño), las zonas se vuelven a
+    // mandar: si no, Windows tomaba los botones por la barra (issue #13).
+    tester.view.physicalSize = const Size(1920, 1040);
+    await tester.pumpAndSettle();
+    final nuevas =
+        llamadas.lastWhere((l) => l.method == 'zonas').arguments as Map;
+    expect((nuevas['botones'] as List).cast<List>().last[2], 1920);
+    expect((nuevas['maximizar'] as List)[2], 1920 - 46 * 1.5);
+    final mandadas = llamadas.where((l) => l.method == 'zonas').length;
+    await tester.pump();
+    expect(
+      llamadas.where((l) => l.method == 'zonas').length,
+      mandadas,
+      reason: 'sin cambios no se vuelven a mandar',
     );
 
     // Minimizar y cerrar los pulsa la app.

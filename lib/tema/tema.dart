@@ -173,6 +173,7 @@ ThemeData construirTema(Brightness brillo) {
       backgroundColor: c.seleccion,
       contentTextStyle: texto(14, FontWeight.w600),
       actionTextColor: c.doradoTexto,
+      closeIconColor: c.textoSecundario,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
     tooltipTheme: TooltipThemeData(

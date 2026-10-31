@@ -12,6 +12,7 @@ import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/comunes.dart';
 import 'registro.dart' show fechaHora, mostrarError;
+import '../widgets/avisos.dart';
 
 /// «Completar mi colección»: el lote que rellena los campos vacíos de todas
 /// las películas (ver `datos/lote.dart`) y el repaso con FilmAffinity.
@@ -644,17 +645,11 @@ class _PantallaCompletarColeccionState
         errores.take(8).join('\n'),
       );
     }
-    mensajero
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            'Tanda $numero deshecha: $deshechas '
-            '${deshechas == 1 ? 'archivo' : 'archivos'} como estaban'
-            '${saltadas == 0 ? '' : '; $saltadas sin tocar porque las cambiaste después'}.',
-          ),
-        ),
-      );
+    mensajero.avisar(
+      'Tanda $numero deshecha: $deshechas '
+      '${deshechas == 1 ? 'archivo' : 'archivos'} como estaban'
+      '${saltadas == 0 ? '' : '; $saltadas sin tocar porque las cambiaste después'}.',
+    );
   }
 }
 

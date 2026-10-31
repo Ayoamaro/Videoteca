@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../datos/red_casa.dart';
 import '../disco/red.dart';
 import '../tema/colores.dart';
+import 'avisos.dart';
 
 // Entrar en el PC de las películas con usuario y contraseña, para los PC de
 // la red de casa que no pueden entrar como invitado (Windows 11 reciente):
@@ -22,19 +23,14 @@ Future<void> entrarConContrasena(BuildContext context, String ruta) async {
   );
   if (resultado == null) return;
   final equipo = _nombreEquipo(ruta);
-  avisos
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(
-          resultado == ResultadoCredenciales.hecho
-              ? 'Hecho: este PC ya entra en $equipo y lo recordará.'
-              : 'Ya se entra en $equipo, pero Windows no ha dejado guardar la '
-                    'contraseña: al reiniciar el PC habrá que escribirla otra '
-                    'vez.',
-        ),
-      ),
-    );
+  avisos.avisar(
+    resultado == ResultadoCredenciales.hecho
+        ? 'Hecho: este PC ya entra en $equipo y lo recordará.'
+        : 'Ya se entra en $equipo, pero Windows no ha dejado guardar la '
+              'contraseña: al reiniciar el PC habrá que escribirla otra '
+              'vez.',
+    largo: resultado != ResultadoCredenciales.hecho,
+  );
 }
 
 /// El nombre del PC de [ruta] (`\\AYO-PC\…` → `AYO-PC`) para los textos.

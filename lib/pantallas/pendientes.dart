@@ -12,6 +12,7 @@ import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
+import '../widgets/avisos.dart';
 
 /// Todo lo que necesita atención en la colección.
 class PantallaPendientes extends ConsumerStatefulWidget {
@@ -332,11 +333,7 @@ class _PantallaPendientesState extends ConsumerState<PantallaPendientes> {
 
   void _abrirCarpeta(Pelicula p) {
     if (!mostrarEnCarpeta(p.ruta)) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('No se ha podido abrir la carpeta.')),
-        );
+      avisar(context, 'No se ha podido abrir la carpeta.');
     }
   }
 

@@ -11,6 +11,7 @@ import '../disco/escritor.dart';
 import '../tema/colores.dart';
 import '../utilidades.dart';
 import '../widgets/comunes.dart';
+import '../widgets/avisos.dart';
 
 /// Registro de cambios: todo lo que la app ha escrito en los `.mp4`, con lo
 /// que había antes, y el botón para deshacerlo.
@@ -361,11 +362,7 @@ Future<void> deshacerCambio(
     await edicion.deshacer(id);
     navegador.pop();
     esperando = false;
-    mensajero
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text('Hecho: «$titulo» vuelve a estar como antes.')),
-      );
+    mensajero.avisar('Hecho: «$titulo» vuelve a estar como antes.');
   } on Exception catch (e) {
     if (esperando) navegador.pop();
     final contexto = navegador.context;

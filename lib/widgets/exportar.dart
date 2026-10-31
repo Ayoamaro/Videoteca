@@ -17,6 +17,7 @@ import '../disco/acciones_windows.dart';
 import '../disco/dialogo_abrir.dart';
 import '../modelos/pelicula.dart';
 import '../utilidades.dart';
+import 'avisos.dart';
 
 // Exportar el catálogo a Excel, hacer una copia de seguridad y restaurarla
 // (botones de Ajustes y de Estadísticas). Solo en Windows.
@@ -193,22 +194,14 @@ Future<bool> _trabajando(
 }
 
 void _hecho(BuildContext context, String texto, String ruta) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(texto),
-        duration: const Duration(seconds: 8),
-        action: SnackBarAction(
-          label: 'Ver en la carpeta',
-          onPressed: () => mostrarEnCarpeta(ruta),
-        ),
-      ),
-    );
+  avisar(
+    context,
+    texto,
+    accion: 'Ver en la carpeta',
+    alPulsar: () => mostrarEnCarpeta(ruta),
+  );
 }
 
 void _avisar(BuildContext context, String texto) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(texto)));
+  avisar(context, texto);
 }

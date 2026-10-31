@@ -30,6 +30,7 @@ import '../widgets/credenciales_red.dart';
 import '../widgets/exportar.dart';
 import '../widgets/progreso_escaneo.dart';
 import '../widgets/version_nueva.dart';
+import '../widgets/avisos.dart';
 
 /// Ajustes de la app. En el modo consulta solo se ven la apariencia, el
 /// catálogo descargado, la sesión y «Acerca de».
@@ -546,9 +547,7 @@ class _DialogoContrasenaAdminState extends State<_DialogoContrasenaAdmin> {
     if (!mounted) return;
     final avisos = ScaffoldMessenger.of(context);
     Navigator.pop(context);
-    avisos.showSnackBar(
-      const SnackBar(content: Text('Contraseña de administrador cambiada.')),
-    );
+    avisos.avisar('Contraseña de administrador cambiada.');
   }
 
   @override
@@ -820,18 +819,13 @@ class _EstadoCampoClave extends ConsumerState<_CampoClave> {
           .probarYGuardar(widget.servicio, _texto.text);
       if (!mounted) return;
       setState(() => _editando = false);
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-              _texto.text.trim().isEmpty
-                  ? 'Clave de ${widget.servicio.nombre} borrada.'
-                  : 'La clave de ${widget.servicio.nombre} funciona y se ha '
-                        'guardado.',
-            ),
-          ),
-        );
+      avisar(
+        context,
+        _texto.text.trim().isEmpty
+            ? 'Clave de ${widget.servicio.nombre} borrada.'
+            : 'La clave de ${widget.servicio.nombre} funciona y se ha '
+                  'guardado.',
+      );
     } on FuenteException catch (e) {
       if (mounted) setState(() => _error = e.mensaje);
     } catch (e) {
@@ -1338,18 +1332,13 @@ class _EstadoSeccionRed extends ConsumerState<_SeccionRed> {
     });
     if (error != null) return;
     final e = ref.read(redCasaProvider);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            e.probadas == 0
-                ? 'Ruta de red guardada.'
-                : 'Ruta de red guardada: encontradas ${e.encontradas} de '
-                      '${e.probadas} películas de prueba.',
-          ),
-        ),
-      );
+    avisar(
+      context,
+      e.probadas == 0
+          ? 'Ruta de red guardada.'
+          : 'Ruta de red guardada: encontradas ${e.encontradas} de '
+                '${e.probadas} películas de prueba.',
+    );
   }
 
   /// El diálogo de Windows para elegir la carpeta (también las de red).
@@ -1523,13 +1512,7 @@ class _EstadoSeccionRed extends ConsumerState<_SeccionRed> {
                     .read(servicioRedProvider)
                     .abrirEnExplorador(e.ruta);
                 if (!abierto && context.mounted) {
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      const SnackBar(
-                        content: Text('No se ha podido abrir el Explorador.'),
-                      ),
-                    );
+                  avisar(context, 'No se ha podido abrir el Explorador.');
                 }
               },
               icon: const Icon(Icons.folder_open_outlined, size: 18),

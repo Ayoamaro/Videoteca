@@ -27,6 +27,7 @@ import 'package:videoteca/pantallas/editar_ficha.dart';
 import 'package:videoteca/tablon/copia_local.dart';
 import 'package:videoteca/tema/tema.dart';
 import 'package:videoteca/utilidades.dart';
+import 'package:videoteca/widgets/avisos.dart';
 import 'package:videoteca/widgets/buscador_sugerencias.dart';
 import 'package:videoteca/widgets/comunes.dart';
 
@@ -1476,6 +1477,83 @@ void main() {
     },
     variant: windows,
   );
+
+  testWidgets('Avisos: en un rincón, con X y se cierran con Esc (issue #3)', (
+    tester,
+  ) async {
+    final semantica = tester.ensureSemantics();
+    portapapeles(tester);
+    await abrirApp(tester, const Size(1400, 900));
+    await abrirFicha(tester, 'forrest', 'Forrest Gump');
+    Future<void> copiarRuta() async {
+      await tester.tap(find.text('Copiar ruta'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Ruta copiada.'), findsOneWidget);
+    }
+
+    await copiarRuta();
+    // Pequeño y abajo a la derecha: no tapa los botones de la ficha.
+    final aviso = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(SnackBar),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(aviso.width, lessThanOrEqualTo(anchoAviso));
+    expect(aviso.right, 1400 - 24);
+    expect(aviso.overlaps(tester.getRect(find.text('Reproducir'))), isFalse);
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    // Se cierra con la X…
+    await tester.tap(find.byTooltip('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ruta copiada.'), findsNothing);
+    // …y con Esc.
+    await copiarRuta();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Ruta copiada.'), findsNothing);
+    expect(hayAviso, isFalse);
+    // Sin aviso, Esc no hace nada raro (sigue en la ficha).
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('DÓNDE ESTÁ'), findsOneWidget);
+    semantica.dispose();
+  }, variant: windows);
+
+  testWidgets('Avisos en el móvil: encima de la barra de abajo', (
+    tester,
+  ) async {
+    await abrirApp(tester, const Size(390, 844), consulta: true);
+    avisar(
+      tester.element(find.byType(NavigationBar)),
+      'Catálogo al día: 3 películas nuevas.',
+      accion: 'Ver',
+      alPulsar: () {},
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    final aviso = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(SnackBar),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(aviso.left, 12);
+    expect(aviso.right, 390 - 12);
+    expect(
+      aviso.bottom,
+      lessThanOrEqualTo(tester.getRect(find.byType(NavigationBar)).top),
+    );
+    expect(find.byTooltip('Cerrar'), findsOneWidget);
+    await tester.tap(find.byTooltip('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsNothing);
+  });
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {
     await abrirApp(tester, const Size(1440, 1000), vacio: true);

@@ -29,6 +29,7 @@ import '../widgets/completar.dart';
 import '../widgets/dialogo_datos.dart';
 import '../widgets/dialogo_filmaffinity.dart';
 import 'registro.dart';
+import '../widgets/avisos.dart';
 
 /// "Editar ficha": cambiar a mano los datos y la carátula de una película y
 /// guardarlos dentro de su `.mp4`.
@@ -388,11 +389,7 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
 
   /// Los avisos salen por encima de la barra de abajo, para que no tapen
   /// «Guardar en el archivo».
-  static const _margenAviso = EdgeInsets.fromLTRB(24, 0, 24, 80);
-
-  void _aviso(String texto) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(texto), margin: _margenAviso));
+  void _aviso(String texto) => avisar(context, texto, sobreBarra: true);
 
   Future<void> _guardar() async {
     final p = _pelicula;
@@ -479,40 +476,30 @@ class _EstadoEditarFicha extends ConsumerState<PantallaEditarFicha> {
                 : 'No había nada distinto que guardar.')
           : 'Guardado en el archivo y comprobado '
                 '($n ${n == 1 ? 'cambio' : 'cambios'}).';
-      mensajero
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 8),
-            // Con botón, Flutter lo dejaría fijo hasta cerrarlo a mano.
-            persist: false,
-            // Si se pasa a la siguiente película, también hay barra abajo.
-            margin: completar || repaso != null || dudosa ? _margenAviso : null,
-            content: Text(
-              siguiente == null
-                  ? (repaso != null
-                        ? '$hecho No quedan más por repasar.'
-                        : dudosa && saltadas == 0
-                        ? '$hecho No quedan más dudosas.'
-                        : dudosa
-                        ? '$hecho Era la última de la lista (quedan '
-                              '$saltadas que has saltado).'
-                        : hecho)
-                  : '$hecho Siguiente: «${siguiente.titulo}».',
-            ),
-            action: id == null
-                ? null
-                : SnackBarAction(
-                    label: 'Deshacer',
-                    onPressed: () => deshacerCambio(
-                      navegador.context,
-                      edicion,
-                      id,
-                      titulo: p.titulo,
-                    ),
-                  ),
-          ),
-        );
+      mensajero.avisar(
+        siguiente == null
+            ? (repaso != null
+                  ? '$hecho No quedan más por repasar.'
+                  : dudosa && saltadas == 0
+                  ? '$hecho No quedan más dudosas.'
+                  : dudosa
+                  ? '$hecho Era la última de la lista (quedan '
+                        '$saltadas que has saltado).'
+                  : hecho)
+            : '$hecho Siguiente: «${siguiente.titulo}».',
+        // Si se pasa a la siguiente película, también hay barra abajo.
+        sobreBarra: completar || repaso != null || dudosa,
+        largo: true,
+        accion: id == null ? null : 'Deshacer',
+        alPulsar: id == null
+            ? null
+            : () => deshacerCambio(
+                navegador.context,
+                edicion,
+                id,
+                titulo: p.titulo,
+              ),
+      );
     } on Exception catch (e) {
       navegador.pop();
       if (mounted) {

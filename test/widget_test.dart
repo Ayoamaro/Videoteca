@@ -31,6 +31,7 @@ import 'package:videoteca/tablon/copia_local.dart';
 import 'package:videoteca/tema/tema.dart';
 import 'package:videoteca/utilidades.dart';
 import 'package:videoteca/widgets/avisos.dart';
+import 'package:videoteca/widgets/barra_ventana.dart';
 import 'package:videoteca/widgets/buscador_sugerencias.dart';
 import 'package:videoteca/widgets/comunes.dart';
 
@@ -1666,6 +1667,88 @@ void main() {
       findsOneWidget,
     );
   }, variant: windows);
+
+  testWidgets('Barra de la ventana como Chrome (issue #4)', (tester) async {
+    final semantica = tester.ensureSemantics();
+    const canal = MethodChannel('videoteca/ventana');
+    final llamadas = <MethodCall>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(canal, (
+      llamada,
+    ) async {
+      llamadas.add(llamada);
+      return null;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        canal,
+        null,
+      ),
+    );
+    tester.view.physicalSize = const Size(1200, 700);
+    tester.view.devicePixelRatio = 1.5;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: construirTema(Brightness.dark),
+        builder: (context, hijo) =>
+            ConBarraVentana(mostrar: true, child: hijo!),
+        home: const Scaffold(body: Text('Contenido')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Videoteca'), findsOneWidget);
+    // El contenido va debajo de la barra.
+    expect(
+      tester.getTopLeft(find.text('Contenido')).dy,
+      greaterThanOrEqualTo(altoBarraVentana),
+    );
+    // Le ha dicho al código nativo dónde están la barra y los botones, en
+    // píxeles (×1,5): minimizar y cerrar son de la app, maximizar de Windows.
+    final zonas =
+        llamadas.lastWhere((l) => l.method == 'zonas').arguments as Map;
+    expect(zonas['alto'], altoBarraVentana * 1.5);
+    final botones = (zonas['botones'] as List).cast<List>();
+    expect(botones, hasLength(2));
+    expect(botones.last[2], 1200); // Cerrar, pegado a la derecha.
+    expect((zonas['maximizar'] as List)[2], 1200 - 46 * 1.5);
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    Finder boton(String nombre) => find.byWidgetPredicate(
+      (w) => w is Semantics && w.properties.label == nombre,
+    );
+
+    // Minimizar y cerrar los pulsa la app.
+    await tester.tap(boton('Minimizar'));
+    await tester.tap(boton('Cerrar'));
+    expect(llamadas.map((l) => l.method).where((m) => m != 'zonas'), [
+      'minimizar',
+      'cerrar',
+    ]);
+
+    // Windows avisa de que está maximizada: el botón pasa a «Restaurar».
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      canal.name,
+      const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('estado', {
+          'maximizada': true,
+          'activa': true,
+          'maximizar': 1,
+        }),
+      ),
+      (_) {},
+    );
+    await tester.pump();
+    expect(boton('Restaurar'), findsOneWidget);
+    expect(boton('Maximizar'), findsNothing);
+    await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      canal.name,
+      const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('estado', {'maximizada': false}),
+      ),
+      (_) {},
+    );
+    await tester.pump();
+    semantica.dispose();
+  });
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {
     await abrirApp(tester, const Size(1440, 1000), vacio: true);

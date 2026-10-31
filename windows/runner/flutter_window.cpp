@@ -35,6 +35,12 @@ bool FlutterWindow::OnCreate() {
   receptor_arrastre_->Registrar(
       flutter_controller_->view()->GetNativeWindow());
 
+  // Sin la barra de título de Windows (ver marco_ventana.h).
+  marco_ = std::make_unique<MarcoVentana>(
+      flutter_controller_->engine()->messenger(), GetHandle(),
+      flutter_controller_->view()->GetNativeWindow());
+  marco_->QuitarBarra();
+
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
   });
@@ -48,6 +54,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  marco_ = nullptr;
   if (receptor_arrastre_) {
     receptor_arrastre_->Quitar();
     receptor_arrastre_ = nullptr;
@@ -63,6 +70,13 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (marco_) {
+    if (std::optional<LRESULT> atendido =
+            marco_->Mensaje(hwnd, message, wparam, lparam)) {
+      return *atendido;
+    }
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

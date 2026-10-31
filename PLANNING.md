@@ -315,6 +315,12 @@ Desde la v1.1 ya no se trabaja por «días»: el usuario cuenta cada problema qu
 |---|---|---|
 | — | Ninguna | |
 
+**Issues cerradas en la v1.1.3** (31/10, [notas](docs/novedades/v1.1.3.md)):
+
+| # | Issue | PR |
+|---|---|---|
+| [#15](https://github.com/Ayoamaro/Videoteca/issues/15) | Modo consulta: «Ha fallado la base de datos de la app» al descargar el catálogo en todos los aparatos | [#16](https://github.com/Ayoamaro/Videoteca/pull/16) (31/10) |
+
 **Issues cerradas en la v1.1.2** (31/10, [notas](docs/novedades/v1.1.2.md)):
 
 | # | Issue | PR |

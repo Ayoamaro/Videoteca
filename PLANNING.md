@@ -315,7 +315,6 @@ Desde la v1.1 ya no se trabaja por «días»: el usuario cuenta cada problema qu
 |---|---|---|
 | [#5](https://github.com/Ayoamaro/Videoteca/issues/5) | FilmAffinity: Edge bloqueado por Cloudflare y campos que nunca se rellenan solos | 🔴 urgente · decisión |
 | [#4](https://github.com/Ayoamaro/Videoteca/issues/4) | Ventana de Windows más elegante, integrada con la app (como Chrome) | 🟠 alta · decisión |
-| [#6](https://github.com/Ayoamaro/Videoteca/issues/6) | Carátulas borrosas en el móvil | 🟡 media |
 
 **Issues cerradas** (sin versión nueva todavía):
 
@@ -324,6 +323,9 @@ Desde la v1.1 ya no se trabaja por «días»: el usuario cuenta cada problema qu
 | [#2](https://github.com/Ayoamaro/Videoteca/issues/2) | Editar/Completar ficha: la página hace scroll sola | [#7](https://github.com/Ayoamaro/Videoteca/pull/7) (31/10) |
 | [#1](https://github.com/Ayoamaro/Videoteca/issues/1) | Al abrir una ficha se ve tarde el efecto de pulsar la carátula | [#8](https://github.com/Ayoamaro/Videoteca/pull/8) (31/10) |
 | [#3](https://github.com/Ayoamaro/Videoteca/issues/3) | Los avisos flotantes tapan botones y no se pueden cerrar | [#9](https://github.com/Ayoamaro/Videoteca/pull/9) (31/10) |
+| [#6](https://github.com/Ayoamaro/Videoteca/issues/6) | Carátulas borrosas en el móvil | [#10](https://github.com/Ayoamaro/Videoteca/pull/10) (31/10) |
+
+**Para las notas de la próxima versión:** con la #6, la primera publicación rehace las 5.541 miniaturas y sube de nuevo todas las carátulas; los móviles y PC de consulta las vuelven a descargar **una vez (~100 MB, mejor con wifi)**. Después, comprobar en el móvil que se ven nítidas (Inicio, Catálogo, Ficha).
 
 ---
 

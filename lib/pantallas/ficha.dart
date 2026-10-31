@@ -19,6 +19,7 @@ import '../widgets/caratula.dart';
 import '../widgets/comunes.dart';
 import '../widgets/copiar_pelicula.dart';
 import '../widgets/credenciales_red.dart';
+import '../widgets/avisos.dart';
 
 /// Ficha completa de una película.
 class PantallaFicha extends ConsumerWidget {
@@ -438,9 +439,7 @@ class _EstadoDondeEsta extends ConsumerState<_DondeEsta> {
   /// Se está abriendo la película (`false`) o su carpeta (`true`).
   bool? _abriendo;
 
-  void _mensaje(String texto) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(texto)));
+  void _mensaje(String texto) => avisar(context, texto);
 
   /// Reproduce la película de [ruta] o abre su carpeta. Antes se mira que se
   /// llega a ella (aparte y con tiempo límite).
@@ -821,13 +820,7 @@ class _BotonWeb extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: () async {
         if (!await abrirEnlace(direccion) && context.mounted) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              const SnackBar(
-                content: Text('No se ha podido abrir el navegador.'),
-              ),
-            );
+          avisar(context, 'No se ha podido abrir el navegador.');
         }
       },
       icon: const Icon(Icons.open_in_new_rounded, size: 16),

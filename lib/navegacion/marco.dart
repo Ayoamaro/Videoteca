@@ -20,6 +20,7 @@ import '../tema/tema.dart';
 import '../utilidades.dart';
 import '../widgets/comunes.dart';
 import '../widgets/copiar_pelicula.dart';
+import '../widgets/avisos.dart';
 
 /// Una entrada del menú.
 class Destino {
@@ -74,8 +75,9 @@ class Marco extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) =>
-      _Vigilancia(child: _AtajoBuscar(child: _construir(context)));
+  Widget build(BuildContext context) => _Vigilancia(
+    child: _AtajoBuscar(child: CerrarAvisoConEsc(child: _construir(context))),
+  );
 
   Widget _construir(BuildContext context) {
     return LayoutBuilder(
@@ -245,19 +247,7 @@ class _VigilanciaState extends ConsumerState<_Vigilancia> {
   }
 
   void _avisar(String texto, {String? accion, VoidCallback? alPulsar}) =>
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(texto),
-            duration: const Duration(seconds: 8),
-            // Con botón, Flutter lo dejaría fijo hasta cerrarlo a mano.
-            persist: false,
-            action: accion == null
-                ? null
-                : SnackBarAction(label: accion, onPressed: alPulsar!),
-          ),
-        );
+      avisar(context, texto, accion: accion, alPulsar: alPulsar);
 
   @override
   Widget build(BuildContext context) {

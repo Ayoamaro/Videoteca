@@ -12,6 +12,7 @@ import 'arranque.dart';
 import 'datos/carpetas_app.dart';
 import 'navegacion/rutas.dart';
 import 'tema/tema.dart';
+import 'widgets/avisos.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,9 +80,7 @@ class _AvisoAlAbrirState extends State<_AvisoAlAbrir> {
     if (aviso == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(aviso), duration: const Duration(seconds: 8)),
-      );
+      avisar(context, aviso, largo: true);
     });
   }
 

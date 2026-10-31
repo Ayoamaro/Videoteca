@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../disco/abrir_enlace.dart';
+import '../disco/portapapeles_windows.dart';
 import '../fuentes/datos_automaticos.dart';
 import '../fuentes/omdb.dart';
 import '../fuentes/tmdb.dart';
@@ -55,3 +57,13 @@ final fuentesDatosProvider = Provider<FuentesDatos?>((ref) {
   if (tmdb.isEmpty) return null;
   return FuentesDatos(claveTmdb: tmdb, claveOmdb: claves[Servicio.omdb]!);
 });
+
+/// El portapapeles de Windows, para «Pegar ficha de FilmAffinity».
+final portapapelesProvider = Provider<Portapapeles>(
+  (ref) => const Portapapeles(),
+);
+
+/// Abre una página en el navegador de siempre (en las pruebas, uno falso).
+final abrirEnNavegadorProvider = Provider<Future<bool> Function(String)>(
+  (ref) => abrirEnlace,
+);

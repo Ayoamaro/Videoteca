@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html;
 
@@ -6,8 +9,11 @@ import 'datos_automaticos.dart' show DatoEncontrado;
 import 'identificacion.dart';
 
 // Leer la ficha de una película de FilmAffinity (la página
-// `filmaffinity.com/es/filmNNNNNN.html`) a partir de su HTML, que la app
-// toma de la ventana de Edge (ver `navegador.dart`).
+// `filmaffinity.com/es/filmNNNNNN.html`) a partir de su HTML. La app no abre
+// ni maneja ningún navegador (Cloudflare lo bloqueaba, issue #5): tú abres
+// la ficha en tu navegador, la copias entera (Ctrl + A, Ctrl + C) y la app
+// lee lo copiado, que Windows guarda también como HTML con la dirección de
+// la página (ver `portapapeles_windows.dart`).
 //
 // No usa nada de Flutter.
 
@@ -263,4 +269,84 @@ List<String> _premios(Element? dd) {
             .replaceAll(RegExp(r'\[\d+\*\]'), '')
             .replaceAllMapped(RegExp(r'\s+([:.,])'), (m) => m[1]!),
   ]..removeWhere((p) => p.isEmpty);
+}
+
+// ── Lo copiado del navegador ─────────────────────────────────────────────
+
+/// Lo copiado en «HTML Format» de Windows: una cabecera con las posiciones
+/// (en bytes) del HTML y la dirección de la página (`SourceURL`), y el
+/// HTML. `null` si no tiene ese formato.
+({String html, String url})? leerHtmlCopiado(Uint8List bytes) {
+  // La cabecera es corta y en ASCII.
+  final cabecera = latin1.decode(
+    bytes.sublist(0, bytes.length < 800 ? bytes.length : 800),
+  );
+  int? posicion(String nombre) => int.tryParse(
+    RegExp('^$nombre:(-?\\d+)', multiLine: true).firstMatch(cabecera)?[1] ?? '',
+  );
+  var inicio = posicion('StartHTML') ?? -1;
+  var fin = posicion('EndHTML') ?? -1;
+  if (inicio < 0 || fin < 0) {
+    inicio = posicion('StartFragment') ?? -1;
+    fin = posicion('EndFragment') ?? -1;
+  }
+  if (inicio < 0 || fin <= inicio || fin > bytes.length) return null;
+  final url =
+      RegExp(
+        r'^SourceURL:(.*)$',
+        multiLine: true,
+      ).firstMatch(cabecera)?[1]?.trim() ??
+      '';
+  return (
+    html: utf8.decode(bytes.sublist(inicio, fin), allowMalformed: true),
+    url: url,
+  );
+}
+
+/// Por qué lo copiado no sirve.
+enum FalloCopiado {
+  /// No hay nada copiado de una página web.
+  nada('No hay ninguna página copiada.'),
+
+  /// Lo copiado es de otra web.
+  otraWeb('Lo copiado no es de FilmAffinity.'),
+
+  /// Es de FilmAffinity, pero no la ficha de una película (la búsqueda…).
+  noEsFicha(
+    'Lo copiado es de FilmAffinity, pero no la ficha de una película: entra '
+    'en su ficha y cópiala entera.',
+  ),
+
+  /// La ficha está en otro idioma (las etiquetas se leen en español).
+  otroIdioma(
+    'La ficha copiada no está en español: ábrela en español '
+    '(filmaffinity.com/es/…) y cópiala otra vez.',
+  );
+
+  const FalloCopiado(this.texto);
+
+  final String texto;
+}
+
+/// La ficha de FilmAffinity copiada del navegador ([bytes] = lo que hay en
+/// el portapapeles en «HTML Format», o `null` si no hay nada).
+({FichaFilmaffinity? ficha, FalloCopiado? fallo}) fichaCopiada(
+  Uint8List? bytes,
+) {
+  final copiado = bytes == null ? null : leerHtmlCopiado(bytes);
+  if (copiado == null) return (ficha: null, fallo: FalloCopiado.nada);
+  final url = copiado.url;
+  if (!RegExp(r'^https?://(www\.)?filmaffinity\.com/').hasMatch(url)) {
+    return (ficha: null, fallo: FalloCopiado.otraWeb);
+  }
+  if (idFichaFilmaffinity(url) == null) {
+    return (ficha: null, fallo: FalloCopiado.noEsFicha);
+  }
+  if (!fichaEnEspanol(url)) {
+    return (ficha: null, fallo: FalloCopiado.otroIdioma);
+  }
+  final ficha = leerFichaFilmaffinity(copiado.html, url);
+  return ficha == null
+      ? (ficha: null, fallo: FalloCopiado.noEsFicha)
+      : (ficha: ficha, fallo: null);
 }

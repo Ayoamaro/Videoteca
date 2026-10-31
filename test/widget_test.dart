@@ -12,12 +12,15 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:videoteca/datos/catalogo.dart';
 import 'package:videoteca/datos/consulta.dart';
 import 'package:videoteca/datos/copia_pelicula.dart';
+import 'package:videoteca/datos/fuentes.dart';
 import 'package:videoteca/datos/ejemplo.dart';
 import 'package:videoteca/datos/red_casa.dart';
 import 'package:videoteca/disco/acciones_windows.dart';
 import 'package:videoteca/disco/copiador.dart';
 import 'package:videoteca/disco/escritor.dart';
 import 'package:videoteca/disco/lector_archivo.dart';
+import 'package:videoteca/disco/portapapeles_windows.dart';
+import 'package:videoteca/fuentes/filmaffinity.dart';
 import 'package:videoteca/disco/red.dart';
 import 'package:videoteca/datos/sesion.dart';
 import 'package:videoteca/main.dart';
@@ -30,6 +33,8 @@ import 'package:videoteca/utilidades.dart';
 import 'package:videoteca/widgets/avisos.dart';
 import 'package:videoteca/widgets/buscador_sugerencias.dart';
 import 'package:videoteca/widgets/comunes.dart';
+
+import 'ayuda/ficha_filmaffinity.dart';
 
 /// Catálogo con los datos de ejemplo en lugar de la base de datos.
 class _CatalogoEjemplo extends Catalogo {
@@ -310,6 +315,23 @@ class _CopiaFalsa extends ServicioCopia {
   }
 }
 
+/// El portapapeles de mentira: [copiar] hace como si copiaras una página.
+class _PortapapelesFalso extends Portapapeles {
+  var _cambios = 0;
+  Uint8List? _html;
+
+  void copiar(Uint8List html) {
+    _html = html;
+    _cambios++;
+  }
+
+  @override
+  int cambios() => _cambios;
+
+  @override
+  Uint8List? html() => _html;
+}
+
 /// La ruta de red guardada solo en memoria (sin base de datos).
 class _RutaRedEnMemoria extends RutaRed {
   @override
@@ -327,6 +349,7 @@ Future<DatosArchivo> _leerEjemplo(String ruta) async {
     propiedades: {
       Campo.titulo.propiedad: p.titulo,
       Campo.tituloOriginal.propiedad: p.tituloOriginal,
+      Campo.anio.propiedad: p.anio,
       Campo.sinopsis.propiedad: p.sinopsis,
       Campo.reparto.propiedad: p.reparto,
       Campo.direccion.propiedad: p.direccion,
@@ -350,6 +373,8 @@ Future<void> abrirApp(
   double letra = 1,
   ServicioRed? red,
   ServicioCopia? copia,
+  Portapapeles? portapapeles,
+  List<String>? webs,
 }) async {
   tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
@@ -384,6 +409,14 @@ Future<void> abrirApp(
         servicioCopiaProvider.overrideWithValue(copia ?? _CopiaFalsa()),
         rutaRedProvider.overrideWith(_RutaRedEnMemoria.new),
         lectorFichaProvider.overrideWithValue(_leerEjemplo),
+        portapapelesProvider.overrideWithValue(
+          portapapeles ?? _PortapapelesFalso(),
+        ),
+        // Las webs que se abrirían en el navegador.
+        abrirEnNavegadorProvider.overrideWithValue((url) async {
+          webs?.add(url);
+          return true;
+        }),
       ],
       child: const VideotecaApp(),
     ),
@@ -1554,6 +1587,68 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SnackBar), findsNothing);
   });
+
+  testWidgets('Leer de FilmAffinity copiando su ficha (issue #5)', (
+    tester,
+  ) async {
+    final portapapeles = _PortapapelesFalso()
+      // Lo que ya estaba copiado antes no se lee.
+      ..copiar(htmlCopiado('<p>Otra cosa</p>'));
+    final webs = <String>[];
+    await abrirApp(
+      tester,
+      const Size(1400, 900),
+      portapapeles: portapapeles,
+      webs: webs,
+    );
+    GoRouter.of(tester.element(find.byType(Scaffold).first))
+        .go('/pelicula/1/editar');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Leer de FilmAffinity'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    // Sin enlace guardado ni claves: la búsqueda, en el navegador de siempre.
+    expect(webs, [busquedaFilmaffinity('Los Vengadores 3: Infinity War')]);
+    expect(find.textContaining('Ctrl + A'), findsOneWidget);
+    expect(find.text('Pasar a la ficha (0)'), findsNothing);
+
+    // Copias otra web: te dice por qué no sirve.
+    portapapeles.copiar(
+      htmlCopiado('<p>Hola</p>', url: 'https://www.imdb.com/title/tt1/'),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text(FalloCopiado.otraWeb.texto), findsOneWidget);
+
+    // Copias la ficha buena: la lee sola y marca lo que tienes vacío.
+    portapapeles.copiar(
+      htmlCopiado(
+        paginaFilmaffinity
+            .replaceAll('El Faro del Norte', 'Los Vengadores 3: Infinity War')
+            .replaceAll('1998', '2018')
+            .replaceAll('Ana Pérez', 'Anthony Russo')
+            .replaceAll('John Smith', 'Joe Russo'),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.textContaining('Coinciden título, año y director'), findsOne);
+    final pasar = find.textContaining('Pasar a la ficha (');
+    expect(pasar, findsOneWidget);
+    await tester.tap(pasar);
+    await tester.pumpAndSettle();
+    final temas = find.byWidgetPredicate(
+      (w) => w is TextField && (w.controller?.text.contains('Faros') ?? false),
+    );
+    expect(temas, findsOneWidget);
+    // La sinopsis que ya tenía no se toca.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is TextField &&
+            w.controller?.text == peliculasEjemplo[0].sinopsis,
+      ),
+      findsOneWidget,
+    );
+  }, variant: windows);
 
   testWidgets('Colección vacía: se explica qué hacer', (tester) async {
     await abrirApp(tester, const Size(1440, 1000), vacio: true);

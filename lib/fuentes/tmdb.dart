@@ -46,6 +46,9 @@ class CandidatoTmdb {
   String toString() => '$titulo ($anio) [$id]';
 }
 
+/// Cuántos del reparto se traen de TMDB.
+const maximoRepartoTmdb = 15;
+
 /// La ficha completa de una película en TMDB.
 class FichaTmdb extends CandidatoTmdb {
   const FichaTmdb({
@@ -59,6 +62,10 @@ class FichaTmdb extends CandidatoTmdb {
     this.nombresDirectores = const [],
     this.guion = const [],
     this.fotografia = const [],
+    this.sinopsis = '',
+    this.reparto = const [],
+    this.productoras = const [],
+    this.musica = const [],
     this.paises = const [],
     this.saga = '',
     this.numeroSaga = 0,
@@ -76,6 +83,15 @@ class FichaTmdb extends CandidatoTmdb {
   final List<String> nombresDirectores;
   final List<String> guion;
   final List<String> fotografia;
+
+  /// La sinopsis en español de España (vacía si TMDB no la tiene).
+  final String sinopsis;
+
+  /// Los primeros del reparto, por orden de créditos (como mucho
+  /// [maximoRepartoTmdb]).
+  final List<String> reparto;
+  final List<String> productoras;
+  final List<String> musica;
 
   /// Países de origen, con su nombre en español («Estados Unidos»).
   final List<String> paises;
@@ -208,6 +224,27 @@ class Tmdb {
 
     final directores = conTrabajo({'Director'});
 
+    // Reparto: los primeros por orden de créditos (como FilmAffinity, que
+    // no los pone todos).
+    final actores = [
+      for (final p in (creditos['cast'] as List?) ?? const [])
+        (
+          id: (p['id'] as int?) ?? 0,
+          nombre: (p['name'] as String?)?.trim() ?? '',
+          orden: (p['order'] as int?) ?? 999,
+        ),
+    ]..sort((a, b) => a.orden.compareTo(b.orden));
+    final vistos = <String>{};
+    final reparto = [
+      for (final a in actores)
+        if (a.nombre.isNotEmpty && vistos.add(a.nombre))
+          (id: a.id, nombre: a.nombre),
+    ].take(maximoRepartoTmdb).toList();
+
+    // Música: quien compuso la banda sonora; si no consta, «Music».
+    var musica = conTrabajo({'Original Music Composer'});
+    if (musica.isEmpty) musica = conTrabajo({'Music', 'Composer'});
+
     // Guion: quienes escribieron el guion; si no consta ninguno, el
     // argumento.
     var guion = conTrabajo({'Screenplay', 'Writer', 'Script', 'Dialogue'});
@@ -253,6 +290,14 @@ class Tmdb {
       nombresDirectores: [for (final d in directores) d.nombre],
       guion: await latinos(guion),
       fotografia: await latinos(conTrabajo({'Director of Photography'})),
+      sinopsis: ((json['overview'] as String?) ?? '').trim(),
+      reparto: await latinos(reparto),
+      productoras: [
+        for (final c in (json['production_companies'] as List?) ?? const [])
+          if (((c['name'] as String?) ?? '').trim().isNotEmpty)
+            (c['name'] as String).trim(),
+      ],
+      musica: await latinos(musica),
       paises: [for (final c in codigos) nombresPaises[c] ?? c],
       saga: saga,
       numeroSaga: numeroSaga,

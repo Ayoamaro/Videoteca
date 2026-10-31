@@ -34,6 +34,10 @@ Map<String, Object?> _pelicula(
   Map<String, Object?>? saga,
   String imdb = '',
   List<String> paises = const ['US'],
+  String sinopsis = '',
+  List<String> reparto = const [],
+  List<String> productoras = const [],
+  String musica = '',
 }) => {
   'id': id,
   'title': titulo,
@@ -42,8 +46,23 @@ Map<String, Object?> _pelicula(
   'imdb_id': imdb,
   'origin_country': paises,
   'belongs_to_collection': saga,
+  'overview': sinopsis,
+  'production_companies': [
+    for (final c in productoras) {'name': c},
+  ],
   'credits': {
+    // Desordenado a propósito: cuenta el `order` de los créditos.
+    'cast': [
+      for (var i = reparto.length - 1; i >= 0; i--)
+        {'name': reparto[i], 'order': i},
+    ],
     'crew': [
+      if (musica.isNotEmpty)
+        {
+          'name': musica,
+          'job': 'Original Music Composer',
+          'department': 'Sound',
+        },
       for (final d in directores)
         {'name': d, 'job': 'Director', 'department': 'Directing'},
       {'name': 'Jonathan Nolan', 'job': 'Screenplay', 'department': 'Writing'},
@@ -329,6 +348,53 @@ void main() {
         ),
       );
     });
+  });
+
+  test('Sinopsis, reparto, productora y música de TMDB (issue #5)', () async {
+    final fuentes = FuentesDatos(
+      claveTmdb: 'buena',
+      claveOmdb: '',
+      cliente: _servicios([
+        _pelicula(
+          7,
+          'Origen',
+          'Inception',
+          '2010-07-16',
+          directores: ['Christopher Nolan'],
+          sinopsis: 'Dom Cobb es un ladrón con una extraña habilidad…',
+          reparto: [for (var i = 1; i <= 20; i++) 'Actor $i'],
+          productoras: ['Warner Bros. Pictures', 'Legendary; Syncopy'],
+          musica: 'Hans Zimmer',
+        ),
+      ]),
+    );
+    final r = await fuentes.buscar((
+      titulo: 'Origen',
+      tituloOriginal: 'Inception',
+      anio: 2010,
+      direccion: 'Christopher Nolan',
+    ));
+    String? v(Campo c) => r.datos[c]?.valor;
+    expect(
+      v(Campo.sinopsis),
+      'Dom Cobb es un ladrón con una extraña habilidad…',
+    );
+    // Los 15 primeros por orden de créditos.
+    expect(
+      v(Campo.reparto),
+      [for (var i = 1; i <= maximoRepartoTmdb; i++) 'Actor $i'].join(', '),
+    );
+    // Sin «;» (Windows separa con él los valores de las listas).
+    expect(v(Campo.productora), 'Warner Bros. Pictures, Legendary, Syncopy');
+    expect(v(Campo.musica), 'Hans Zimmer');
+    for (final c in [
+      Campo.sinopsis,
+      Campo.reparto,
+      Campo.productora,
+      Campo.musica,
+    ]) {
+      expect(r.datos[c]!.origen, 'TMDB');
+    }
   });
 
   test('Datos reunidos de las tres fuentes', () async {

@@ -169,6 +169,71 @@ void main() {
       expect(filas.firstWhere((f) => f.id == 150).pais, 'Francia');
     });
 
+    test(
+      'una ruta que pasa a otra película de otro paquete (issue #15)',
+      () async {
+        version = 0;
+        await publicar();
+        await descargar();
+
+        // En el PC se quita «Tres» (la 150, paquete 001) y «Uno» (la 1,
+        // paquete 000) se mueve a su sitio: el paquete 000 trae una ruta que en
+        // la copia todavía es de la 150.
+        final ruta = r'D:\Drama\Drama\Tres (2000).mp4';
+        await pc.borrarPeliculas([150]);
+        await (pc.update(pc.peliculas)..where((p) => p.id.equals(1))).write(
+          PeliculasCompanion(ruta: Value(ruta)),
+        );
+        await publicar();
+        final r = await descargar();
+        expect(r.estado.version, 2);
+        expect(r.quitadas, 1);
+        final filas = await movil.todasLasPeliculas();
+        expect(filas.map((f) => f.id), unorderedEquals([1, 2]));
+        expect(
+          filas.firstWhere((f) => f.id == 1).ruta,
+          r'Drama\Drama\Tres (2000).mp4',
+        );
+
+        // Y al revés: la película del paquete de después se queda la ruta de
+        // la de antes (se cambian de sitio).
+        await pc.guardarPelicula(
+          PeliculasCompanion.insert(
+            id: const Value(150),
+            ruta: r'D:\Drama\Drama\Uno (2000).mp4',
+            titulo: 'Tres',
+            anadida: DateTime(2021),
+            modificado: DateTime(2021),
+            escaneada: DateTime(2021),
+          ),
+        );
+        await publicar();
+        await descargar();
+        await (pc.update(pc.peliculas)..where((p) => p.id.equals(150))).write(
+          PeliculasCompanion(ruta: Value('$ruta.tmp')),
+        );
+        await (pc.update(pc.peliculas)..where((p) => p.id.equals(1))).write(
+          const PeliculasCompanion(
+            ruta: Value(r'D:\Drama\Drama\Uno (2000).mp4'),
+          ),
+        );
+        await (pc.update(pc.peliculas)..where((p) => p.id.equals(150))).write(
+          PeliculasCompanion(ruta: Value(ruta)),
+        );
+        await publicar();
+        await descargar();
+        final cambiadas = await movil.todasLasPeliculas();
+        expect(
+          {for (final f in cambiadas) f.id: f.ruta},
+          {
+            1: r'Drama\Drama\Uno (2000).mp4',
+            2: r'Drama\Drama\Dos (2000).mp4',
+            150: r'Drama\Drama\Tres (2000).mp4',
+          },
+        );
+      },
+    );
+
     test('la ruta de red del PC llega con el catálogo', () async {
       version = 0;
       await publicar(red: r'\\CASA-PC\Pelis\Películas');

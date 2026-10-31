@@ -319,14 +319,26 @@ class _CopiaFalsa extends ServicioCopia {
 class _PortapapelesFalso extends Portapapeles {
   var _cambios = 0;
   Uint8List? _html;
+  String? _texto;
 
   void copiar(Uint8List html) {
     _html = html;
+    _texto = null;
+    _cambios++;
+  }
+
+  /// Copiar solo texto (p. ej. la dirección, desde la barra del navegador).
+  void copiarTexto(String texto) {
+    _html = null;
+    _texto = texto;
     _cambios++;
   }
 
   @override
   int cambios() => _cambios;
+
+  @override
+  Future<String?> texto() async => _texto;
 
   @override
   Uint8List? html() => _html;
@@ -1611,6 +1623,11 @@ void main() {
     expect(webs, [busquedaFilmaffinity('Los Vengadores 3: Infinity War')]);
     expect(find.textContaining('Ctrl + A'), findsOneWidget);
     expect(find.text('Pasar a la ficha (0)'), findsNothing);
+
+    // Copias la dirección (Ctrl + A en la barra del navegador): te lo dice.
+    portapapeles.copiarTexto(urlFichaEjemplo);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text(FalloCopiado.soloDireccion.texto), findsOneWidget);
 
     // Copias otra web: te dice por qué no sirve.
     portapapeles.copiar(

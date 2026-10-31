@@ -1,8 +1,8 @@
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/services.dart';
 
 // El portapapeles de Windows en formato HTML (lo que guarda el navegador al
 // copiar una página: Flutter solo deja leer el texto). Lo usa «Pegar ficha
@@ -15,6 +15,10 @@ class Portapapeles {
   /// Un número que cambia cada vez que se copia algo (para leer solo lo
   /// copiado después de abrir la ventana).
   int cambios() => Platform.isWindows ? _getClipboardSequenceNumber() : 0;
+
+  /// Lo copiado como texto (`null` si no hay texto).
+  Future<String?> texto() async =>
+      (await Clipboard.getData(Clipboard.kTextPlain))?.text;
 
   /// Lo copiado en «HTML Format» (cabecera + HTML, en UTF-8), o `null` si lo
   /// copiado no es de una página web.

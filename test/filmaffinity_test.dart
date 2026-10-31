@@ -139,6 +139,14 @@ void main() {
     test('lo que no sirve dice por qué', () {
       expect(fichaCopiada(null).fallo, FalloCopiado.nada);
       expect(
+        fichaCopiada(null, texto: urlFichaEjemplo).fallo,
+        FalloCopiado.soloDireccion,
+      );
+      expect(
+        fichaCopiada(null, texto: 'Me gusta filmaffinity.com/es/').fallo,
+        FalloCopiado.nada,
+      );
+      expect(
         fichaCopiada(Uint8List.fromList('hola'.codeUnits)).fallo,
         FalloCopiado.nada,
       );

@@ -317,6 +317,14 @@ enum FalloCopiado {
     'en su ficha y cópiala entera.',
   ),
 
+  /// Se ha copiado la dirección de la ficha, no la página (pasa si se
+  /// pulsa Ctrl + A con el cursor en la barra de la dirección).
+  soloDireccion(
+    'Has copiado la dirección de la página, no la página: pulsa una vez '
+    'dentro de la ficha (no en la barra de la dirección) y después Ctrl + A '
+    'y Ctrl + C.',
+  ),
+
   /// La ficha está en otro idioma (las etiquetas se leen en español).
   otroIdioma(
     'La ficha copiada no está en español: ábrela en español '
@@ -329,12 +337,25 @@ enum FalloCopiado {
 }
 
 /// La ficha de FilmAffinity copiada del navegador ([bytes] = lo que hay en
-/// el portapapeles en «HTML Format», o `null` si no hay nada).
+/// el portapapeles en «HTML Format», o `null` si no hay nada; [texto], lo
+/// copiado como texto).
 ({FichaFilmaffinity? ficha, FalloCopiado? fallo}) fichaCopiada(
-  Uint8List? bytes,
-) {
+  Uint8List? bytes, {
+  String texto = '',
+}) {
   final copiado = bytes == null ? null : leerHtmlCopiado(bytes);
-  if (copiado == null) return (ficha: null, fallo: FalloCopiado.nada);
+  if (copiado == null) {
+    final direccion = texto.trim();
+    return (
+      ficha: null,
+      fallo:
+          !direccion.contains(' ') &&
+              RegExp(r'^(https?://)?(www\.)?filmaffinity\.com/')
+                  .hasMatch(direccion)
+          ? FalloCopiado.soloDireccion
+          : FalloCopiado.nada,
+    );
+  }
   final url = copiado.url;
   if (!RegExp(r'^https?://(www\.)?filmaffinity\.com/').hasMatch(url)) {
     return (ficha: null, fallo: FalloCopiado.otraWeb);

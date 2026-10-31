@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -74,7 +73,12 @@ class _EstadoDialogoFilmaffinity extends ConsumerState<_DialogoFilmaffinity> {
       const Duration(milliseconds: 700),
       (_) => _mirarPortapapeles(),
     );
-    _buscarYAbrir();
+    // Cuando la ventana ya esté dibujada y la app libre: abrir el navegador
+    // (ShellExecute) atiende mensajes de Windows y, a mitad de un dibujo,
+    // mete otro dentro (Flutter lo prohíbe).
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => Timer.run(_buscarYAbrir),
+    );
   }
 
   @override
@@ -116,11 +120,16 @@ class _EstadoDialogoFilmaffinity extends ConsumerState<_DialogoFilmaffinity> {
     final cambios = portapapeles.cambios();
     if (cambios == _visto) return;
     _visto = cambios;
-    _leer(portapapeles.html());
+    _leer();
   }
 
-  void _leer(Uint8List? bytes) {
-    final r = fichaCopiada(bytes);
+  Future<void> _leer() async {
+    final portapapeles = ref.read(portapapelesProvider);
+    final r = fichaCopiada(
+      portapapeles.html(),
+      texto: await portapapeles.texto() ?? '',
+    );
+    if (!mounted) return;
     final ficha = r.ficha;
     setState(() {
       _fallo = r.fallo;
@@ -206,8 +215,9 @@ class _EstadoDialogoFilmaffinity extends ConsumerState<_DialogoFilmaffinity> {
             Icons.content_paste_go_rounded,
             c.doradoTexto,
             '${_abierta ? 'He abierto FilmAffinity en tu navegador.' : 'Abre FilmAffinity en tu navegador.'} '
-                'Entra en la ficha de la película, pulsa Ctrl + A y después '
-                'Ctrl + C, y vuelve aquí: la leeré sola.',
+                'Entra en la ficha de la película, pulsa una vez dentro de '
+                'la página (no en la barra de la dirección), después Ctrl + A '
+                'y Ctrl + C, y vuelve aquí: la leeré sola.',
           );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -235,7 +245,7 @@ class _EstadoDialogoFilmaffinity extends ConsumerState<_DialogoFilmaffinity> {
                   label: Text('Buscar «${widget.datos.titulo}»'),
                 ),
               OutlinedButton.icon(
-                onPressed: () => _leer(ref.read(portapapelesProvider).html()),
+                onPressed: _leer,
                 icon: const Icon(Icons.content_paste_rounded, size: 18),
                 label: const Text('Leer lo copiado'),
               ),
